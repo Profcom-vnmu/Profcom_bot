@@ -39,6 +39,8 @@ appsettings.*.json
 # Keep templates
 !appsettings.json
 !appsettings.template.json
+!appsettings.Development.template.json
+!appsettings.Production.template.json
 
 # Local admin and ban lists (на сервері будуть інші)
 # Закоментуйте якщо хочете включити в репозиторій
