@@ -29,6 +29,13 @@ public class BotService
 
     public async Task HandleUpdateAsync(Update update)
     {
+        // Обробка Callback Query (inline-кнопки)
+        if (update.CallbackQuery is { } callbackQuery)
+        {
+            await HandleCallbackQueryAsync(callbackQuery);
+            return;
+        }
+
         if (update.Message is not { } message)
             return;
 
@@ -1262,49 +1269,7 @@ public class BotService
         userState.CurrentMenu = MenuState.Main;
         userState.DialogState = DialogState.None;
 
-        // Перевіряємо чи це адміністратор
-        if (await _userService.IsAdminAsync(message.From.Id))
-        {
-            // Меню адміністратора
-            var adminKeyboard = new ReplyKeyboardMarkup(new[]
-            {
-                new[] { new KeyboardButton("📩 Звернення") },
-                new[] { new KeyboardButton("📢 Опублікувати оголошення") },
-                new[] { new KeyboardButton("📊 Статистика"), new KeyboardButton("📝 Редагувати контакти") },
-                new[] { new KeyboardButton("🤝 Редагувати партнерів"), new KeyboardButton("🎉 Редагувати заходи") }
-            })
-            {
-                ResizeKeyboard = true
-            };
-
-            await _botClient.SendTextMessageAsync(
-                chatId: message.Chat.Id,
-                text: "👤 Адміністративна панель\n\n" +
-                      "Виберіть розділ для продовження:",
-                replyMarkup: adminKeyboard
-            );
-            return;
-        }
-
-        // Меню студента
-        var keyboard = new ReplyKeyboardMarkup(new[]
-        {
-            new[] { new KeyboardButton("📩 Звернення") },
-            new[] { new KeyboardButton("🏠 Гуртожиток") },
-            new[] { new KeyboardButton("🌟 Можливості") },
-            new[] { new KeyboardButton("❓ Допомога") },
-            new[] { new KeyboardButton("ℹ️ Інформація") }
-        })
-        {
-            ResizeKeyboard = true
-        };
-
-        await _botClient.SendTextMessageAsync(
-            chatId: message.Chat.Id,
-            text: "📚 Головне меню\n\n" +
-                  "Виберіть розділ для продовження:",
-            replyMarkup: keyboard
-        );
+        await ShowMainMenuInline(message.Chat.Id, message.From.Id);
     }
 
     private async Task HandleAppealsMenuCommand(Message message)
@@ -3107,6 +3072,227 @@ public class BotService
             parseMode: ParseMode.Html,
             replyMarkup: keyboard
         );
+    }
+
+    // ============================================
+    // ОБРОБКА INLINE-КНОПОК (CALLBACK QUERY)
+    // ============================================
+
+    private async Task HandleCallbackQueryAsync(CallbackQuery callbackQuery)
+    {
+        if (callbackQuery.Message == null || callbackQuery.From == null)
+            return;
+
+        var chatId = callbackQuery.Message.Chat.Id;
+        var userId = callbackQuery.From.Id;
+        var data = callbackQuery.Data ?? string.Empty;
+
+        try
+        {
+            // Відповідаємо на callback query щоб прибрати годинник очікування
+            await _botClient.AnswerCallbackQueryAsync(callbackQuery.Id);
+
+            // Парсимо команду з callback data
+            var parts = data.Split(':');
+            var command = parts[0];
+
+            switch (command)
+            {
+                case "menu_main":
+                    await ShowMainMenuInline(chatId, userId);
+                    break;
+
+                case "menu_appeals":
+                    await HandleAppealsMenuInline(chatId, userId);
+                    break;
+
+                case "menu_help":
+                    await HandleHelpCommandInline(chatId, userId);
+                    break;
+
+                case "menu_info":
+                    await HandleInfoCommandInline(chatId, userId);
+                    break;
+
+                case "menu_dormitory":
+                    await HandleDormitoryCommandInline(chatId, userId);
+                    break;
+
+                case "menu_opportunities":
+                    await HandleOpportunitiesCommandInline(chatId, userId);
+                    break;
+
+                case "menu_partners":
+                    await HandlePartnersCommandInline(chatId, userId);
+                    break;
+
+                case "menu_events":
+                    await HandleEventsCommandInline(chatId, userId);
+                    break;
+
+                case "menu_suggest_event":
+                    await HandleSuggestEventCommandInline(chatId, userId);
+                    break;
+
+                // Адмін меню
+                case "admin_appeals":
+                    await HandleAdminAppealsMenuInline(chatId, userId);
+                    break;
+
+                case "admin_publish_news":
+                    await HandleAdminPublishNewsMenuInline(chatId, userId);
+                    break;
+
+                case "admin_statistics":
+                    await HandleAdminStatisticsInline(chatId, userId);
+                    break;
+
+                case "admin_edit_contacts":
+                    await HandleAdminEditContactsInline(chatId, userId);
+                    break;
+
+                case "admin_edit_partners":
+                    await HandleAdminEditPartnersInline(chatId, userId);
+                    break;
+
+                case "admin_edit_events":
+                    await HandleAdminEditEventsInline(chatId, userId);
+                    break;
+
+                default:
+                    Console.WriteLine($"Unknown callback command: {data}");
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error handling callback query: {ex}");
+            await _botClient.SendTextMessageAsync(chatId, "❌ Сталася помилка. Спробуйте ще раз або напишіть /start");
+        }
+    }
+
+    private async Task ShowMainMenuInline(long chatId, long userId)
+    {
+        // Перевіряємо чи це адміністратор
+        if (await _userService.IsAdminAsync(userId))
+        {
+            var adminKeyboard = new InlineKeyboardMarkup(new[]
+            {
+                new[] { InlineKeyboardButton.WithCallbackData("📩 Звернення", "admin_appeals") },
+                new[] { InlineKeyboardButton.WithCallbackData("📢 Опублікувати оголошення", "admin_publish_news") },
+                new[]
+                {
+                    InlineKeyboardButton.WithCallbackData("📊 Статистика", "admin_statistics"),
+                    InlineKeyboardButton.WithCallbackData("📝 Контакти", "admin_edit_contacts")
+                },
+                new[]
+                {
+                    InlineKeyboardButton.WithCallbackData("🤝 Партнери", "admin_edit_partners"),
+                    InlineKeyboardButton.WithCallbackData("🎉 Заходи", "admin_edit_events")
+                }
+            });
+
+            await _botClient.SendTextMessageAsync(
+                chatId: chatId,
+                text: "👤 <b>Адміністративна панель</b>\n\n" +
+                      "Виберіть розділ для продовження:",
+                parseMode: ParseMode.Html,
+                replyMarkup: adminKeyboard
+            );
+            return;
+        }
+
+        // Меню студента
+        var keyboard = new InlineKeyboardMarkup(new[]
+        {
+            new[] { InlineKeyboardButton.WithCallbackData("📩 Звернення", "menu_appeals") },
+            new[] { InlineKeyboardButton.WithCallbackData("🏠 Гуртожиток", "menu_dormitory") },
+            new[] { InlineKeyboardButton.WithCallbackData("🌟 Можливості", "menu_opportunities") },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("❓ Допомога", "menu_help"),
+                InlineKeyboardButton.WithCallbackData("ℹ️ Інформація", "menu_info")
+            }
+        });
+
+        await _botClient.SendTextMessageAsync(
+            chatId: chatId,
+            text: "📚 <b>Головне меню</b>\n\n" +
+                  "Виберіть розділ для продовження:",
+            parseMode: ParseMode.Html,
+            replyMarkup: keyboard
+        );
+    }
+
+    // Заглушки для нових методів inline - реалізуємо поступово
+    private async Task HandleAppealsMenuInline(long chatId, long userId)
+    {
+        await _botClient.SendTextMessageAsync(chatId, "🚧 В розробці... Використовуйте текстові команди поки що.");
+    }
+
+    private async Task HandleHelpCommandInline(long chatId, long userId)
+    {
+        await _botClient.SendTextMessageAsync(chatId, "🚧 В розробці... Використовуйте текстові команди поки що.");
+    }
+
+    private async Task HandleInfoCommandInline(long chatId, long userId)
+    {
+        await _botClient.SendTextMessageAsync(chatId, "🚧 В розробці... Використовуйте текстові команди поки що.");
+    }
+
+    private async Task HandleDormitoryCommandInline(long chatId, long userId)
+    {
+        await _botClient.SendTextMessageAsync(chatId, "🚧 В розробці... Використовуйте текстові команди поки що.");
+    }
+
+    private async Task HandleOpportunitiesCommandInline(long chatId, long userId)
+    {
+        await _botClient.SendTextMessageAsync(chatId, "🚧 В розробці... Використовуйте текстові команди поки що.");
+    }
+
+    private async Task HandlePartnersCommandInline(long chatId, long userId)
+    {
+        await _botClient.SendTextMessageAsync(chatId, "🚧 В розробці... Використовуйте текстові команди поки що.");
+    }
+
+    private async Task HandleEventsCommandInline(long chatId, long userId)
+    {
+        await _botClient.SendTextMessageAsync(chatId, "🚧 В розробці... Використовуйте текстові команди поки що.");
+    }
+
+    private async Task HandleSuggestEventCommandInline(long chatId, long userId)
+    {
+        await _botClient.SendTextMessageAsync(chatId, "🚧 В розробці... Використовуйте текстові команди поки що.");
+    }
+
+    private async Task HandleAdminAppealsMenuInline(long chatId, long userId)
+    {
+        await _botClient.SendTextMessageAsync(chatId, "🚧 В розробці... Використовуйте текстові команди поки що.");
+    }
+
+    private async Task HandleAdminPublishNewsMenuInline(long chatId, long userId)
+    {
+        await _botClient.SendTextMessageAsync(chatId, "🚧 В розробці... Використовуйте текстові команди поки що.");
+    }
+
+    private async Task HandleAdminStatisticsInline(long chatId, long userId)
+    {
+        await _botClient.SendTextMessageAsync(chatId, "🚧 В розробці... Використовуйте текстові команди поки що.");
+    }
+
+    private async Task HandleAdminEditContactsInline(long chatId, long userId)
+    {
+        await _botClient.SendTextMessageAsync(chatId, "🚧 В розробці... Використовуйте текстові команди поки що.");
+    }
+
+    private async Task HandleAdminEditPartnersInline(long chatId, long userId)
+    {
+        await _botClient.SendTextMessageAsync(chatId, "🚧 В розробці... Використовуйте текстові команди поки що.");
+    }
+
+    private async Task HandleAdminEditEventsInline(long chatId, long userId)
+    {
+        await _botClient.SendTextMessageAsync(chatId, "🚧 В розробці... Використовуйте текстові команди поки що.");
     }
 }
 
