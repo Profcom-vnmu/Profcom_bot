@@ -2170,6 +2170,53 @@ public class BotService
         };
     }
 
+    /// <summary>
+    /// Відправляє або редагує повідомлення залежно від контексту callback query.
+    /// Це дозволяє не засмічувати чат - замість нових повідомлень редагуються існуючі.
+    /// </summary>
+    private async Task<int> SendOrEditMessageAsync(
+        long chatId, 
+        long userId, 
+        string text, 
+        InlineKeyboardMarkup? replyMarkup = null, 
+        ParseMode parseMode = ParseMode.Html,
+        int? messageId = null)
+    {
+        try
+        {
+            if (messageId.HasValue)
+            {
+                // Намагаємося відредагувати існуюче повідомлення
+                await _botClient.EditMessageTextAsync(
+                    chatId: chatId,
+                    messageId: messageId.Value,
+                    text: text,
+                    parseMode: parseMode,
+                    replyMarkup: replyMarkup
+                );
+                return messageId.Value;
+            }
+        }
+        catch (Exception)
+        {
+            // Якщо не вдалося відредагувати (наприклад, повідомлення видалене) - відправимо нове
+        }
+
+        // Відправляємо нове повідомлення
+        var message = await _botClient.SendTextMessageAsync(
+            chatId: chatId,
+            text: text,
+            parseMode: parseMode,
+            replyMarkup: replyMarkup
+        );
+
+        // Зберігаємо ID повідомлення для майбутніх редагувань
+        var userState = GetUserState(userId);
+        userState.LastViewedMessageId = message.MessageId;
+
+        return message.MessageId;
+    }
+
     private async Task HandleUnknownCommand(Message message)
     {
         if (message.From == null || message.Text == null)
@@ -3098,6 +3145,7 @@ public class BotService
 
         var chatId = callbackQuery.Message.Chat.Id;
         var userId = callbackQuery.From.Id;
+        var messageId = callbackQuery.Message.MessageId;
         var data = callbackQuery.Data ?? string.Empty;
 
         try
@@ -3112,44 +3160,44 @@ public class BotService
             switch (command)
             {
                 case "menu_main":
-                    await ShowMainMenuInline(chatId, userId);
+                    await ShowMainMenuInline(chatId, userId, messageId);
                     break;
 
                 case "menu_appeals":
-                    await HandleAppealsMenuInline(chatId, userId);
+                    await HandleAppealsMenuInline(chatId, userId, messageId);
                     break;
 
                 case "menu_help":
-                    await HandleHelpCommandInline(chatId, userId);
+                    await HandleHelpCommandInline(chatId, userId, messageId);
                     break;
 
                 case "menu_info":
-                    await HandleInfoCommandInline(chatId, userId);
+                    await HandleInfoCommandInline(chatId, userId, messageId);
                     break;
 
                 case "menu_dormitory":
-                    await HandleDormitoryCommandInline(chatId, userId);
+                    await HandleDormitoryCommandInline(chatId, userId, messageId);
                     break;
 
                 case "menu_opportunities":
-                    await HandleOpportunitiesCommandInline(chatId, userId);
+                    await HandleOpportunitiesCommandInline(chatId, userId, messageId);
                     break;
 
                 case "menu_partners":
-                    await HandlePartnersCommandInline(chatId, userId);
+                    await HandlePartnersCommandInline(chatId, userId, messageId);
                     break;
 
                 case "menu_events":
-                    await HandleEventsCommandInline(chatId, userId);
+                    await HandleEventsCommandInline(chatId, userId, messageId);
                     break;
 
                 case "menu_suggest_event":
-                    await HandleSuggestEventCommandInline(chatId, userId);
+                    await HandleSuggestEventCommandInline(chatId, userId, messageId);
                     break;
 
                 // Адмін меню
                 case "admin_appeals":
-                    await HandleAdminAppealsMenuInline(chatId, userId);
+                    await HandleAdminAppealsMenuInline(chatId, userId, messageId);
                     break;
 
                 case "admin_publish_news":
@@ -3213,7 +3261,7 @@ public class BotService
         }
     }
 
-    private async Task ShowMainMenuInline(long chatId, long userId)
+    private async Task ShowMainMenuInline(long chatId, long userId, int? messageId = null)
     {
         // Перевіряємо чи це адміністратор
         if (await _userService.IsAdminAsync(userId))
@@ -3234,12 +3282,14 @@ public class BotService
                 }
             });
 
-            await _botClient.SendTextMessageAsync(
+            await SendOrEditMessageAsync(
                 chatId: chatId,
+                userId: userId,
                 text: "👤 <b>Адміністративна панель</b>\n\n" +
                       "Виберіть розділ для продовження:",
+                replyMarkup: adminKeyboard,
                 parseMode: ParseMode.Html,
-                replyMarkup: adminKeyboard
+                messageId: messageId
             );
             return;
         }
@@ -3257,17 +3307,19 @@ public class BotService
             }
         });
 
-        await _botClient.SendTextMessageAsync(
+        await SendOrEditMessageAsync(
             chatId: chatId,
+            userId: userId,
             text: "📚 <b>Головне меню</b>\n\n" +
                   "Виберіть розділ для продовження:",
+            replyMarkup: keyboard,
             parseMode: ParseMode.Html,
-            replyMarkup: keyboard
+            messageId: messageId
         );
     }
 
     // Заглушки для нових методів inline - реалізуємо поступово
-    private async Task HandleAppealsMenuInline(long chatId, long userId)
+    private async Task HandleAppealsMenuInline(long chatId, long userId, int? messageId = null)
     {
         var activeAppeal = _appealService.GetActiveAppealForStudent(userId);
         
@@ -3312,7 +3364,7 @@ public class BotService
         }
     }
 
-    private async Task HandleHelpCommandInline(long chatId, long userId)
+    private async Task HandleHelpCommandInline(long chatId, long userId, int? messageId = null)
     {
         var helpText = "❓ <b>Розділ: Допомога</b>\n\n" +
                       "🤖 <b>Про бота:</b>\n" +
@@ -3372,15 +3424,10 @@ public class BotService
             new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад до меню", "menu_main") }
         });
 
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: helpText,
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
+        await SendOrEditMessageAsync(chatId, userId, helpText, keyboard, ParseMode.Html, messageId);
     }
 
-    private async Task HandleInfoCommandInline(long chatId, long userId)
+    private async Task HandleInfoCommandInline(long chatId, long userId, int? messageId = null)
     {
         // Отримуємо контактну інформацію з БД
         var contactInfo = await _context.ContactInfo.FirstOrDefaultAsync();
@@ -3408,15 +3455,10 @@ public class BotService
             new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад до меню", "menu_main") }
         });
 
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: infoText,
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
+        await SendOrEditMessageAsync(chatId, userId, infoText, keyboard, ParseMode.Html, messageId);
     }
 
-    private async Task HandleDormitoryCommandInline(long chatId, long userId)
+    private async Task HandleDormitoryCommandInline(long chatId, long userId, int? messageId = null)
     {
         var dormitoryText = "🏠 <b>Розділ: Гуртожиток</b>\n\n" +
                            "З питань щодо проживання та поселення в гуртожитки ви можете звернутись за допомогою електронної пошти:\n\n" +
@@ -3427,15 +3469,10 @@ public class BotService
             new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад до меню", "menu_main") }
         });
 
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: dormitoryText,
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
+        await SendOrEditMessageAsync(chatId, userId, dormitoryText, keyboard, ParseMode.Html, messageId);
     }
 
-    private async Task HandleOpportunitiesCommandInline(long chatId, long userId)
+    private async Task HandleOpportunitiesCommandInline(long chatId, long userId, int? messageId = null)
     {
         var keyboard = new InlineKeyboardMarkup(new[]
         {
@@ -3454,7 +3491,7 @@ public class BotService
         );
     }
 
-    private async Task HandlePartnersCommandInline(long chatId, long userId)
+    private async Task HandlePartnersCommandInline(long chatId, long userId, int? messageId = null)
     {
         // Отримуємо інформацію про партнерів з БД
         var partnersInfo = await _context.PartnersInfo.FirstOrDefaultAsync();
@@ -3483,15 +3520,10 @@ public class BotService
             new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад", "menu_opportunities") }
         });
 
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: partnersText,
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
+        await SendOrEditMessageAsync(chatId, userId, partnersText, keyboard, ParseMode.Html, messageId);
     }
 
-    private async Task HandleEventsCommandInline(long chatId, long userId)
+    private async Task HandleEventsCommandInline(long chatId, long userId, int? messageId = null)
     {
         // Отримуємо інформацію про заходи з БД
         var eventsInfo = await _context.EventsInfo.FirstOrDefaultAsync();
@@ -3521,15 +3553,10 @@ public class BotService
             new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад", "menu_opportunities") }
         });
 
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: eventsText,
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
+        await SendOrEditMessageAsync(chatId, userId, eventsText, keyboard, ParseMode.Html, messageId);
     }
 
-    private async Task HandleSuggestEventCommandInline(long chatId, long userId)
+    private async Task HandleSuggestEventCommandInline(long chatId, long userId, int? messageId = null)
     {
         var suggestText = "💡 <b>Запропонувати захід</b>\n\n" +
                          "Маєте ідею для цікавого заходу? Хочете організувати щось разом з профспілкою?\n\n" +
@@ -3548,15 +3575,10 @@ public class BotService
             new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад", "menu_opportunities") }
         });
 
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: suggestText,
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
+        await SendOrEditMessageAsync(chatId, userId, suggestText, keyboard, ParseMode.Html, messageId);
     }
 
-    private async Task HandleAdminAppealsMenuInline(long chatId, long userId)
+    private async Task HandleAdminAppealsMenuInline(long chatId, long userId, int? messageId = null)
     {
         var keyboard = new InlineKeyboardMarkup(new[]
         {
@@ -3574,7 +3596,7 @@ public class BotService
         );
     }
 
-    private async Task HandleAdminPublishNewsMenuInline(long chatId, long userId)
+    private async Task HandleAdminPublishNewsMenuInline(long chatId, long userId, int? messageId = null)
     {
         var keyboard = new InlineKeyboardMarkup(new[]
         {
@@ -3594,7 +3616,7 @@ public class BotService
         );
     }
 
-    private async Task HandleAdminStatisticsInline(long chatId, long userId)
+    private async Task HandleAdminStatisticsInline(long chatId, long userId, int? messageId = null)
     {
         // Загальна статистика користувачів
         var totalUsers = await _context.Users.CountAsync();
@@ -3648,15 +3670,10 @@ public class BotService
             new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад до меню", "menu_main") }
         });
 
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: statsText,
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
+        await SendOrEditMessageAsync(chatId, userId, statsText, keyboard, ParseMode.Html, messageId);
     }
 
-    private async Task HandleAdminEditContactsInline(long chatId, long userId)
+    private async Task HandleAdminEditContactsInline(long chatId, long userId, int? messageId = null)
     {
         var contactInfo = await _context.ContactInfo.FirstOrDefaultAsync();
         
@@ -3683,15 +3700,10 @@ public class BotService
             new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад до меню", "menu_main") }
         });
 
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: infoText,
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
+        await SendOrEditMessageAsync(chatId, userId, infoText, keyboard, ParseMode.Html, messageId);
     }
 
-    private async Task HandleAdminEditPartnersInline(long chatId, long userId)
+    private async Task HandleAdminEditPartnersInline(long chatId, long userId, int? messageId = null)
     {
         var partnersInfo = await _context.PartnersInfo.FirstOrDefaultAsync();
         
@@ -3718,15 +3730,10 @@ public class BotService
             new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад до меню", "menu_main") }
         });
 
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: infoText,
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
+        await SendOrEditMessageAsync(chatId, userId, infoText, keyboard, ParseMode.Html, messageId);
     }
 
-    private async Task HandleAdminEditEventsInline(long chatId, long userId)
+    private async Task HandleAdminEditEventsInline(long chatId, long userId, int? messageId = null)
     {
         var eventsInfo = await _context.EventsInfo.FirstOrDefaultAsync();
         
@@ -3753,16 +3760,11 @@ public class BotService
             new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад до меню", "menu_main") }
         });
 
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: infoText,
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
+        await SendOrEditMessageAsync(chatId, userId, infoText, keyboard, ParseMode.Html, messageId);
     }
 
     // Обробники звернень для inline-кнопок
-    private async Task HandleAppealViewInline(long chatId, long userId, int appealId)
+    private async Task HandleAppealViewInline(long chatId, long userId, int appealId, int? messageId = null)
     {
         var appeal = await _context.Appeals
             .Include(a => a.Messages)
@@ -3793,15 +3795,10 @@ public class BotService
             new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад", "menu_appeals") }
         });
 
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: messageText,
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
+        await SendOrEditMessageAsync(chatId, userId, messageText, keyboard, ParseMode.Html, messageId);
     }
 
-    private async Task HandleAppealWriteInline(long chatId, long userId, int appealId)
+    private async Task HandleAppealWriteInline(long chatId, long userId, int appealId, int? messageId = null)
     {
         var appeal = await _context.Appeals.FirstOrDefaultAsync(a => a.Id == appealId && a.StudentId == userId);
 
@@ -3825,7 +3822,7 @@ public class BotService
         );
     }
 
-    private async Task HandleAppealCloseInline(long chatId, long userId, int appealId)
+    private async Task HandleAppealCloseInline(long chatId, long userId, int appealId, int? messageId = null)
     {
         var appeal = await _context.Appeals.FirstOrDefaultAsync(a => a.Id == appealId && a.StudentId == userId);
 
@@ -3850,7 +3847,7 @@ public class BotService
         );
     }
 
-    private async Task HandleAppealCreateInline(long chatId, long userId)
+    private async Task HandleAppealCreateInline(long chatId, long userId, int? messageId = null)
     {
         // Перевіряємо чи користувач заблокований
         if (await _userService.IsBannedAsync(userId))
@@ -3891,7 +3888,7 @@ public class BotService
         );
     }
 
-    private async Task HandleAdminActiveAppealsInline(long chatId, long userId)
+    private async Task HandleAdminActiveAppealsInline(long chatId, long userId, int? messageId = null)
     {
         var activeAppeals = await _context.Appeals
             .Where(a => a.ClosedAt == null)
@@ -3942,7 +3939,7 @@ public class BotService
         );
     }
 
-    private async Task HandleAdminClosedAppealsInline(long chatId, long userId)
+    private async Task HandleAdminClosedAppealsInline(long chatId, long userId, int? messageId = null)
     {
         var closedAppeals = await _context.Appeals
             .Where(a => a.ClosedAt != null)
