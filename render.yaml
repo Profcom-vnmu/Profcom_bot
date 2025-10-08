@@ -8,3 +8,8 @@ services:
       - key: BotToken
         sync: false
     dockerfilePath: ./Dockerfile
+    # Persistent Disk для збереження бази даних між деплоями
+    disk:
+      name: bot-database
+      mountPath: /app/Data
+      sizeGB: 1
