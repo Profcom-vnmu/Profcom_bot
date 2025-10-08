@@ -1,0 +1,109 @@
+2025-10-09 00:00:27.856 +03:00 [INF] Application is shutting down...
+2025-10-09 00:00:27.873 +03:00 [INF] Зупинка Telegram бота...
+2025-10-09 00:00:45.908 +03:00 [INF] Запуск StudentUnionBot
+2025-10-09 00:00:46.978 +03:00 [WRN] Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data; this mode should only be enabled during development.
+2025-10-09 00:00:47.588 +03:00 [INF] Міграції БД застосовано
+2025-10-09 00:00:47.617 +03:00 [INF] StudentUnionBot готовий до роботи
+2025-10-09 00:00:47.643 +03:00 [INF] Запуск Telegram бота...
+2025-10-09 00:00:47.688 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getMe
+2025-10-09 00:00:47.700 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getMe
+2025-10-09 00:00:47.966 +03:00 [INF] Now listening on: http://localhost:5000
+2025-10-09 00:00:47.971 +03:00 [INF] Application started. Press Ctrl+C to shut down.
+2025-10-09 00:00:47.976 +03:00 [INF] Hosting environment: Development
+2025-10-09 00:00:47.979 +03:00 [INF] Content root path: C:\Users\rz76b\OneDrive\Desktop\bot\Telegram\StudentUnionBot
+2025-10-09 00:00:48.167 +03:00 [INF] Received HTTP response headers after 457.8736ms - 200
+2025-10-09 00:00:48.189 +03:00 [INF] End processing HTTP request after 528.4085ms - 200
+2025-10-09 00:00:49.783 +03:00 [INF] Бот запущено: @TestProfcom_bot (Test_bot)
+2025-10-09 00:00:49.840 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 00:00:49.845 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 00:00:49.900 +03:00 [INF] Received HTTP response headers after 51.1087ms - 200
+2025-10-09 00:00:49.904 +03:00 [INF] End processing HTTP request after 64.7737ms - 200
+2025-10-09 00:00:50.047 +03:00 [INF] Отримано повідомлення від 6902973013 в чаті 6902973013: /start
+2025-10-09 00:00:50.097 +03:00 [INF] Реєстрація/оновлення користувача 6902973013 (@Not_pseudoanonymus)
+2025-10-09 00:00:50.776 +03:00 [INF] Користувач 6902973013 оновлено, Role ПІСЛЯ збереження: "Student"
+2025-10-09 00:00:50.787 +03:00 [INF] Обробка команди: /start
+2025-10-09 00:00:50.877 +03:00 [INF] Користувач 6902973013 має роль "Student", isAdmin=false
+2025-10-09 00:00:50.910 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/sendMessage
+2025-10-09 00:00:50.913 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/sendMessage
+2025-10-09 00:00:50.985 +03:00 [INF] Received HTTP response headers after 68.4688ms - 200
+2025-10-09 00:00:50.988 +03:00 [INF] End processing HTTP request after 78.5824ms - 200
+2025-10-09 00:00:51.009 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 00:00:51.011 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 00:01:16.287 +03:00 [INF] Application is shutting down...
+2025-10-09 00:01:16.299 +03:00 [INF] Зупинка Telegram бота...
+2025-10-09 00:02:20.546 +03:00 [INF] Запуск StudentUnionBot
+2025-10-09 00:02:21.549 +03:00 [WRN] Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data; this mode should only be enabled during development.
+2025-10-09 00:02:21.993 +03:00 [INF] Міграції БД застосовано
+2025-10-09 00:02:22.012 +03:00 [INF] StudentUnionBot готовий до роботи
+2025-10-09 00:02:22.036 +03:00 [INF] Запуск Telegram бота...
+2025-10-09 00:02:22.069 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getMe
+2025-10-09 00:02:22.077 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getMe
+2025-10-09 00:02:22.204 +03:00 [INF] Now listening on: http://localhost:5000
+2025-10-09 00:02:22.208 +03:00 [INF] Application started. Press Ctrl+C to shut down.
+2025-10-09 00:02:22.210 +03:00 [INF] Hosting environment: Development
+2025-10-09 00:02:22.212 +03:00 [INF] Content root path: C:\Users\rz76b\OneDrive\Desktop\bot\Telegram\StudentUnionBot
+2025-10-09 00:02:22.388 +03:00 [INF] Received HTTP response headers after 302.5186ms - 200
+2025-10-09 00:02:22.399 +03:00 [INF] End processing HTTP request after 347.4316ms - 200
+2025-10-09 00:02:22.563 +03:00 [INF] Бот запущено: @TestProfcom_bot (Test_bot)
+2025-10-09 00:02:22.610 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 00:02:22.614 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 00:02:24.313 +03:00 [INF] Received HTTP response headers after 1695.3294ms - 200
+2025-10-09 00:02:24.318 +03:00 [INF] End processing HTTP request after 1708.3263ms - 200
+2025-10-09 00:02:24.412 +03:00 [INF] Отримано повідомлення від 6902973013 в чаті 6902973013: /start
+2025-10-09 00:02:24.444 +03:00 [INF] Реєстрація/оновлення користувача 6902973013 (@Not_pseudoanonymus)
+2025-10-09 00:02:25.160 +03:00 [WRN] REPOSITORY LOAD: User 6902973013 loaded with Role="Student"
+2025-10-09 00:02:25.314 +03:00 [INF] Користувач 6902973013 оновлено, Role ПІСЛЯ збереження: "Student"
+2025-10-09 00:02:25.327 +03:00 [INF] Обробка команди: /start
+2025-10-09 00:02:25.422 +03:00 [WRN] REPOSITORY LOAD: User 6902973013 loaded with Role="Student"
+2025-10-09 00:02:25.425 +03:00 [INF] Користувач 6902973013 має роль "Student", isAdmin=false
+2025-10-09 00:02:25.465 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/sendMessage
+2025-10-09 00:02:25.469 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/sendMessage
+2025-10-09 00:02:25.620 +03:00 [INF] Received HTTP response headers after 148.9768ms - 200
+2025-10-09 00:02:25.950 +03:00 [INF] End processing HTTP request after 484.7083ms - 200
+2025-10-09 00:02:25.977 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 00:02:25.982 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 00:03:16.043 +03:00 [INF] Received HTTP response headers after 50055.7849ms - 200
+2025-10-09 00:03:16.046 +03:00 [INF] End processing HTTP request after 50069.3808ms - 200
+2025-10-09 00:03:16.048 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 00:03:16.051 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 00:03:49.840 +03:00 [INF] Application is shutting down...
+2025-10-09 00:03:49.856 +03:00 [INF] Зупинка Telegram бота...
+2025-10-09 00:04:50.943 +03:00 [INF] Запуск StudentUnionBot
+2025-10-09 00:04:51.962 +03:00 [WRN] Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data; this mode should only be enabled during development.
+2025-10-09 00:04:52.295 +03:00 [INF] Міграції БД застосовано
+2025-10-09 00:04:52.311 +03:00 [INF] StudentUnionBot готовий до роботи
+2025-10-09 00:04:52.333 +03:00 [INF] Запуск Telegram бота...
+2025-10-09 00:04:52.360 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getMe
+2025-10-09 00:04:52.369 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getMe
+2025-10-09 00:04:52.481 +03:00 [INF] Now listening on: http://localhost:5000
+2025-10-09 00:04:52.484 +03:00 [INF] Application started. Press Ctrl+C to shut down.
+2025-10-09 00:04:52.486 +03:00 [INF] Hosting environment: Development
+2025-10-09 00:04:52.488 +03:00 [INF] Content root path: C:\Users\rz76b\OneDrive\Desktop\bot\Telegram\StudentUnionBot
+2025-10-09 00:04:52.699 +03:00 [INF] Received HTTP response headers after 322.5816ms - 200
+2025-10-09 00:04:52.710 +03:00 [INF] End processing HTTP request after 362.7832ms - 200
+2025-10-09 00:04:52.879 +03:00 [INF] Бот запущено: @TestProfcom_bot (Test_bot)
+2025-10-09 00:04:52.922 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 00:04:52.926 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 00:04:55.051 +03:00 [INF] Received HTTP response headers after 2122.2947ms - 200
+2025-10-09 00:04:55.055 +03:00 [INF] End processing HTTP request after 2133.2532ms - 200
+2025-10-09 00:04:55.150 +03:00 [INF] Отримано повідомлення від 6902973013 в чаті 6902973013: /start
+2025-10-09 00:04:55.181 +03:00 [INF] Реєстрація/оновлення користувача 6902973013 (@Not_pseudoanonymus)
+2025-10-09 00:04:55.536 +03:00 [WRN] REPOSITORY LOAD: User 6902973013 loaded with Role="Student"
+2025-10-09 00:04:55.652 +03:00 [INF] Користувач 6902973013 оновлено, Role ПІСЛЯ збереження: "Student"
+2025-10-09 00:04:55.663 +03:00 [INF] Обробка команди: /start
+2025-10-09 00:04:55.752 +03:00 [WRN] REPOSITORY LOAD: User 6902973013 loaded with Role="Student"
+2025-10-09 00:04:55.756 +03:00 [INF] Користувач 6902973013 має роль "Student", isAdmin=false
+2025-10-09 00:04:55.792 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/sendMessage
+2025-10-09 00:04:55.796 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/sendMessage
+2025-10-09 00:04:55.927 +03:00 [INF] Received HTTP response headers after 128.9024ms - 200
+2025-10-09 00:04:55.929 +03:00 [INF] End processing HTTP request after 137.2666ms - 200
+2025-10-09 00:04:55.949 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 00:04:55.955 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 00:05:46.008 +03:00 [INF] Received HTTP response headers after 50048.4993ms - 200
+2025-10-09 00:05:46.012 +03:00 [INF] End processing HTTP request after 50062.8738ms - 200
+2025-10-09 00:05:46.017 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 00:05:46.020 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 00:06:36.073 +03:00 [INF] Received HTTP response headers after 50049.1472ms - 200
+2025-10-09 00:06:36.077 +03:00 [INF] End processing HTTP request after 50060.5223ms - 200
+2025-10-09 00:06:36.080 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 00:06:36.083 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
