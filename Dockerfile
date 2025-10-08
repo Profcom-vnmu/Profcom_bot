@@ -15,8 +15,8 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 COPY --from=build /app/publish .
 
-# Копіюємо конфігураційні файли
-COPY admins.txt .
-COPY ban.txt .
+# Файли admins.txt та ban.txt вже скопійовані разом з publish
+# Якщо їх немає - створюємо порожні
+RUN touch admins.txt ban.txt || true
 
 ENTRYPOINT ["dotnet", "StudentUnionBot.dll"]

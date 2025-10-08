@@ -32,7 +32,14 @@ Thumbs.db
 # Documentation (не потрібні в Docker образі)
 README.md
 DEPLOY_*.md
-*.txt
+HOSTING_*.md
+ПОЧНІТЬ_ЗВІДСИ.txt
+
+# Важливі .txt файли НЕ виключаємо:
+# admins.txt - потрібен
+# ban.txt - потрібен
+# appsettings.template.json - не потрібен
+appsettings.template.json
 
 # Migrations (вже будуть скомпільовані)
 Migrations/*.cs
