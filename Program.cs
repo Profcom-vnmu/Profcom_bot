@@ -21,8 +21,25 @@ var dbPath = Environment.GetEnvironmentVariable("DatabasePath")
     ?? configuration["BotConfiguration:DatabasePath"] 
     ?? "Data/studentunion.db";
 
+Console.WriteLine($"📁 Database path: {dbPath}");
+
 var dbContext = new BotDbContext(dbPath);
-dbContext.Database.Migrate();
+
+Console.WriteLine("🔄 Running database migrations...");
+try
+{
+    dbContext.Database.Migrate();
+    Console.WriteLine("✅ Database migrations completed successfully");
+    
+    // Перевіряємо чи таблиці створені
+    var canConnect = dbContext.Database.CanConnect();
+    Console.WriteLine($"📊 Database connection: {(canConnect ? "OK" : "FAILED")}");
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"❌ Migration failed: {ex.Message}");
+    throw;
+}
 
 var botService = new BotService(botToken, dbPath);
 var botClient = new TelegramBotClient(botToken);

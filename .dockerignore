@@ -41,5 +41,5 @@ HOSTING_*.md
 # appsettings.template.json - не потрібен
 appsettings.template.json
 
-# Migrations (вже будуть скомпільовані)
-Migrations/*.cs
+# Міграції ПОТРІБНІ для створення БД!
+# Migrations/*.cs - НЕ виключаємо!
