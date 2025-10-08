@@ -1,0 +1,84 @@
+# Build results
+bin/
+obj/
+out/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# VS Code
+.vscode/
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+# Database files (містять локальні дані)
+*.db
+*.db-shm
+*.db-wal
+Data/*.db
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Secrets - НЕ ПУБЛІКУЙТЕ ЦІ ФАЙЛИ!
+# appsettings.local.json - для локальної розробки з реальним токеном (НЕ йде в Git)
+appsettings.local.json
+appsettings.*.json
+
+# appsettings.json - шаблон, йде в Git без токена
+# Keep templates
+!appsettings.json
+!appsettings.template.json
+
+# Local admin and ban lists (на сервері будуть інші)
+# Закоментуйте якщо хочете включити в репозиторій
+# admins.txt
+# ban.txt
+
+# NuGet
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+
+# Test results
+TestResults/
+
+# User-specific files
+*.user
+*.rsuser
+*.suo
+
+# Backup files
+*.bak
+*.tmp
+*~
+
+# Windows image file caches
+Thumbs.db
+ehthumbs.db
+
+# Folder config file
+Desktop.ini
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Publish profiles
+*.pubxml
+*.publishproj
+
+# Migration temporary files
+Migrations/*.Designer.cs.bak

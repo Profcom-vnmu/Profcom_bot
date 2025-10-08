@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: studentunionbot
+    env: docker
+    plan: free
+    healthCheckPath: /
+    envVars:
+      - key: BotToken
+        sync: false
+    dockerfilePath: ./Dockerfile

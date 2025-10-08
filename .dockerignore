@@ -1,0 +1,38 @@
+# Build artifacts
+bin/
+obj/
+out/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Database files (будуть створені на сервері)
+*.db
+*.db-shm
+*.db-wal
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation (не потрібні в Docker образі)
+README.md
+DEPLOY_*.md
+*.txt
+
+# Migrations (вже будуть скомпільовані)
+Migrations/*.cs
