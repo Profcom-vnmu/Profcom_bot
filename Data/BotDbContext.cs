@@ -13,16 +13,27 @@ public class BotDbContext : DbContext
     public DbSet<PartnersInfo> PartnersInfo { get; set; } = null!;
     public DbSet<EventsInfo> EventsInfo { get; set; } = null!;
 
-    public string DbPath { get; }
+    private readonly string _connectionString;
+    private readonly bool _isPostgreSQL;
 
-    public BotDbContext(string dbPath)
+    public BotDbContext(string connectionString, bool isPostgreSQL = false)
     {
-        DbPath = dbPath;
-        // Database.EnsureCreated(); // Вимкнено, використовуємо міграції
+        _connectionString = connectionString;
+        _isPostgreSQL = isPostgreSQL;
     }
 
     protected override void OnConfiguring(DbContextOptionsBuilder options)
-        => options.UseSqlite($"Data Source={DbPath}");
+    {
+        if (_isPostgreSQL)
+        {
+            options.UseNpgsql(_connectionString);
+        }
+        else
+        {
+            // Для локальної розробки - SQLite
+            options.UseSqlite($"Data Source={_connectionString}");
+        }
+    }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

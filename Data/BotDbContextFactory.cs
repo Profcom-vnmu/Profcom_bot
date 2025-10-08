@@ -7,7 +7,8 @@ public class BotDbContextFactory : IDesignTimeDbContextFactory<BotDbContext>
 {
     public BotDbContext CreateDbContext(string[] args)
     {
-        var dbPath = Path.Combine(AppContext.BaseDirectory, "bot.db");
-        return new BotDbContext(dbPath);
+        // Для міграцій використовуємо SQLite (локально)
+        var dbPath = Path.Combine(AppContext.BaseDirectory, "Data", "studentunion.db");
+        return new BotDbContext(dbPath, isPostgreSQL: false);
     }
 }

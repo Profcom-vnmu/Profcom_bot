@@ -18,13 +18,32 @@ var botToken = Environment.GetEnvironmentVariable("BotToken")
     ?? configuration["BotToken"]
     ?? throw new ArgumentNullException("BotToken", "Bot token is missing.");
 
-var dbPath = Environment.GetEnvironmentVariable("DatabasePath")
-    ?? configuration["BotConfiguration:DatabasePath"] 
-    ?? "Data/studentunion.db";
+// Перевіряємо наявність PostgreSQL connection string
+var postgresConnectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
+bool usePostgreSQL = !string.IsNullOrEmpty(postgresConnectionString);
 
-Console.WriteLine($"📁 Database path: {dbPath}");
+BotDbContext dbContext;
+string dbInfo;
 
-var dbContext = new BotDbContext(dbPath);
+if (usePostgreSQL)
+{
+    Console.WriteLine("🐘 Using PostgreSQL database");
+    dbInfo = "PostgreSQL (Render)";
+    dbContext = new BotDbContext(postgresConnectionString!, isPostgreSQL: true);
+}
+else
+{
+    // Локальна розробка - SQLite
+    var dbPath = Environment.GetEnvironmentVariable("DatabasePath")
+        ?? configuration["BotConfiguration:DatabasePath"] 
+        ?? "Data/studentunion.db";
+    
+    Console.WriteLine($"📁 Using SQLite database: {dbPath}");
+    dbInfo = $"SQLite ({dbPath})";
+    dbContext = new BotDbContext(dbPath, isPostgreSQL: false);
+}
+
+Console.WriteLine($"📊 Database: {dbInfo}");
 
 Console.WriteLine("🔄 Running database migrations...");
 try
@@ -42,7 +61,7 @@ catch (Exception ex)
     throw;
 }
 
-var botService = new BotService(botToken, dbPath);
+var botService = new BotService(botToken, dbContext);
 var botClient = new TelegramBotClient(botToken);
 
 using var cts = new CancellationTokenSource();

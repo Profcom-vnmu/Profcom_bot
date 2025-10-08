@@ -17,10 +17,10 @@ public class BotService
     private readonly UserService _userService;
     private readonly Dictionary<long, UserState> _userStates;
 
-    public BotService(string botToken, string dbPath)
+    public BotService(string botToken, BotDbContext context)
     {
         _botClient = new TelegramBotClient(botToken);
-        _context = new BotDbContext(dbPath);
+        _context = context;
         _appealService = new AppealService(_context);
         _newsService = new NewsService(_context, _botClient);
         _userService = new UserService(_context);

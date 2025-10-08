@@ -11,14 +11,14 @@ using StudentUnionBot.Data;
 namespace StudentUnionBot.Migrations
 {
     [DbContext(typeof(BotDbContext))]
-    [Migration("20251007193010_AddMediaToAppealMessages")]
-    partial class AddMediaToAppealMessages
+    [Migration("20251008163215_InitialPostgreSQL")]
+    partial class InitialPostgreSQL
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
-            modelBuilder.HasAnnotation("ProductVersion", "8.0.0");
+            modelBuilder.HasAnnotation("ProductVersion", "9.0.1");
 
             modelBuilder.Entity("StudentUnionBot.Models.Appeal", b =>
                 {
@@ -146,6 +146,56 @@ namespace StudentUnionBot.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("StudentUnionBot.Models.ContactInfo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ContactInfo");
+                });
+
+            modelBuilder.Entity("StudentUnionBot.Models.EventsInfo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("EventsInfo");
+                });
+
             modelBuilder.Entity("StudentUnionBot.Models.News", b =>
                 {
                     b.Property<int>("Id")
@@ -165,6 +215,9 @@ namespace StudentUnionBot.Migrations
                     b.Property<bool>("IsPublished")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("PhotoFileId")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("PublishAt")
                         .HasColumnType("TEXT");
 
@@ -175,6 +228,31 @@ namespace StudentUnionBot.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("News");
+                });
+
+            modelBuilder.Entity("StudentUnionBot.Models.PartnersInfo", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("UpdatedBy")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("PartnersInfo");
                 });
 
             modelBuilder.Entity("StudentUnionBot.Models.AppealMessage", b =>
