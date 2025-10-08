@@ -2499,70 +2499,112 @@ public class BotService
         // Позначаємо всі повідомлення як прочитані
         _appealService.MarkMessagesAsReadByAdmin(appealId);
 
-        // Заголовок звернення
-        var headerText = $"📩 Звернення #{appeal.Id}\n" +
+        // Формуємо історію звернення
+        var historyText = $"📩 Звернення #{appeal.Id}\n" +
                          $"Студент: {appeal.StudentName}\n" +
                          $"Статус: {GetStatusText(appeal.Status)}\n" +
                          $"Створено: {appeal.CreatedAt:dd.MM.yyyy HH:mm}\n\n" +
-                         $"━━━━━━━━━━━━━━━━━━━━";
+                         $"━━━━━━━━━━━━━━━━━━━━\n\n";
 
-        await _botClient.SendTextMessageAsync(
-            chatId: message.Chat.Id,
-            text: headerText
-        );
-
-        // Відправляємо історію повідомлень (по одному з медіа)
+        // Отримуємо всі повідомлення звернення
         var messages = _appealService.GetAllAppealMessages(appealId).ToList();
         Message? lastSentMessage = null;
 
-        foreach (var msg in messages)
+        // Спочатку відправляємо всі медіа-повідомлення окремо
+        var mediaMessages = messages.Where(m => !string.IsNullOrEmpty(m.PhotoFileId) || !string.IsNullOrEmpty(m.DocumentFileId)).ToList();
+        
+        foreach (var msg in mediaMessages)
         {
             var sender = msg.IsFromAdmin ? "👤 Адміністратор" : "👨‍🎓 Студент";
             var timeStamp = msg.SentAt.ToString("dd.MM HH:mm");
             var messageHeader = $"{sender} ({timeStamp}):";
             
-            // Якщо є фото
-            if (!string.IsNullOrEmpty(msg.PhotoFileId))
+            try
             {
-                // Якщо текст це тільки "[Фото]" - показуємо тільки header
-                var caption = msg.Text == "[Фото]" 
-                    ? messageHeader 
-                    : $"{messageHeader}\n{msg.Text}";
-                    
-                lastSentMessage = await _botClient.SendPhotoAsync(
-                    chatId: message.Chat.Id,
-                    photo: InputFile.FromFileId(msg.PhotoFileId),
-                    caption: caption
-                );
+                // Якщо є фото
+                if (!string.IsNullOrEmpty(msg.PhotoFileId))
+                {
+                    var caption = msg.Text == "[Фото]" 
+                        ? messageHeader 
+                        : $"{messageHeader}\n{msg.Text}";
+                        
+                    lastSentMessage = await _botClient.SendPhotoAsync(
+                        chatId: message.Chat.Id,
+                        photo: InputFile.FromFileId(msg.PhotoFileId),
+                        caption: caption
+                    );
+                }
+                // Якщо є документ
+                else if (!string.IsNullOrEmpty(msg.DocumentFileId))
+                {
+                    var caption = msg.Text.StartsWith("[Файл:") 
+                        ? messageHeader 
+                        : $"{messageHeader}\n{msg.Text}";
+                        
+                    lastSentMessage = await _botClient.SendDocumentAsync(
+                        chatId: message.Chat.Id,
+                        document: InputFile.FromFileId(msg.DocumentFileId),
+                        caption: caption
+                    );
+                }
             }
-            // Якщо є документ
-            else if (!string.IsNullOrEmpty(msg.DocumentFileId))
+            catch (Exception ex)
             {
-                // Якщо текст це тільки "[Файл: ...]" - показуємо тільки header
-                var caption = msg.Text.StartsWith("[Файл:") 
-                    ? messageHeader 
-                    : $"{messageHeader}\n{msg.Text}";
-                    
-                lastSentMessage = await _botClient.SendDocumentAsync(
-                    chatId: message.Chat.Id,
-                    document: InputFile.FromFileId(msg.DocumentFileId),
-                    caption: caption
-                );
-            }
-            // Текстове повідомлення
-            else
-            {
-                lastSentMessage = await _botClient.SendTextMessageAsync(
-                    chatId: message.Chat.Id,
-                    text: $"{messageHeader}\n{msg.Text}"
-                );
+                Console.WriteLine($"Помилка при відправці медіа: {ex.Message}");
+                // Якщо не вдалося відправити медіа, додаємо як текст
+                historyText += $"📎 {messageHeader}\n{msg.Text}\n\n";
             }
         }
 
-        await _botClient.SendTextMessageAsync(
-            chatId: message.Chat.Id,
-            text: "━━━━━━━━━━━━━━━━━━━━"
-        );
+        // Тепер додаємо всі текстові повідомлення до однієї історії
+        var textMessages = messages.Where(m => string.IsNullOrEmpty(m.PhotoFileId) && string.IsNullOrEmpty(m.DocumentFileId)).ToList();
+        
+        foreach (var msg in textMessages)
+        {
+            var sender = msg.IsFromAdmin ? "👤 Адміністратор" : "👨‍🎓 Студент";
+            var timeStamp = msg.SentAt.ToString("dd.MM HH:mm");
+            
+            historyText += $"{sender} ({timeStamp}):\n{msg.Text}\n\n";
+        }
+
+        historyText += "━━━━━━━━━━━━━━━━━━━━\n\n" +
+                      "💡 Щоб відповісти, зробіть Reply на це повідомлення\nабо натисніть кнопку 'Відповісти'";
+
+        // Перевіряємо довжину повідомлення (ліміт Telegram - 4096 символів)
+        if (historyText.Length > 4096)
+        {
+            // Якщо повідомлення занадто довге, відправляємо частинами
+            var chunks = SplitMessage(historyText, 4000);
+            foreach (var chunk in chunks)
+            {
+                try
+                {
+                    lastSentMessage = await _botClient.SendTextMessageAsync(
+                        chatId: message.Chat.Id,
+                        text: chunk
+                    );
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Помилка при відправці історії: {ex.Message}");
+                }
+            }
+        }
+        else
+        {
+            // Відправляємо всю історію одним повідомленням
+            try
+            {
+                lastSentMessage = await _botClient.SendTextMessageAsync(
+                    chatId: message.Chat.Id,
+                    text: historyText
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Помилка при відправці історії: {ex.Message}");
+            }
+        }
 
         // Зберігаємо ID останнього повідомлення для Reply
         if (lastSentMessage != null)
