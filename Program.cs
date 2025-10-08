@@ -7,9 +7,14 @@ using Telegram.Bot.Polling;
 using Telegram.Bot.Types.Enums;
 using System.Net;
 
+// Визначаємо середовище (Development, Production)
+var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") ?? "Production";
+Console.WriteLine($"🌍 Environment: {environment}");
+
 var configuration = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
     .AddJsonFile("appsettings.json", optional: true)
+    .AddJsonFile($"appsettings.{environment}.json", optional: true)
     .AddJsonFile("appsettings.local.json", optional: true)
     .Build();
 
