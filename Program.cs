@@ -46,9 +46,15 @@ var botClient = new TelegramBotClient(botToken);
 
 using var cts = new CancellationTokenSource();
 
+// Скидаємо всі pending updates щоб уникнути конфліктів
+Console.WriteLine("🔄 Clearing pending updates...");
+await botClient.DeleteWebhookAsync(dropPendingUpdates: true, cancellationToken: cts.Token);
+Console.WriteLine("✅ Pending updates cleared");
+
 var receiverOptions = new ReceiverOptions
 {
-    AllowedUpdates = Array.Empty<UpdateType>()
+    AllowedUpdates = Array.Empty<UpdateType>(),
+    ThrowPendingUpdates = true
 };
 
 botClient.StartReceiving(
