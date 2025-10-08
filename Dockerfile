@@ -15,6 +15,9 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0
 WORKDIR /app
 COPY --from=build /app/publish .
 
+# Створюємо папку для бази даних
+RUN mkdir -p Data
+
 # Файли admins.txt та ban.txt вже скопійовані разом з publish
 # Якщо їх немає - створюємо порожні
 RUN touch admins.txt ban.txt || true
