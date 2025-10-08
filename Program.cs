@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types.Enums;
+using System.Net;
 
 var configuration = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
@@ -78,6 +79,51 @@ botClient.StartReceiving(
     cancellationToken: cts.Token
 );
 
+// Запускаємо HTTP сервер для Render health checks
+var port = Environment.GetEnvironmentVariable("PORT") ?? "10000";
+var httpListener = new HttpListener();
+httpListener.Prefixes.Add($"http://*:{port}/");
+
+try
+{
+    httpListener.Start();
+    Console.WriteLine($"🌐 HTTP server started on port {port}");
+    
+    // Обробка HTTP запитів в окремому потоці
+    _ = Task.Run(async () =>
+    {
+        while (httpListener.IsListening)
+        {
+            try
+            {
+                var context = await httpListener.GetContextAsync();
+                var response = context.Response;
+                
+                string responseString = $"{{\"status\":\"ok\",\"bot\":\"running\",\"time\":\"{DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}\"}}";
+                byte[] buffer = System.Text.Encoding.UTF8.GetBytes(responseString);
+                
+                response.ContentType = "application/json";
+                response.ContentLength64 = buffer.Length;
+                response.StatusCode = 200;
+                
+                await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
+                response.OutputStream.Close();
+            }
+            catch (Exception ex)
+            {
+                if (httpListener.IsListening)
+                {
+                    Console.WriteLine($"HTTP error: {ex.Message}");
+                }
+            }
+        }
+    }, cts.Token);
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"⚠️ Failed to start HTTP server: {ex.Message}");
+}
+
 Console.WriteLine("Bot started successfully. Press Ctrl+C to exit.");
 
 var exitEvent = new ManualResetEventSlim(false);
@@ -89,5 +135,6 @@ Console.CancelKeyPress += (sender, e) =>
 
 exitEvent.Wait();
 
+httpListener.Stop();
 cts.Cancel();
 Console.WriteLine("Bot stopped.");
