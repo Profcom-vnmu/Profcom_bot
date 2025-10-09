@@ -205,8 +205,6 @@ public class CreateAppealCommandHandler : IRequestHandler<CreateAppealCommand, R
             UpdatedAt = appeal.UpdatedAt,
             FirstResponseAt = appeal.FirstResponseAt,
             ClosedAt = appeal.ClosedAt,
-            Rating = appeal.Rating,
-            RatingComment = appeal.RatingComment,
             MessageCount = 0 // Нове звернення без додаткових повідомлень
         };
     }

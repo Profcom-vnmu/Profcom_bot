@@ -10,7 +10,9 @@ public enum NewsCategory
     Cultural = 3,       // Культурні
     Sport = 4,          // Спортивні
     Administrative = 5, // Адміністративні
-    Events = 6         // Заходи
+    Events = 6,         // Заходи
+    Urgent = 7,         // Терміново
+    Event = 8          // Подія (синонім Events для зворотної сумісності)
 }
 
 /// <summary>
@@ -38,6 +40,8 @@ public static class NewsEnumExtensions
             NewsCategory.Sport => "Спорт",
             NewsCategory.Administrative => "Адміністративні",
             NewsCategory.Events => "Заходи",
+            NewsCategory.Urgent => "Терміново",
+            NewsCategory.Event => "Подія",
             _ => "Інше"
         };
     }
@@ -52,6 +56,8 @@ public static class NewsEnumExtensions
             NewsCategory.Sport => "⚽",
             NewsCategory.Administrative => "📋",
             NewsCategory.Events => "🎉",
+            NewsCategory.Urgent => "🚨",
+            NewsCategory.Event => "📅",
             _ => "📰"
         };
     }

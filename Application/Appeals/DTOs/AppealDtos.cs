@@ -23,8 +23,6 @@ public class AppealDto
     public DateTime UpdatedAt { get; set; }
     public DateTime? FirstResponseAt { get; set; }
     public DateTime? ClosedAt { get; set; }
-    public int? Rating { get; set; }
-    public string? RatingComment { get; set; }
     public int MessageCount { get; set; }
 }
 
@@ -80,7 +78,5 @@ public class AppealDetailsDto
     public DateTime? ClosedAt { get; set; }
     public long? ClosedBy { get; set; }
     public string? ClosedReason { get; set; }
-    public int? Rating { get; set; }
-    public string? RatingComment { get; set; }
     public List<AppealMessageDto> Messages { get; set; } = new();
 }

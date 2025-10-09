@@ -1,4 +1,5 @@
 using StudentUnionBot.Domain.Enums;
+using StudentUnionBot.Core.Results;
 
 namespace StudentUnionBot.Domain.Entities;
 
@@ -23,6 +24,11 @@ public class Event
     /// Short summary for previews
     /// </summary>
     public string? Summary { get; private set; }
+    
+    /// <summary>
+    /// Category of the event for organization
+    /// </summary>
+    public EventCategory Category { get; private set; }
     
     /// <summary>
     /// Type/category of the event
@@ -119,6 +125,12 @@ public class Event
     /// </summary>
     public bool IsFeatured { get; private set; }
     
+    /// <summary>
+    /// Registered participants navigation property
+    /// </summary>
+    private readonly List<BotUser> _registeredParticipants = new();
+    public IReadOnlyCollection<BotUser> RegisteredParticipants => _registeredParticipants.AsReadOnly();
+    
     // Private constructor for EF Core
     private Event() { }
     
@@ -128,6 +140,7 @@ public class Event
     public static Event Create(
         string title,
         string description,
+        EventCategory category,
         EventType type,
         DateTime startDate,
         long organizerId,
@@ -149,6 +162,7 @@ public class Event
             Title = title,
             Description = description,
             Summary = summary,
+            Category = category,
             Type = type,
             StartDate = startDate,
             EndDate = endDate,
@@ -176,6 +190,7 @@ public class Event
     public void Update(
         string title,
         string description,
+        EventCategory category,
         EventType type,
         DateTime startDate,
         string? summary = null,
@@ -192,6 +207,7 @@ public class Event
         Title = title;
         Description = description;
         Summary = summary;
+        Category = category;
         Type = type;
         StartDate = startDate;
         EndDate = endDate;
@@ -248,7 +264,7 @@ public class Event
         UpdatedAt = DateTime.UtcNow;
     }
     
-    public bool CanRegister()
+    public bool CanRegisterParticipant()
     {
         if (!RequiresRegistration) return false;
         if (!IsPublished) return false;
@@ -259,21 +275,42 @@ public class Event
         return true;
     }
     
-    public void RegisterParticipant()
+    public Result<bool> RegisterParticipant(BotUser user)
     {
-        if (!CanRegister())
-            throw new InvalidOperationException("Cannot register for this event");
+        if (!CanRegisterParticipant())
+            return Result<bool>.Fail("Реєстрація на цю подію недоступна");
+        
+        if (IsUserRegistered(user.TelegramId))
+            return Result<bool>.Fail("Ви вже зареєстровані на цю подію");
             
+        _registeredParticipants.Add(user);
         CurrentParticipants++;
         UpdatedAt = DateTime.UtcNow;
+        
+        return Result<bool>.Ok(true);
     }
     
-    public void UnregisterParticipant()
+    public Result<bool> UnregisterParticipant(BotUser user)
     {
-        if (CurrentParticipants > 0)
+        if (!IsUserRegistered(user.TelegramId))
+            return Result<bool>.Fail("Ви не зареєстровані на цю подію");
+        
+        var participant = _registeredParticipants.FirstOrDefault(p => p.TelegramId == user.TelegramId);
+        if (participant != null)
         {
-            CurrentParticipants--;
+            _registeredParticipants.Remove(participant);
+            if (CurrentParticipants > 0)
+            {
+                CurrentParticipants--;
+            }
             UpdatedAt = DateTime.UtcNow;
         }
+        
+        return Result<bool>.Ok(true);
+    }
+    
+    public bool IsUserRegistered(long userId)
+    {
+        return _registeredParticipants.Any(p => p.TelegramId == userId);
     }
 }

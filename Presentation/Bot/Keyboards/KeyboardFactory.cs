@@ -198,6 +198,11 @@ public static class KeyboardFactory
             },
             new[]
             {
+                InlineKeyboardButton.WithCallbackData("💾 Backup", "admin_backup"),
+                InlineKeyboardButton.WithCallbackData("📢 Розсилка", "admin_broadcast")
+            },
+            new[]
+            {
                 InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.main_menu", userLanguage, cancellationToken), "back_to_main")
             }
         });

@@ -152,8 +152,6 @@ public class AssignAppealCommandHandler : IRequestHandler<AssignAppealCommand, R
             UpdatedAt = appeal.UpdatedAt,
             FirstResponseAt = appeal.FirstResponseAt,
             ClosedAt = appeal.ClosedAt,
-            Rating = appeal.Rating,
-            RatingComment = appeal.RatingComment,
             MessageCount = 0 // Will be calculated elsewhere if needed
         };
     }

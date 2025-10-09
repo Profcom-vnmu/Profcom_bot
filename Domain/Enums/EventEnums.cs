@@ -1,6 +1,47 @@
 namespace StudentUnionBot.Domain.Enums;
 
 /// <summary>
+/// Category of event for better organization
+/// </summary>
+public enum EventCategory
+{
+    /// <summary>
+    /// Academic events (lectures, seminars, conferences)
+    /// </summary>
+    Academic = 1,
+    
+    /// <summary>
+    /// Entertainment events (concerts, shows, parties)
+    /// </summary>
+    Entertainment = 2,
+    
+    /// <summary>
+    /// Sports and fitness events
+    /// </summary>
+    Sports = 3,
+    
+    /// <summary>
+    /// Community service and volunteer events
+    /// </summary>
+    Community = 4,
+    
+    /// <summary>
+    /// Professional and career development events
+    /// </summary>
+    Professional = 5,
+    
+    /// <summary>
+    /// Social networking and informal gatherings
+    /// </summary>
+    Social = 6,
+    
+    /// <summary>
+    /// Other category
+    /// </summary>
+    Other = 99
+}
+
+/// <summary>
 /// Type/category of event
 /// </summary>
 public enum EventType
@@ -52,29 +93,39 @@ public enum EventType
 public enum EventStatus
 {
     /// <summary>
+    /// Event is in draft mode (not published yet)
+    /// </summary>
+    Draft = 0,
+    
+    /// <summary>
+    /// Event is published and visible to users
+    /// </summary>
+    Published = 1,
+    
+    /// <summary>
     /// Event is planned but hasn't started yet
     /// </summary>
-    Planned = 1,
+    Planned = 2,
     
     /// <summary>
     /// Event is currently in progress
     /// </summary>
-    InProgress = 2,
+    InProgress = 3,
     
     /// <summary>
     /// Event has been completed
     /// </summary>
-    Completed = 3,
+    Completed = 4,
     
     /// <summary>
     /// Event was cancelled
     /// </summary>
-    Cancelled = 4,
+    Cancelled = 5,
     
     /// <summary>
     /// Event is postponed to a later date
     /// </summary>
-    Postponed = 5
+    Postponed = 6
 }
 
 /// <summary>
@@ -82,6 +133,21 @@ public enum EventStatus
 /// </summary>
 public static class EventEnumExtensions
 {
+    public static string GetDisplayName(this EventCategory category)
+    {
+        return category switch
+        {
+            EventCategory.Academic => "Академічні заходи",
+            EventCategory.Entertainment => "Розваги",
+            EventCategory.Sports => "Спорт та фітнес",
+            EventCategory.Community => "Громадська діяльність",
+            EventCategory.Professional => "Професійний розвиток",
+            EventCategory.Social => "Соціальні заходи",
+            EventCategory.Other => "Інше",
+            _ => "Невідомо"
+        };
+    }
+
     public static string GetDisplayName(this EventType type)
     {
         return type switch
@@ -102,6 +168,8 @@ public static class EventEnumExtensions
     {
         return status switch
         {
+            EventStatus.Draft => "Чернетка",
+            EventStatus.Published => "Опубліковано",
             EventStatus.Planned => "Заплановано",
             EventStatus.InProgress => "В процесі",
             EventStatus.Completed => "Завершено",
@@ -131,11 +199,28 @@ public static class EventEnumExtensions
     {
         return status switch
         {
+            EventStatus.Draft => "📝",
+            EventStatus.Published => "📢",
             EventStatus.Planned => "📅",
             EventStatus.InProgress => "▶️",
             EventStatus.Completed => "✅",
             EventStatus.Cancelled => "❌",
             EventStatus.Postponed => "⏸️",
+            _ => "❓"
+        };
+    }
+    
+    public static string GetEmoji(this EventCategory category)
+    {
+        return category switch
+        {
+            EventCategory.Academic => "🎓",
+            EventCategory.Entertainment => "🎉",
+            EventCategory.Sports => "⚽",
+            EventCategory.Community => "🤝",
+            EventCategory.Professional => "💼",
+            EventCategory.Social => "👥",
+            EventCategory.Other => "📌",
             _ => "❓"
         };
     }

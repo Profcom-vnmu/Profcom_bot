@@ -90,8 +90,6 @@ public class GetAppealByIdQueryHandler : IRequestHandler<GetAppealByIdQuery, Res
                 ClosedAt = appeal.ClosedAt,
                 ClosedBy = appeal.ClosedBy,
                 ClosedReason = appeal.ClosedReason,
-                Rating = appeal.Rating,
-                RatingComment = appeal.RatingComment,
                 Messages = appeal.Messages.Select(m => new AppealMessageDto
                 {
                     Id = m.Id,

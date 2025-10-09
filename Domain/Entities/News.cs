@@ -79,6 +79,12 @@ public class News
     /// </summary>
     public bool IsPinned { get; private set; }
     
+    /// <summary>
+    /// Multiple file attachments for the news
+    /// </summary>
+    private readonly List<FileAttachment> _attachments = new();
+    public IReadOnlyCollection<FileAttachment> Attachments => _attachments.AsReadOnly();
+    
     // Private constructor for EF Core
     private News() { }
     
@@ -163,5 +169,29 @@ public class News
     public void IncrementViewCount()
     {
         ViewCount++;
+    }
+    
+    public void AddAttachment(FileAttachment attachment)
+    {
+        if (attachment == null)
+            throw new ArgumentNullException(nameof(attachment));
+            
+        _attachments.Add(attachment);
+        UpdatedAt = DateTime.UtcNow;
+    }
+    
+    public void RemoveAttachment(FileAttachment attachment)
+    {
+        if (attachment == null)
+            throw new ArgumentNullException(nameof(attachment));
+            
+        _attachments.Remove(attachment);
+        UpdatedAt = DateTime.UtcNow;
+    }
+    
+    public void ClearAttachments()
+    {
+        _attachments.Clear();
+        UpdatedAt = DateTime.UtcNow;
     }
 }

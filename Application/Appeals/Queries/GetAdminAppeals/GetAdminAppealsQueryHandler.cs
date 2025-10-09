@@ -143,8 +143,6 @@ public class GetAdminAppealsQueryHandler : IRequestHandler<GetAdminAppealsQuery,
                 UpdatedAt = a.UpdatedAt,
                 FirstResponseAt = a.FirstResponseAt,
                 ClosedAt = a.ClosedAt,
-                Rating = a.Rating,
-                RatingComment = a.RatingComment,
                 MessageCount = a.Messages?.Count ?? 0
             }).ToList();
 

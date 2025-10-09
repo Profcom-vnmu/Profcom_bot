@@ -25,8 +25,11 @@ public class Appeal
     public DateTime? ClosedAt { get; private set; }
     public long? ClosedBy { get; private set; }
     public string? ClosedReason { get; private set; }
-    public int? Rating { get; private set; }
-    public string? RatingComment { get; private set; }
+    
+    /// <summary>
+    /// Tags for categorizing and searching appeals (comma-separated)
+    /// </summary>
+    public string? Tags { get; private set; }
 
     // Navigation properties
     public BotUser Student { get; private set; } = null!;
@@ -185,22 +188,6 @@ public class Appeal
     }
 
     /// <summary>
-    /// Оцінка звернення студентом
-    /// </summary>
-    public void Rate(int rating, string? comment = null)
-    {
-        if (Status != AppealStatus.Closed)
-            throw new DomainException("Можна оцінити тільки закрите звернення");
-
-        if (rating < 1 || rating > 5)
-            throw new DomainException("Оцінка повинна бути від 1 до 5");
-
-        Rating = rating;
-        RatingComment = comment;
-        UpdatedAt = DateTime.UtcNow;
-    }
-
-    /// <summary>
     /// Додавання повідомлення до звернення
     /// </summary>
     public void AddMessage(AppealMessage message)
@@ -216,6 +203,72 @@ public class Appeal
             Status = AppealStatus.WaitingForStudent;
         else
             Status = AppealStatus.WaitingForAdmin;
+    }
+    
+    /// <summary>
+    /// Set tags for the appeal
+    /// </summary>
+    public void SetTags(params string[] tags)
+    {
+        if (tags == null || tags.Length == 0)
+        {
+            Tags = null;
+            return;
+        }
+        
+        // Clean and validate tags
+        var cleanTags = tags
+            .Where(t => !string.IsNullOrWhiteSpace(t))
+            .Select(t => t.Trim().ToLowerInvariant())
+            .Distinct()
+            .Take(10) // Limit to 10 tags
+            .ToArray();
+            
+        Tags = cleanTags.Length > 0 ? string.Join(",", cleanTags) : null;
+        UpdatedAt = DateTime.UtcNow;
+    }
+    
+    /// <summary>
+    /// Get tags as array
+    /// </summary>
+    public string[] GetTags()
+    {
+        return string.IsNullOrWhiteSpace(Tags) 
+            ? Array.Empty<string>() 
+            : Tags.Split(',', StringSplitOptions.RemoveEmptyEntries);
+    }
+    
+    /// <summary>
+    /// Add tag to existing tags
+    /// </summary>
+    public void AddTag(string tag)
+    {
+        if (string.IsNullOrWhiteSpace(tag)) return;
+        
+        var existingTags = GetTags().ToList();
+        var newTag = tag.Trim().ToLowerInvariant();
+        
+        if (!existingTags.Contains(newTag))
+        {
+            existingTags.Add(newTag);
+            SetTags(existingTags.ToArray());
+        }
+    }
+    
+    /// <summary>
+    /// Remove tag from existing tags
+    /// </summary>
+    public void RemoveTag(string tag)
+    {
+        if (string.IsNullOrWhiteSpace(tag)) return;
+        
+        var existingTags = GetTags().ToList();
+        var tagToRemove = tag.Trim().ToLowerInvariant();
+        
+        if (existingTags.Remove(tagToRemove))
+        {
+            SetTags(existingTags.ToArray());
+        }
     }
 }
 

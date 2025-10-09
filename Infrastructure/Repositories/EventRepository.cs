@@ -73,4 +73,11 @@ public class EventRepository : BaseRepository<Event>, IEventRepository
             .OrderBy(e => e.StartDate)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<Event?> GetByIdWithParticipantsAsync(int id, CancellationToken cancellationToken = default)
+    {
+        return await Context.Set<Event>()
+            .Include(e => e.RegisteredParticipants)
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+    }
 }

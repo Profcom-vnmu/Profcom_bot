@@ -1786,3 +1786,233 @@ Microsoft.Extensions.Hosting.HostAbortedException: The host was aborted.
    at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
    at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
    at Program.<Main>$(String[] args) in C:\Users\rz76b\OneDrive\Desktop\bot\Telegram\StudentUnionBot\Program.cs:line 131
+2025-10-09 17:04:25.942 +03:00 [INF] Запуск StudentUnionBot
+2025-10-09 17:04:26.315 +03:00 [FTL] Критична помилка при запуску StudentUnionBot
+Microsoft.Extensions.Hosting.HostAbortedException: The host was aborted.
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.ThrowHostAborted()
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.OnNext(KeyValuePair`2 value)
+   at System.Diagnostics.DiagnosticListener.Write(String name, Object value)
+   at Microsoft.Extensions.Hosting.HostBuilder.ResolveHost(IServiceProvider serviceProvider, DiagnosticListener diagnosticListener)
+   at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
+   at Program.<Main>$(String[] args) in C:\Users\rz76b\OneDrive\Desktop\bot\Telegram\StudentUnionBot\Program.cs:line 138
+2025-10-09 17:17:57.182 +03:00 [INF] Запуск StudentUnionBot
+2025-10-09 17:17:57.425 +03:00 [FTL] Критична помилка при запуску StudentUnionBot
+Microsoft.Extensions.Hosting.HostAbortedException: The host was aborted.
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.ThrowHostAborted()
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.OnNext(KeyValuePair`2 value)
+   at System.Diagnostics.DiagnosticListener.Write(String name, Object value)
+   at Microsoft.Extensions.Hosting.HostBuilder.ResolveHost(IServiceProvider serviceProvider, DiagnosticListener diagnosticListener)
+   at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
+   at Program.<Main>$(String[] args) in C:\Users\rz76b\OneDrive\Desktop\bot\Telegram\StudentUnionBot\Program.cs:line 138
+2025-10-09 17:48:12.128 +03:00 [INF] Запуск StudentUnionBot
+2025-10-09 17:48:14.601 +03:00 [WRN] Sensitive data logging is enabled. Log entries and exception messages may include sensitive application data; this mode should only be enabled during development.
+2025-10-09 17:48:15.266 +03:00 [INF] Міграції БД застосовано
+2025-10-09 17:48:15.302 +03:00 [INF] StudentUnionBot готовий до роботи
+2025-10-09 17:48:15.334 +03:00 [INF] Ініціалізовано 150 локалізаційних ресурсів
+2025-10-09 17:48:15.358 +03:00 [INF] Запуск Telegram бота...
+2025-10-09 17:48:15.390 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getMe
+2025-10-09 17:48:15.402 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getMe
+2025-10-09 17:48:15.496 +03:00 [INF] Notification Reminder Service запущено
+2025-10-09 17:48:15.783 +03:00 [INF] Received HTTP response headers after 373.0552ms - 200
+2025-10-09 17:48:15.794 +03:00 [INF] End processing HTTP request after 411.5957ms - 200
+2025-10-09 17:48:15.968 +03:00 [INF] Оброблено 0 запланованих нагадувань
+2025-10-09 17:48:15.977 +03:00 [INF] Data Cleanup Service запущено
+2025-10-09 17:48:15.990 +03:00 [INF] Бот запущено: @TestProfcom_bot (Test_bot)
+2025-10-09 17:48:16.054 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:48:16.059 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:48:16.073 +03:00 [INF] Now listening on: http://localhost:5000
+2025-10-09 17:48:16.077 +03:00 [INF] Application started. Press Ctrl+C to shut down.
+2025-10-09 17:48:16.081 +03:00 [INF] Hosting environment: Development
+2025-10-09 17:48:16.084 +03:00 [INF] Content root path: C:\Users\rz76b\OneDrive\Desktop\bot\Telegram\StudentUnionBot
+2025-10-09 17:48:33.918 +03:00 [INF] Received HTTP response headers after 17855.5714ms - 200
+2025-10-09 17:48:33.922 +03:00 [INF] End processing HTTP request after 17867.6888ms - 200
+2025-10-09 17:48:34.019 +03:00 [INF] ╨₧╤é╤Ç╨╕╨╝╨░╨╜╨╛ ╨┐╨╛╨▓╤û╨┤╨╛╨╝╨╗╨╡╨╜╨╜╤Å ╨▓╤û╨┤ 6902973013 ╨▓ ╤ç╨░╤é╤û 6902973013: /start
+2025-10-09 17:48:34.100 +03:00 [INF] Реєстрація/оновлення користувача 6902973013 (@Not_pseudoanonymus)
+2025-10-09 17:48:34.422 +03:00 [INF] Користувач 6902973013 успішно оновлено
+2025-10-09 17:48:34.427 +03:00 [INF] ╨₧╨▒╤Ç╨╛╨▒╨║╨░ ╨║╨╛╨╝╨░╨╜╨┤╨╕: /start
+2025-10-09 17:48:34.436 +03:00 [INF] ╨Ü╨╛╤Ç╨╕╤ü╤é╤â╨▓╨░╤ç 6902973013 ╨╝╨░╤ö ╤Ç╨╛╨╗╤î "Admin", isAdmin=true
+2025-10-09 17:48:34.467 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/sendMessage
+2025-10-09 17:48:34.470 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/sendMessage
+2025-10-09 17:48:34.666 +03:00 [INF] Received HTTP response headers after 193.7246ms - 200
+2025-10-09 17:48:34.671 +03:00 [INF] End processing HTTP request after 204.221ms - 200
+2025-10-09 17:48:34.687 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:48:34.690 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:48:43.049 +03:00 [INF] Received HTTP response headers after 8356.4795ms - 200
+2025-10-09 17:48:43.053 +03:00 [INF] End processing HTTP request after 8366.4835ms - 200
+2025-10-09 17:48:43.064 +03:00 [INF] ╨₧╤é╤Ç╨╕╨╝╨░╨╜╨╛ callback ╨▓╤û╨┤ 6902973013: events_list
+2025-10-09 17:48:43.075 +03:00 [INF] Отримання майбутніх подій: тип=null, сторінка=1, розмір=5
+2025-10-09 17:48:43.135 +03:00 [INF] Знайдено 0 подій (всього 0)
+2025-10-09 17:48:43.146 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/editMessageText
+2025-10-09 17:48:43.150 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/editMessageText
+2025-10-09 17:48:43.228 +03:00 [INF] Received HTTP response headers after 76.5493ms - 200
+2025-10-09 17:48:43.232 +03:00 [INF] End processing HTTP request after 86.0171ms - 200
+2025-10-09 17:48:43.243 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/answerCallbackQuery
+2025-10-09 17:48:43.246 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/answerCallbackQuery
+2025-10-09 17:48:43.312 +03:00 [INF] Received HTTP response headers after 62.8113ms - 200
+2025-10-09 17:48:43.315 +03:00 [INF] End processing HTTP request after 71.6253ms - 200
+2025-10-09 17:48:43.322 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:48:43.324 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:48:44.709 +03:00 [INF] Received HTTP response headers after 1381.982ms - 200
+2025-10-09 17:48:44.712 +03:00 [INF] End processing HTTP request after 1390.4162ms - 200
+2025-10-09 17:48:44.714 +03:00 [INF] ╨₧╤é╤Ç╨╕╨╝╨░╨╜╨╛ callback ╨▓╤û╨┤ 6902973013: back_to_main
+2025-10-09 17:48:44.719 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/editMessageText
+2025-10-09 17:48:44.724 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/editMessageText
+2025-10-09 17:48:44.797 +03:00 [INF] Received HTTP response headers after 71.153ms - 200
+2025-10-09 17:48:44.801 +03:00 [INF] End processing HTTP request after 81.7678ms - 200
+2025-10-09 17:48:44.805 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/answerCallbackQuery
+2025-10-09 17:48:44.807 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/answerCallbackQuery
+2025-10-09 17:48:44.867 +03:00 [INF] Received HTTP response headers after 57.7265ms - 200
+2025-10-09 17:48:44.871 +03:00 [INF] End processing HTTP request after 65.8524ms - 200
+2025-10-09 17:48:44.874 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:48:44.876 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:48:45.769 +03:00 [INF] Received HTTP response headers after 891.5498ms - 200
+2025-10-09 17:48:45.773 +03:00 [INF] End processing HTTP request after 899.2551ms - 200
+2025-10-09 17:48:45.775 +03:00 [INF] ╨₧╤é╤Ç╨╕╨╝╨░╨╜╨╛ callback ╨▓╤û╨┤ 6902973013: admin_panel
+2025-10-09 17:48:45.788 +03:00 [INF] Отримання звернень адміністратором 6902973013 з фільтрами: Status=null, Category=null, Priority=null
+2025-10-09 17:48:45.804 +03:00 [INF] Знайдено 2 звернень для адміністратора 6902973013 (сторінка 1)
+2025-10-09 17:48:45.811 +03:00 [INF] Отримання звернень адміністратором 6902973013 з фільтрами: Status="New", Category=null, Priority=null
+2025-10-09 17:48:45.815 +03:00 [INF] Знайдено 0 звернень для адміністратора 6902973013 (сторінка 1)
+2025-10-09 17:48:45.819 +03:00 [INF] Отримання звернень адміністратором 6902973013 з фільтрами: Status=null, Category=null, Priority=null
+2025-10-09 17:48:45.824 +03:00 [INF] Знайдено 1 звернень для адміністратора 6902973013 (сторінка 1)
+2025-10-09 17:48:45.830 +03:00 [INF] Отримання звернень адміністратором 6902973013 з фільтрами: Status=null, Category=null, Priority=null
+2025-10-09 17:48:45.835 +03:00 [INF] Знайдено 1 звернень для адміністратора 6902973013 (сторінка 1)
+2025-10-09 17:48:45.842 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/editMessageText
+2025-10-09 17:48:45.845 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/editMessageText
+2025-10-09 17:48:45.916 +03:00 [INF] Received HTTP response headers after 69.6623ms - 200
+2025-10-09 17:48:45.921 +03:00 [INF] End processing HTTP request after 78.8311ms - 200
+2025-10-09 17:48:45.924 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/answerCallbackQuery
+2025-10-09 17:48:45.926 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/answerCallbackQuery
+2025-10-09 17:48:45.995 +03:00 [INF] Received HTTP response headers after 67.5369ms - 200
+2025-10-09 17:48:45.998 +03:00 [INF] End processing HTTP request after 74.2959ms - 200
+2025-10-09 17:48:46.000 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:48:46.004 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:48:49.544 +03:00 [INF] Received HTTP response headers after 3537.2288ms - 200
+2025-10-09 17:48:49.549 +03:00 [INF] End processing HTTP request after 3549.2719ms - 200
+2025-10-09 17:48:49.553 +03:00 [INF] ╨₧╤é╤Ç╨╕╨╝╨░╨╜╨╛ callback ╨▓╤û╨┤ 6902973013: admin_appeals_my
+2025-10-09 17:48:49.558 +03:00 [INF] Отримання звернень адміністратором 6902973013 з фільтрами: Status=null, Category=null, Priority=null
+2025-10-09 17:48:49.563 +03:00 [INF] Знайдено 1 звернень для адміністратора 6902973013 (сторінка 1)
+2025-10-09 17:48:49.578 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/editMessageText
+2025-10-09 17:48:49.582 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/editMessageText
+2025-10-09 17:48:49.743 +03:00 [INF] Received HTTP response headers after 157.9542ms - 200
+2025-10-09 17:48:49.746 +03:00 [INF] End processing HTTP request after 167.8599ms - 200
+2025-10-09 17:48:49.750 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/answerCallbackQuery
+2025-10-09 17:48:49.752 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/answerCallbackQuery
+2025-10-09 17:48:49.893 +03:00 [INF] Received HTTP response headers after 138.8616ms - 200
+2025-10-09 17:48:49.897 +03:00 [INF] End processing HTTP request after 147.0304ms - 200
+2025-10-09 17:48:49.901 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:48:49.905 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:48:51.441 +03:00 [INF] Received HTTP response headers after 1534.758ms - 200
+2025-10-09 17:48:51.447 +03:00 [INF] End processing HTTP request after 1545.9234ms - 200
+2025-10-09 17:48:51.452 +03:00 [INF] ╨₧╤é╤Ç╨╕╨╝╨░╨╜╨╛ callback ╨▓╤û╨┤ 6902973013: admin_view_2
+2025-10-09 17:48:51.460 +03:00 [INF] Отримання звернення 2 для користувача 6902973013
+2025-10-09 17:48:51.577 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/editMessageText
+2025-10-09 17:48:51.580 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/editMessageText
+2025-10-09 17:48:51.654 +03:00 [INF] Received HTTP response headers after 69.8408ms - 200
+2025-10-09 17:48:51.658 +03:00 [INF] End processing HTTP request after 81.7019ms - 200
+2025-10-09 17:48:51.662 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/answerCallbackQuery
+2025-10-09 17:48:51.668 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/answerCallbackQuery
+2025-10-09 17:48:51.726 +03:00 [INF] Received HTTP response headers after 53.0859ms - 200
+2025-10-09 17:48:51.732 +03:00 [INF] End processing HTTP request after 69.9594ms - 200
+2025-10-09 17:48:51.738 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:48:51.741 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:48:54.435 +03:00 [INF] Received HTTP response headers after 2691.1117ms - 200
+2025-10-09 17:48:54.438 +03:00 [INF] End processing HTTP request after 2700.4032ms - 200
+2025-10-09 17:48:54.440 +03:00 [INF] ╨₧╤é╤Ç╨╕╨╝╨░╨╜╨╛ callback ╨▓╤û╨┤ 6902973013: admin_reply_2
+2025-10-09 17:48:54.449 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/answerCallbackQuery
+2025-10-09 17:48:54.451 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/answerCallbackQuery
+2025-10-09 17:48:54.604 +03:00 [INF] Received HTTP response headers after 151.0883ms - 200
+2025-10-09 17:48:54.608 +03:00 [INF] End processing HTTP request after 159.0876ms - 200
+2025-10-09 17:48:54.610 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/sendMessage
+2025-10-09 17:48:54.613 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/sendMessage
+2025-10-09 17:48:54.786 +03:00 [INF] Received HTTP response headers after 171.4638ms - 200
+2025-10-09 17:48:54.789 +03:00 [INF] End processing HTTP request after 178.9081ms - 200
+2025-10-09 17:48:54.791 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/answerCallbackQuery
+2025-10-09 17:48:54.793 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/answerCallbackQuery
+2025-10-09 17:48:54.965 +03:00 [INF] Received HTTP response headers after 170.2029ms - 200
+2025-10-09 17:48:54.969 +03:00 [INF] End processing HTTP request after 177.9335ms - 200
+2025-10-09 17:48:54.971 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:48:54.972 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:48:59.841 +03:00 [INF] Received HTTP response headers after 4866.4021ms - 200
+2025-10-09 17:48:59.845 +03:00 [INF] End processing HTTP request after 4874.5647ms - 200
+2025-10-09 17:48:59.849 +03:00 [INF] ╨₧╤é╤Ç╨╕╨╝╨░╨╜╨╛ ╨┐╨╛╨▓╤û╨┤╨╛╨╝╨╗╨╡╨╜╨╜╤Å ╨▓╤û╨┤ 6902973013 ╨▓ ╤ç╨░╤é╤û 6902973013: Провлв
+2025-10-09 17:48:59.853 +03:00 [INF] Реєстрація/оновлення користувача 6902973013 (@Not_pseudoanonymus)
+2025-10-09 17:48:59.863 +03:00 [INF] Користувач 6902973013 успішно оновлено
+2025-10-09 17:48:59.880 +03:00 [INF] Адміністратор 6902973013 відповідає на звернення 2
+2025-10-09 17:49:00.220 +03:00 [INF] Адміністратор 6902973013 успішно відповів на звернення 2, створено повідомлення 1
+2025-10-09 17:49:00.328 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/sendMessage
+2025-10-09 17:49:00.331 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/sendMessage
+2025-10-09 17:49:00.416 +03:00 [INF] Received HTTP response headers after 82.9042ms - 200
+2025-10-09 17:49:00.420 +03:00 [INF] End processing HTTP request after 91.4932ms - 200
+2025-10-09 17:49:00.424 +03:00 [INF] Push сповіщення відправлено до 6902973013
+2025-10-09 17:49:00.433 +03:00 [INF] Відправлено сповіщення студенту 6902973013 про відповідь на звернення 2
+2025-10-09 17:49:00.437 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/sendMessage
+2025-10-09 17:49:00.440 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/sendMessage
+2025-10-09 17:49:00.519 +03:00 [INF] Received HTTP response headers after 74.8582ms - 200
+2025-10-09 17:49:00.523 +03:00 [INF] End processing HTTP request after 85.84ms - 200
+2025-10-09 17:49:00.528 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:49:00.531 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:49:03.239 +03:00 [INF] Received HTTP response headers after 2704.8231ms - 200
+2025-10-09 17:49:03.243 +03:00 [INF] End processing HTTP request after 2715.1698ms - 200
+2025-10-09 17:49:03.245 +03:00 [INF] ╨₧╤é╤Ç╨╕╨╝╨░╨╜╨╛ callback ╨▓╤û╨┤ 6902973013: back_to_main
+2025-10-09 17:49:03.250 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/editMessageText
+2025-10-09 17:49:03.254 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/editMessageText
+2025-10-09 17:49:03.323 +03:00 [INF] Received HTTP response headers after 65.988ms - 200
+2025-10-09 17:49:03.327 +03:00 [INF] End processing HTTP request after 76.3637ms - 200
+2025-10-09 17:49:03.330 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/answerCallbackQuery
+2025-10-09 17:49:03.333 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/answerCallbackQuery
+2025-10-09 17:49:03.392 +03:00 [INF] Received HTTP response headers after 56.1183ms - 200
+2025-10-09 17:49:03.398 +03:00 [INF] End processing HTTP request after 68.1758ms - 200
+2025-10-09 17:49:03.402 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:49:03.406 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:49:05.203 +03:00 [INF] Received HTTP response headers after 1794.4534ms - 200
+2025-10-09 17:49:05.208 +03:00 [INF] End processing HTTP request after 1806.0148ms - 200
+2025-10-09 17:49:05.212 +03:00 [INF] ╨₧╤é╤Ç╨╕╨╝╨░╨╜╨╛ callback ╨▓╤û╨┤ 6902973013: appeal_list
+2025-10-09 17:49:05.223 +03:00 [INF] Отримання звернень користувача 6902973013, сторінка 1, тільки активні: false
+2025-10-09 17:49:05.245 +03:00 [INF] Знайдено 2 звернень для користувача 6902973013
+2025-10-09 17:49:05.251 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/editMessageText
+2025-10-09 17:49:05.256 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/editMessageText
+2025-10-09 17:49:05.356 +03:00 [INF] Received HTTP response headers after 95.6496ms - 200
+2025-10-09 17:49:05.359 +03:00 [INF] End processing HTTP request after 108.5496ms - 200
+2025-10-09 17:49:05.361 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/answerCallbackQuery
+2025-10-09 17:49:05.363 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/answerCallbackQuery
+2025-10-09 17:49:05.451 +03:00 [INF] Received HTTP response headers after 86.116ms - 200
+2025-10-09 17:49:05.454 +03:00 [INF] End processing HTTP request after 92.8102ms - 200
+2025-10-09 17:49:05.458 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:49:05.462 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:49:15.984 +03:00 [INF] Оброблено 0 запланованих нагадувань
+2025-10-09 17:49:55.513 +03:00 [INF] Received HTTP response headers after 50048.3769ms - 200
+2025-10-09 17:49:55.517 +03:00 [INF] End processing HTTP request after 50058.4997ms - 200
+2025-10-09 17:49:55.520 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:49:55.524 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:50:16.004 +03:00 [INF] Оброблено 0 запланованих нагадувань
+2025-10-09 17:50:45.574 +03:00 [INF] Received HTTP response headers after 50047.8861ms - 200
+2025-10-09 17:50:45.577 +03:00 [INF] End processing HTTP request after 50057.4232ms - 200
+2025-10-09 17:50:45.579 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:50:45.583 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:51:16.023 +03:00 [INF] Оброблено 0 запланованих нагадувань
+2025-10-09 17:51:35.642 +03:00 [INF] Received HTTP response headers after 50056.6423ms - 200
+2025-10-09 17:51:35.645 +03:00 [INF] End processing HTTP request after 50066.028ms - 200
+2025-10-09 17:51:35.649 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:51:35.652 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:52:16.028 +03:00 [INF] Оброблено 0 запланованих нагадувань
+2025-10-09 17:52:25.703 +03:00 [INF] Received HTTP response headers after 50047.99ms - 200
+2025-10-09 17:52:25.708 +03:00 [INF] End processing HTTP request after 50058.8995ms - 200
+2025-10-09 17:52:25.710 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:52:25.713 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:53:15.769 +03:00 [INF] Received HTTP response headers after 50054.2467ms - 200
+2025-10-09 17:53:15.772 +03:00 [INF] End processing HTTP request after 50062.155ms - 200
+2025-10-09 17:53:15.774 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:53:15.776 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:53:16.040 +03:00 [INF] Оброблено 0 запланованих нагадувань
+2025-10-09 17:54:05.830 +03:00 [INF] Received HTTP response headers after 50050.9965ms - 200
+2025-10-09 17:54:05.832 +03:00 [INF] End processing HTTP request after 50057.9972ms - 200
+2025-10-09 17:54:05.835 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:54:05.837 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:54:16.060 +03:00 [INF] Оброблено 0 запланованих нагадувань
+2025-10-09 17:54:55.889 +03:00 [INF] Received HTTP response headers after 50047.8305ms - 200
+2025-10-09 17:54:55.892 +03:00 [INF] End processing HTTP request after 50057.0552ms - 200
+2025-10-09 17:54:55.894 +03:00 [INF] Start processing HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:54:55.896 +03:00 [INF] Sending HTTP request POST https://api.telegram.org/bot8464698453:AAFSo2z193xJTMRjLmE5AjkGtzsrKZZJwXo/getUpdates
+2025-10-09 17:55:16.076 +03:00 [INF] Оброблено 0 запланованих нагадувань

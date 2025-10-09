@@ -17,6 +17,21 @@ namespace StudentUnionBot.Infrastructure.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.0");
 
+            modelBuilder.Entity("BotUserEvent", b =>
+                {
+                    b.Property<int>("EventId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("RegisteredParticipantsTelegramId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("EventId", "RegisteredParticipantsTelegramId");
+
+                    b.HasIndex("RegisteredParticipantsTelegramId");
+
+                    b.ToTable("EventParticipants", (string)null);
+                });
+
             modelBuilder.Entity("StudentUnionBot.Domain.Entities.AdminCategoryExpertise", b =>
                 {
                     b.Property<int>("Id")
@@ -145,13 +160,6 @@ namespace StudentUnionBot.Infrastructure.Data.Migrations
 
                     b.Property<int>("Priority")
                         .HasColumnType("INTEGER");
-
-                    b.Property<int?>("Rating")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("RatingComment")
-                        .HasMaxLength(1000)
-                        .HasColumnType("TEXT");
 
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
@@ -983,6 +991,21 @@ namespace StudentUnionBot.Infrastructure.Data.Migrations
                     b.HasIndex("Type");
 
                     b.ToTable("Partners");
+                });
+
+            modelBuilder.Entity("BotUserEvent", b =>
+                {
+                    b.HasOne("StudentUnionBot.Domain.Entities.Event", null)
+                        .WithMany()
+                        .HasForeignKey("EventId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("StudentUnionBot.Domain.Entities.BotUser", null)
+                        .WithMany()
+                        .HasForeignKey("RegisteredParticipantsTelegramId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("StudentUnionBot.Domain.Entities.AdminCategoryExpertise", b =>

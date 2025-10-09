@@ -1,3 +1,5 @@
+using StudentUnionBot.Domain.Enums;
+
 namespace StudentUnionBot.Application.Users.DTOs;
 
 /// <summary>
@@ -19,6 +21,7 @@ public class UserDto
     public DateTime JoinedAt { get; set; }
     public bool IsActive { get; set; }
     public string RoleName { get; set; } = string.Empty;
+    public UserRole Role { get; set; }
 }
 
 /// <summary>

@@ -56,11 +56,16 @@ try
         }
     });
 
-    // Реєстрація MediatR
+    // Реєстрація MediatR з Pipeline Behaviors
     builder.Services.AddMediatR(cfg =>
     {
         cfg.RegisterServicesFromAssembly(typeof(CreateAppealCommand).Assembly);
         cfg.Lifetime = ServiceLifetime.Scoped; // Важливо для роботи зі Scoped сервісами
+        
+        // Додаємо Pipeline Behaviors в правильному порядку
+        cfg.AddOpenBehavior(typeof(StudentUnionBot.Application.Common.Behaviors.ValidationBehavior<,>));
+        cfg.AddOpenBehavior(typeof(StudentUnionBot.Application.Common.Behaviors.LoggingBehavior<,>));
+        cfg.AddOpenBehavior(typeof(StudentUnionBot.Application.Common.Behaviors.PerformanceBehavior<,>));
     });
 
     // Реєстрація FluentValidation
@@ -82,7 +87,29 @@ try
     // Реєстрація Rate Limiter
     builder.Services.AddSingleton<IRateLimiter, Infrastructure.Services.RateLimiter>();
 
+    // Реєстрація Redis Cache Services
+    var redisConnectionString = builder.Configuration.GetConnectionString("Redis");
+    if (!string.IsNullOrEmpty(redisConnectionString))
+    {
+        builder.Services.AddStackExchangeRedisCache(options =>
+        {
+            options.Configuration = redisConnectionString;
+            options.InstanceName = "StudentUnionBot";
+        });
+        
+        Log.Information("Redis кеш налаштовано з рядком підключення: {RedisConnection}", 
+            redisConnectionString.Substring(0, Math.Min(20, redisConnectionString.Length)) + "...");
+    }
+    else
+    {
+        Log.Warning("Redis connection string не знайдено, кеш буде відключено");
+    }
+    
+    builder.Services.AddScoped<IRedisCacheService, RedisCacheService>();
+    builder.Services.AddScoped<IStudentUnionCacheService, StudentUnionCacheService>();
+
     // Реєстрація Email Service
+    builder.Services.AddScoped<EmailTemplateService>();
     builder.Services.AddScoped<IEmailService, EmailService>();
 
     // Реєстрація Backup Service
@@ -133,7 +160,8 @@ try
         .AddCheck<StudentUnionBot.Infrastructure.HealthChecks.DatabaseHealthCheck>("database", tags: new[] { "db", "critical" })
         .AddCheck<StudentUnionBot.Infrastructure.HealthChecks.FileStorageHealthCheck>("file_storage", tags: new[] { "storage" })
         .AddCheck<StudentUnionBot.Infrastructure.HealthChecks.MemoryHealthCheck>("memory", tags: new[] { "memory" })
-        .AddCheck<StudentUnionBot.Infrastructure.HealthChecks.TelegramBotHealthCheck>("telegram_bot", tags: new[] { "telegram", "critical" });
+        .AddCheck<StudentUnionBot.Infrastructure.HealthChecks.TelegramBotHealthCheck>("telegram_bot", tags: new[] { "telegram", "critical" })
+        .AddCheck<StudentUnionBot.Infrastructure.HealthChecks.RedisHealthCheck>("redis_cache", tags: new[] { "cache", "redis" });
 
     var app = builder.Build();
 

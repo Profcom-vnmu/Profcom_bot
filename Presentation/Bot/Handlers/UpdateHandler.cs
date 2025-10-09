@@ -2,9 +2,13 @@
 using Microsoft.Extensions.Logging;
 using StudentUnionBot.Application.Common.Interfaces;
 using StudentUnionBot.Domain.Enums;
+using StudentUnionBot.Domain.Entities;
 using StudentUnionBot.Domain.Interfaces;
 using StudentUnionBot.Application.Contacts.Queries.GetAllContacts;
 using StudentUnionBot.Application.Events.Queries.GetUpcomingEvents;
+using StudentUnionBot.Application.Events.Queries.GetEventById;
+using StudentUnionBot.Application.Events.Commands.RegisterForEvent;
+using StudentUnionBot.Application.Events.Commands.UnregisterFromEvent;
 using StudentUnionBot.Application.News.Queries.GetPublishedNews;
 using StudentUnionBot.Application.Partners.Queries.GetActivePartners;
 using StudentUnionBot.Application.Users.Commands.RegisterUser;
@@ -19,7 +23,13 @@ using StudentUnionBot.Application.Appeals.Commands.UpdatePriority;
 using StudentUnionBot.Application.Users.Commands.SendVerificationEmail;
 using StudentUnionBot.Application.Users.Commands.VerifyEmail;
 using StudentUnionBot.Application.Users.Commands.ChangeLanguage;
+using StudentUnionBot.Application.Users.Commands.UpdateProfile;
+using StudentUnionBot.Application.Users.Queries.GetUserByTelegramId;
 using StudentUnionBot.Application.Admin.Queries.GetAppealStatistics;
+using StudentUnionBot.Application.Admin.Commands.CreateBackup;
+using StudentUnionBot.Application.Admin.Commands.RestoreBackup;
+using StudentUnionBot.Application.Admin.Queries.GetBackups;
+using StudentUnionBot.Application.Notifications.Commands.SendNotification;
 using StudentUnionBot.Presentation.Bot.Keyboards;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
@@ -38,17 +48,20 @@ public class UpdateHandler : IBotUpdateHandler
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IUserStateManager _stateManager;
     private readonly ILocalizationService _localizationService;
+    private readonly IMediator _mediator;
 
     public UpdateHandler(
         ILogger<UpdateHandler> logger,
         IServiceScopeFactory scopeFactory,
         IUserStateManager stateManager,
-        ILocalizationService localizationService)
+        ILocalizationService localizationService,
+        IMediator mediator)
     {
         _logger = logger;
         _scopeFactory = scopeFactory;
         _stateManager = stateManager;
         _localizationService = localizationService;
+        _mediator = mediator;
     }
 
     // Helper methods for keyboards
@@ -142,9 +155,6 @@ public class UpdateHandler : IBotUpdateHandler
 
         try
         {
-            using var scope = _scopeFactory.CreateScope();
-            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-            
             var command = new RegisterUserCommand
             {
                 TelegramId = user.Id,
@@ -154,11 +164,11 @@ public class UpdateHandler : IBotUpdateHandler
                 Language = (user.LanguageCode?.ToLower() == "en") ? Language.English : Language.Ukrainian
             };
 
-            await mediator.Send(command, cancellationToken);
+            await _mediator.Send(command, cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "╨ƒ╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╤Ç╨╡╤ö╤ü╤é╤Ç╨░╤å╤û╤ù ╨║╨╛╤Ç╨╕╤ü╤é╤â╨▓╨░╤ç╨░ {UserId}", user.Id);
+            _logger.LogError(ex, "Помилка при реєстрації користувача {UserId}", user.Id);
         }
     }
 
@@ -180,15 +190,14 @@ public class UpdateHandler : IBotUpdateHandler
         }
 
         // Check if user is admin for menu display
-        using var menuScope = _scopeFactory.CreateScope();
-        var userRepoForMenu = menuScope.ServiceProvider.GetRequiredService<IUserRepository>();
-        var userForMenu = await userRepoForMenu.GetByTelegramIdAsync(message.From.Id, cancellationToken);
-        var isAdmin = userForMenu?.Role == UserRole.Admin;
+        var getUserQuery = new GetUserByTelegramIdQuery { TelegramId = message.From.Id };
+        var userResult = await _mediator.Send(getUserQuery, cancellationToken);
+        var isAdmin = userResult.IsSuccess && userResult.Value?.Role == UserRole.Admin;
 
         _logger.LogInformation(
-            "╨Ü╨╛╤Ç╨╕╤ü╤é╤â╨▓╨░╤ç {TelegramId} ╨╝╨░╤ö ╤Ç╨╛╨╗╤î {Role}, isAdmin={IsAdmin}",
+            "Користувач {TelegramId} має роль {Role}, isAdmin={IsAdmin}",
             message.From.Id,
-            userForMenu?.Role,
+            userResult.Value?.Role,
             isAdmin);
 
         var (responseText, keyboard) = command switch
@@ -297,6 +306,34 @@ public class UpdateHandler : IBotUpdateHandler
                 await HandleCloseReasonInputAsync(botClient, message, cancellationToken);
                 break;
 
+            case UserConversationState.WaitingFullNameInput:
+                await HandleFullNameInputAsync(botClient, message, cancellationToken);
+                break;
+
+            case UserConversationState.WaitingFacultyInput:
+                await HandleFacultyInputAsync(botClient, message, cancellationToken);
+                break;
+
+            case UserConversationState.WaitingCourseInput:
+                await HandleCourseInputAsync(botClient, message, cancellationToken);
+                break;
+
+            case UserConversationState.WaitingGroupInput:
+                await HandleGroupInputAsync(botClient, message, cancellationToken);
+                break;
+
+            case UserConversationState.WaitingAdminReply:
+                await HandleAdminReplyInputAsync(botClient, message, cancellationToken);
+                break;
+
+            case UserConversationState.WaitingBroadcastMessage:
+                await HandleBroadcastMessageInputAsync(botClient, message, cancellationToken);
+                break;
+
+            case UserConversationState.WaitingBroadcastCustomEmails:
+                await HandleBroadcastCustomEmailsInputAsync(botClient, message, cancellationToken);
+                break;
+
             default:
                 // ╨í╤é╨░╨╜╨┤╨░╤Ç╤é╨╜╨░ ╨▓╤û╨┤╨┐╨╛╨▓╤û╨┤╤î ╨┤╨╗╤Å Idle ╤ü╤é╨░╨╜╤â
                 await botClient.SendTextMessageAsync(
@@ -396,9 +433,6 @@ public class UpdateHandler : IBotUpdateHandler
         // ╨í╤é╨▓╨╛╤Ç╤Ä╤ö╨╝╨╛ ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å ╤ç╨╡╤Ç╨╡╨╖ MediatR
         try
         {
-            using var scope = _scopeFactory.CreateScope();
-            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-
             var command = new CreateAppealCommand
             {
                 StudentId = userId,
@@ -408,7 +442,7 @@ public class UpdateHandler : IBotUpdateHandler
                 Message = messageText
             };
 
-            var result = await mediator.Send(command, cancellationToken);
+            var result = await _mediator.Send(command, cancellationToken);
 
             if (result.IsSuccess)
             {
@@ -488,9 +522,6 @@ public class UpdateHandler : IBotUpdateHandler
 
         try
         {
-            using var scope = _scopeFactory.CreateScope();
-            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-
             // Send verification email via MediatR
             var command = new SendVerificationEmailCommand
             {
@@ -498,7 +529,7 @@ public class UpdateHandler : IBotUpdateHandler
                 Email = email
             };
 
-            var result = await mediator.Send(command, cancellationToken);
+            var result = await _mediator.Send(command, cancellationToken);
 
             if (result.IsSuccess)
             {
@@ -560,8 +591,7 @@ public class UpdateHandler : IBotUpdateHandler
 
         try
         {
-            using var scope = _scopeFactory.CreateScope();
-            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+            
 
             // Verify email code via MediatR
             var command = new VerifyEmailCommand
@@ -570,7 +600,7 @@ public class UpdateHandler : IBotUpdateHandler
                 Code = code
             };
 
-            var result = await mediator.Send(command, cancellationToken);
+            var result = await _mediator.Send(command, cancellationToken);
 
             if (result.IsSuccess && result.Value)
             {
@@ -639,8 +669,7 @@ public class UpdateHandler : IBotUpdateHandler
 
         try
         {
-            using var scope = _scopeFactory.CreateScope();
-            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+            
 
             // Retrieve stored appeal ID
             var appealId = await _stateManager.GetDataAsync<int>(userId, "close_appeal_id", cancellationToken);
@@ -659,7 +688,7 @@ public class UpdateHandler : IBotUpdateHandler
             }
 
             // Close appeal with provided reason
-            var result = await mediator.Send(new CloseAppealCommand
+            var result = await _mediator.Send(new CloseAppealCommand
             {
                 AppealId = appealId,
                 AdminId = userId,
@@ -704,6 +733,297 @@ public class UpdateHandler : IBotUpdateHandler
         }
     }
 
+    private async Task HandleAdminReplyInputAsync(
+        ITelegramBotClient botClient,
+        Message message,
+        CancellationToken cancellationToken)
+    {
+        var userId = message.From!.Id;
+        var replyText = message.Text?.Trim();
+
+        // Validate reply length
+        if (string.IsNullOrWhiteSpace(replyText) || replyText.Length < 5)
+        {
+            await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "❌ Відповідь занадто коротка. Будь ласка, введіть мінімум 5 символів.",
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        if (replyText.Length > 2000)
+        {
+            await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "❌ Відповідь занадто довга. Максимум 2000 символів.",
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        try
+        {
+            
+
+            // Retrieve stored appeal ID
+            var appealId = await _stateManager.GetDataAsync<int>(userId, "reply_appeal_id", cancellationToken);
+
+            if (appealId == 0)
+            {
+                await botClient.SendTextMessageAsync(
+                    chatId: message.Chat.Id,
+                    text: "❌ Помилка: ID звернення не знайдено. Спробуйте ще раз через адмін-панель.",
+                    replyMarkup: GetBackToMainMenu(),
+                    cancellationToken: cancellationToken);
+
+                await _stateManager.ClearStateAsync(userId, cancellationToken);
+                await _stateManager.ClearAllDataAsync(userId, cancellationToken);
+                return;
+            }
+
+            // Send reply to appeal
+            var result = await _mediator.Send(new ReplyToAppealCommand
+            {
+                AppealId = appealId,
+                AdminId = userId,
+                AdminName = message.From!.FirstName ?? "Admin",
+                Text = replyText
+            }, cancellationToken);
+
+            if (result.IsSuccess)
+            {
+                await botClient.SendTextMessageAsync(
+                    chatId: message.Chat.Id,
+                    text: $"✅ <b>Відповідь надіслано</b>\n\n" +
+                          $"📝 Ваша відповідь на звернення #{appealId} успішно надіслана користувачу.\n\n" +
+                          $"💬 <i>{replyText}</i>",
+                    parseMode: ParseMode.Html,
+                    replyMarkup: GetBackToMainMenu(),
+                    cancellationToken: cancellationToken);
+
+                // Clear state and data
+                await _stateManager.ClearStateAsync(userId, cancellationToken);
+                await _stateManager.RemoveDataAsync(userId, "reply_appeal_id", cancellationToken);
+            }
+            else
+            {
+                await botClient.SendTextMessageAsync(
+                    chatId: message.Chat.Id,
+                    text: $"❌ Помилка при надсиланні відповіді: {result.Error}\n\n" +
+                          "Спробуйте ще раз.",
+                    cancellationToken: cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при обробці відповіді адміна для звернення користувача {UserId}", userId);
+
+            await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "❌ Виникла технічна помилка при надсиланні відповіді. Спробуйте пізніше.",
+                replyMarkup: GetBackToMainMenu(),
+                cancellationToken: cancellationToken);
+
+            await _stateManager.ClearStateAsync(userId, cancellationToken);
+            await _stateManager.ClearAllDataAsync(userId, cancellationToken);
+        }
+    }
+
+    private async Task HandleFullNameInputAsync(
+        ITelegramBotClient botClient,
+        Message message,
+        CancellationToken cancellationToken)
+    {
+        var userId = message.From!.Id;
+        var fullName = message.Text?.Trim();
+
+        if (string.IsNullOrWhiteSpace(fullName) || fullName.Length < 2)
+        {
+            await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "❌ Ім'я занадто коротке. Будь ласка, введіть повне ім'я (мінімум 2 символи).",
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        if (fullName.Length > 100)
+        {
+            await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "❌ Ім'я занадто довге. Максимум 100 символів.",
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        // Save full name and move to faculty input
+        await _stateManager.SetDataAsync(userId, "profile_fullname", fullName, cancellationToken);
+        await _stateManager.SetStateAsync(userId, UserConversationState.WaitingFacultyInput, cancellationToken);
+
+        await botClient.SendTextMessageAsync(
+            chatId: message.Chat.Id,
+            text: $"✅ Ім'я збережено: <b>{fullName}</b>\n\n" +
+                  "📚 Тепер введіть назву свого факультету:",
+            parseMode: ParseMode.Html,
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task HandleFacultyInputAsync(
+        ITelegramBotClient botClient,
+        Message message,
+        CancellationToken cancellationToken)
+    {
+        var userId = message.From!.Id;
+        var faculty = message.Text?.Trim();
+
+        if (string.IsNullOrWhiteSpace(faculty) || faculty.Length < 2)
+        {
+            await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "❌ Назва факультету занадто коротка. Будь ласка, введіть коректну назву.",
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        if (faculty.Length > 100)
+        {
+            await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "❌ Назва факультету занадто довга. Максимум 100 символів.",
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        // Save faculty and move to course input
+        await _stateManager.SetDataAsync(userId, "profile_faculty", faculty, cancellationToken);
+        await _stateManager.SetStateAsync(userId, UserConversationState.WaitingCourseInput, cancellationToken);
+
+        await botClient.SendTextMessageAsync(
+            chatId: message.Chat.Id,
+            text: $"✅ Факультет збережено: <b>{faculty}</b>\n\n" +
+                  "🎓 Тепер введіть номер курсу (1-6):",
+            parseMode: ParseMode.Html,
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task HandleCourseInputAsync(
+        ITelegramBotClient botClient,
+        Message message,
+        CancellationToken cancellationToken)
+    {
+        var userId = message.From!.Id;
+        var courseText = message.Text?.Trim();
+
+        if (!int.TryParse(courseText, out int course) || course < 1 || course > 6)
+        {
+            await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "❌ Будь ласка, введіть номер курсу від 1 до 6.",
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        // Save course and move to group input
+        await _stateManager.SetDataAsync(userId, "profile_course", course, cancellationToken);
+        await _stateManager.SetStateAsync(userId, UserConversationState.WaitingGroupInput, cancellationToken);
+
+        await botClient.SendTextMessageAsync(
+            chatId: message.Chat.Id,
+            text: $"✅ Курс збережено: <b>{course}</b>\n\n" +
+                  "👥 І наостанок, введіть назву вашої групи:",
+            parseMode: ParseMode.Html,
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task HandleGroupInputAsync(
+        ITelegramBotClient botClient,
+        Message message,
+        CancellationToken cancellationToken)
+    {
+        var userId = message.From!.Id;
+        var group = message.Text?.Trim();
+
+        if (string.IsNullOrWhiteSpace(group) || group.Length < 1)
+        {
+            await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "❌ Назва групи не може бути порожньою.",
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        if (group.Length > 50)
+        {
+            await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "❌ Назва групи занадто довга. Максимум 50 символів.",
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        try
+        {
+            
+
+            // Retrieve saved data
+            var fullName = await _stateManager.GetDataAsync<string>(userId, "profile_fullname", cancellationToken);
+            var faculty = await _stateManager.GetDataAsync<string>(userId, "profile_faculty", cancellationToken);
+            var course = await _stateManager.GetDataAsync<int>(userId, "profile_course", cancellationToken);
+
+            // Update profile
+            var command = new UpdateProfileCommand
+            {
+                TelegramId = userId,
+                FullName = fullName,
+                Faculty = faculty,
+                Course = course,
+                Group = group
+            };
+
+            var result = await _mediator.Send(command, cancellationToken);
+
+            if (result.IsSuccess)
+            {
+                await botClient.SendTextMessageAsync(
+                    chatId: message.Chat.Id,
+                    text: "✅ <b>Профіль успішно оновлено!</b>\n\n" +
+                          $"👤 Ім'я: {fullName}\n" +
+                          $"📚 Факультет: {faculty}\n" +
+                          $"🎓 Курс: {course}\n" +
+                          $"👥 Група: {group}",
+                    parseMode: ParseMode.Html,
+                    replyMarkup: GetBackToMainMenu(),
+                    cancellationToken: cancellationToken);
+
+                // Clear state and data
+                await _stateManager.ClearStateAsync(userId, cancellationToken);
+                await _stateManager.ClearAllDataAsync(userId, cancellationToken);
+            }
+            else
+            {
+                await botClient.SendTextMessageAsync(
+                    chatId: message.Chat.Id,
+                    text: $"❌ Помилка при оновленні профілю: {result.Error}",
+                    replyMarkup: GetBackToMainMenu(),
+                    cancellationToken: cancellationToken);
+
+                await _stateManager.ClearStateAsync(userId, cancellationToken);
+                await _stateManager.ClearAllDataAsync(userId, cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при оновленні профілю для користувача {UserId}", userId);
+
+            await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "❌ Виникла технічна помилка при оновленні профілю. Спробуйте пізніше.",
+                replyMarkup: GetBackToMainMenu(),
+                cancellationToken: cancellationToken);
+
+            await _stateManager.ClearStateAsync(userId, cancellationToken);
+            await _stateManager.ClearAllDataAsync(userId, cancellationToken);
+        }
+    }
+
     private async Task HandleCallbackQueryAsync(
         ITelegramBotClient botClient,
         CallbackQuery callbackQuery,
@@ -730,10 +1050,9 @@ public class UpdateHandler : IBotUpdateHandler
                 await _stateManager.ClearAllDataAsync(userId, cancellationToken);
 
                 // Check if user is admin for menu display
-                using var backScope = _scopeFactory.CreateScope();
-                var userRepoForBack = backScope.ServiceProvider.GetRequiredService<IUserRepository>();
-                var userForBack = await userRepoForBack.GetByTelegramIdAsync(callbackQuery.From.Id, cancellationToken);
-                var isAdminBack = userForBack?.Role == UserRole.Admin;
+                var getUserBackQuery = new GetUserByTelegramIdQuery { TelegramId = callbackQuery.From.Id };
+                var userBackResult = await _mediator.Send(getUserBackQuery, cancellationToken);
+                var isAdminBack = userBackResult.IsSuccess && userBackResult.Value?.Role == UserRole.Admin;
 
                 await botClient.EditMessageTextAsync(
                     chatId: callbackQuery.Message.Chat.Id,
@@ -773,6 +1092,18 @@ public class UpdateHandler : IBotUpdateHandler
             {
                 await HandleEventsListCallback(botClient, callbackQuery, cancellationToken);
             }
+            else if (data.StartsWith("event_details_"))
+            {
+                await HandleEventDetailsCallback(botClient, callbackQuery, cancellationToken);
+            }
+            else if (data.StartsWith("event_register_"))
+            {
+                await HandleEventRegisterCallback(botClient, callbackQuery, cancellationToken);
+            }
+            else if (data.StartsWith("event_unregister_"))
+            {
+                await HandleEventUnregisterCallback(botClient, callbackQuery, cancellationToken);
+            }
             else if (data == "partners_list")
             {
                 await HandlePartnersListCallback(botClient, callbackQuery, cancellationToken);
@@ -784,6 +1115,10 @@ public class UpdateHandler : IBotUpdateHandler
             else if (data == "profile_view")
             {
                 await HandleProfileViewCallback(botClient, callbackQuery, cancellationToken);
+            }
+            else if (data == "profile_edit_info")
+            {
+                await HandleProfileEditInfoCallback(botClient, callbackQuery, cancellationToken);
             }
             else if (data == "profile_edit_email")
             {
@@ -842,9 +1177,45 @@ public class UpdateHandler : IBotUpdateHandler
             {
                 await HandleAdminSetPriorityCallback(botClient, callbackQuery, cancellationToken);
             }
+            else if (data.StartsWith("admin_reply_"))
+            {
+                await HandleAdminReplyCallback(botClient, callbackQuery, cancellationToken);
+            }
             else if (data.StartsWith("admin_close_"))
             {
                 await HandleAdminCloseAppealCallback(botClient, callbackQuery, cancellationToken);
+            }
+            else if (data == "admin_backup")
+            {
+                await HandleAdminBackupMenuCallback(botClient, callbackQuery, cancellationToken);
+            }
+            else if (data == "admin_backup_create")
+            {
+                await HandleAdminBackupCreateCallback(botClient, callbackQuery, cancellationToken);
+            }
+            else if (data == "admin_backup_list")
+            {
+                await HandleAdminBackupListCallback(botClient, callbackQuery, cancellationToken);
+            }
+            else if (data.StartsWith("admin_backup_restore_"))
+            {
+                await HandleAdminBackupRestoreCallback(botClient, callbackQuery, cancellationToken);
+            }
+            else if (data == "admin_broadcast")
+            {
+                await HandleAdminBroadcastMenuCallback(botClient, callbackQuery, cancellationToken);
+            }
+            else if (data.StartsWith("broadcast_audience_"))
+            {
+                await HandleBroadcastAudienceCallback(botClient, callbackQuery, cancellationToken);
+            }
+            else if (data == "broadcast_confirm")
+            {
+                await HandleBroadcastConfirmCallback(botClient, callbackQuery, cancellationToken);
+            }
+            else if (data == "broadcast_cancel")
+            {
+                await HandleBroadcastCancelCallback(botClient, callbackQuery, cancellationToken);
             }
 
             await botClient.AnswerCallbackQueryAsync(
@@ -911,8 +1282,7 @@ public class UpdateHandler : IBotUpdateHandler
 
         try
         {
-            using var scope = _scopeFactory.CreateScope();
-            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+            
 
             // ╨₧╤é╤Ç╨╕╨╝╤â╤ö╨╝╨╛ ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å ╨║╨╛╤Ç╨╕╤ü╤é╤â╨▓╨░╤ç╨░
             var query = new GetUserAppealsQuery
@@ -923,7 +1293,7 @@ public class UpdateHandler : IBotUpdateHandler
                 OnlyActive = false // ╨ƒ╨╛╨║╨░╨╖╤â╤ö╨╝╨╛ ╨▓╤ü╤û ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å
             };
 
-            var result = await mediator.Send(query, cancellationToken);
+            var result = await _mediator.Send(query, cancellationToken);
 
             if (!result.IsSuccess)
             {
@@ -1050,8 +1420,7 @@ public class UpdateHandler : IBotUpdateHandler
 
         try
         {
-            using var scope = _scopeFactory.CreateScope();
-            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+            
 
             // ╨₧╤é╤Ç╨╕╨╝╤â╤ö╨╝╨╛ ╨┤╨╡╤é╨░╨╗╤û ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å
             var query = new StudentUnionBot.Application.Appeals.Queries.GetAppealById.GetAppealByIdQuery
@@ -1060,7 +1429,7 @@ public class UpdateHandler : IBotUpdateHandler
                 RequestUserId = userId
             };
 
-            var result = await mediator.Send(query, cancellationToken);
+            var result = await _mediator.Send(query, cancellationToken);
 
             if (!result.IsSuccess)
             {
@@ -1177,9 +1546,9 @@ public class UpdateHandler : IBotUpdateHandler
     {
         var userId = callbackQuery.From.Id;
         
-        using var scope = _scopeFactory.CreateScope();
-        var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
-        var user = await userRepo.GetByTelegramIdAsync(userId, cancellationToken);
+        var getUserQuery = new GetUserByTelegramIdQuery { TelegramId = userId };
+        var userResult = await _mediator.Send(getUserQuery, cancellationToken);
+        var user = userResult.Value;
 
         if (user == null)
         {
@@ -1195,7 +1564,7 @@ public class UpdateHandler : IBotUpdateHandler
         var fullName = user.FullName ?? $"{callbackQuery.From.FirstName} {callbackQuery.From.LastName}".Trim();
         var email = user.Email ?? "<i>╨╜╨╡ ╨▓╨║╨░╨╖╨░╨╜╨╛</i>";
         var emailStatus = user.IsEmailVerified ? "Γ£à ╨ƒ╤û╨┤╤é╨▓╨╡╤Ç╨┤╨╢╨╡╨╜╨╛" : "Γ¥î ╨¥╨╡ ╨┐╤û╨┤╤é╨▓╨╡╤Ç╨┤╨╢╨╡╨╜╨╛";
-        var languageDisplay = user.Language == Domain.Enums.Language.Ukrainian ? "≡ƒç║≡ƒç¼ ╨ú╨║╤Ç╨░╤ù╨╜╤ü╤î╨║╨░" : "≡ƒç¼≡ƒç¿ English";
+        var languageDisplay = user.Language == "uk" ? "🇺🇦 Українська" : "🇬🇧 English";
 
         var profileText = "≡ƒæñ <b>╨£╤û╨╣ ╨┐╤Ç╨╛╤ä╤û╨╗╤î</b>\n\n" +
                          $"<b>╨å╨╝'╤Å:</b> {fullName}\n" +
@@ -1210,15 +1579,19 @@ public class UpdateHandler : IBotUpdateHandler
         {
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("≡ƒôº ╨ù╨╝╤û╨╜╨╕╤é╨╕ email", "profile_edit_email")
+                InlineKeyboardButton.WithCallbackData("📝 Редагувати профіль", "profile_edit_info")
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("≡ƒîÅ ╨ù╨╝╤û╨╜╨╕╤é╨╕ ╨╝╨╛╨▓╤â", "profile_change_language")
+                InlineKeyboardButton.WithCallbackData("📧 Змінити email", "profile_edit_email")
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("≡ƒöÖ ╨ô╨╛╨╗╨╛╨▓╨╜╨╡ ╨╝╨╡╨╜╤Ä", "back_to_main")
+                InlineKeyboardButton.WithCallbackData("🌐 Змінити мову", "profile_change_language")
+            },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("🏠 Головне меню", "back_to_main")
             }
         });
 
@@ -1228,6 +1601,29 @@ public class UpdateHandler : IBotUpdateHandler
             text: profileText,
             parseMode: ParseMode.Html,
             replyMarkup: keyboard,
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task HandleProfileEditInfoCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        var userId = callbackQuery.From.Id;
+
+        // Set state to waiting for full name input
+        await _stateManager.SetStateAsync(userId, UserConversationState.WaitingFullNameInput, cancellationToken);
+
+        await botClient.EditMessageTextAsync(
+            chatId: callbackQuery.Message!.Chat.Id,
+            messageId: callbackQuery.Message.MessageId,
+            text: "📝 <b>Редагування профілю</b>\n\n" +
+                  "Давайте оновимо інформацію про вас.\n\n" +
+                  "👤 Спочатку введіть ваше <b>повне ім'я</b>:\n\n" +
+                  "<i>Наприклад: Іванов Іван Іванович</i>\n\n" +
+                  "Надішліть /cancel щоб скасувати",
+            parseMode: ParseMode.Html,
+            replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("❌ Скасувати", "profile_view")),
             cancellationToken: cancellationToken);
     }
 
@@ -1296,8 +1692,7 @@ public class UpdateHandler : IBotUpdateHandler
 
         try
         {
-            using var scope = _scopeFactory.CreateScope();
-            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+            
 
             var command = new ChangeLanguageCommand
             {
@@ -1305,7 +1700,7 @@ public class UpdateHandler : IBotUpdateHandler
                 Language = language
             };
 
-            var result = await mediator.Send(command, cancellationToken);
+            var result = await _mediator.Send(command, cancellationToken);
 
             if (result.IsSuccess)
             {
@@ -1344,8 +1739,7 @@ public class UpdateHandler : IBotUpdateHandler
     {
         try
         {
-            using var scope = _scopeFactory.CreateScope();
-            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+            
             
             // ╨₧╤é╤Ç╨╕╨╝╤â╤ö╨╝╨╛ ╨╜╨╛╨▓╨╕╨╜╨╕ ╤ç╨╡╤Ç╨╡╨╖ MediatR
             var query = new GetPublishedNewsQuery
@@ -1354,7 +1748,7 @@ public class UpdateHandler : IBotUpdateHandler
                 PageSize = 5
             };
 
-            var result = await mediator.Send(query, cancellationToken);
+            var result = await _mediator.Send(query, cancellationToken);
 
             if (!result.IsSuccess || result.Value == null)
             {
@@ -1438,8 +1832,7 @@ public class UpdateHandler : IBotUpdateHandler
     {
         try
         {
-            using var scope = _scopeFactory.CreateScope();
-            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+            
             
             // ╨₧╤é╤Ç╨╕╨╝╤â╤ö╨╝╨╛ ╨╝╨░╨╣╨▒╤â╤é╨╜╤û ╨┐╨╛╨┤╤û╤ù ╤ç╨╡╤Ç╨╡╨╖ MediatR
             var query = new GetUpcomingEventsQuery
@@ -1448,7 +1841,7 @@ public class UpdateHandler : IBotUpdateHandler
                 PageSize = 5
             };
 
-            var result = await mediator.Send(query, cancellationToken);
+            var result = await _mediator.Send(query, cancellationToken);
 
             if (!result.IsSuccess || result.Value == null)
             {
@@ -1546,12 +1939,11 @@ public class UpdateHandler : IBotUpdateHandler
     {
         try
         {
-            using var scope = _scopeFactory.CreateScope();
-            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+            
             
             // ╨₧╤é╤Ç╨╕╨╝╤â╤ö╨╝╨╛ ╨┐╨░╤Ç╤é╨╜╨╡╤Ç╤û╨▓ ╤ç╨╡╤Ç╨╡╨╖ MediatR
             var query = new GetActivePartnersQuery();
-            var result = await mediator.Send(query, cancellationToken);
+            var result = await _mediator.Send(query, cancellationToken);
 
             if (!result.IsSuccess || result.Value == null)
             {
@@ -1642,12 +2034,11 @@ public class UpdateHandler : IBotUpdateHandler
     {
         try
         {
-            using var scope = _scopeFactory.CreateScope();
-            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+            
             
             // ╨₧╤é╤Ç╨╕╨╝╤â╤ö╨╝╨╛ ╨║╨╛╨╜╤é╨░╨║╤é╨╕ ╤ç╨╡╤Ç╨╡╨╖ MediatR
             var query = new GetAllContactsQuery();
-            var result = await mediator.Send(query, cancellationToken);
+            var result = await _mediator.Send(query, cancellationToken);
 
             if (!result.IsSuccess || result.Value == null)
             {
@@ -1765,14 +2156,14 @@ public class UpdateHandler : IBotUpdateHandler
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
         
         // Get statistics
-        var allAppealsResult = await mediator.Send(new GetAdminAppealsQuery
+        var allAppealsResult = await _mediator.Send(new GetAdminAppealsQuery
         {
             AdminId = user.TelegramId,
             PageNumber = 1,
             PageSize = 1
         }, cancellationToken);
 
-        var newAppealsResult = await mediator.Send(new GetAdminAppealsQuery
+        var newAppealsResult = await _mediator.Send(new GetAdminAppealsQuery
         {
             AdminId = user.TelegramId,
             Status = Domain.Enums.AppealStatus.New,
@@ -1780,7 +2171,7 @@ public class UpdateHandler : IBotUpdateHandler
             PageSize = 1
         }, cancellationToken);
 
-        var myAppealsResult = await mediator.Send(new GetAdminAppealsQuery
+        var myAppealsResult = await _mediator.Send(new GetAdminAppealsQuery
         {
             AdminId = user.TelegramId,
             OnlyMy = true,
@@ -1788,7 +2179,7 @@ public class UpdateHandler : IBotUpdateHandler
             PageSize = 1
         }, cancellationToken);
 
-        var unassignedResult = await mediator.Send(new GetAdminAppealsQuery
+        var unassignedResult = await _mediator.Send(new GetAdminAppealsQuery
         {
             AdminId = user.TelegramId,
             OnlyUnassigned = true,
@@ -1842,7 +2233,7 @@ public class UpdateHandler : IBotUpdateHandler
                 Days = 30
             };
 
-            var result = await mediator.Send(query, cancellationToken);
+            var result = await _mediator.Send(query, cancellationToken);
 
             if (!result.IsSuccess || result.Value == null)
             {
@@ -1982,7 +2373,7 @@ public class UpdateHandler : IBotUpdateHandler
             query.OnlyUnassigned = true;
         }
 
-        var result = await mediator.Send(query, cancellationToken);
+        var result = await _mediator.Send(query, cancellationToken);
 
         if (!result.IsSuccess || result.Value == null || !result.Value.Appeals.Any())
         {
@@ -2070,7 +2461,7 @@ public class UpdateHandler : IBotUpdateHandler
         }
 
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        var result = await mediator.Send(new GetAppealByIdQuery { AppealId = appealId, RequestUserId = user.TelegramId }, cancellationToken);
+        var result = await _mediator.Send(new GetAppealByIdQuery { AppealId = appealId, RequestUserId = user.TelegramId }, cancellationToken);
 
         if (!result.IsSuccess || result.Value == null)
         {
@@ -2163,7 +2554,7 @@ public class UpdateHandler : IBotUpdateHandler
         }
 
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        var result = await mediator.Send(new AssignAppealCommand(
+        var result = await _mediator.Send(new AssignAppealCommand(
             appealId: appealId,
             adminId: user.TelegramId,
             assignedByUserId: user.TelegramId,
@@ -2227,7 +2618,7 @@ public class UpdateHandler : IBotUpdateHandler
         }
 
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        var result = await mediator.Send(new AssignAppealCommand(
+        var result = await _mediator.Send(new AssignAppealCommand(
             appealId: appealId,
             assignedByUserId: user.TelegramId
         ), cancellationToken);
@@ -2331,7 +2722,7 @@ public class UpdateHandler : IBotUpdateHandler
         }
 
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        var result = await mediator.Send(new UpdatePriorityCommand
+        var result = await _mediator.Send(new UpdatePriorityCommand
         {
             AppealId = appealId,
             AdminId = user.TelegramId,
@@ -2411,6 +2802,1181 @@ public class UpdateHandler : IBotUpdateHandler
             cancellationToken: cancellationToken);
     }
 
+    private async Task HandleAdminReplyCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+
+        var user = await userRepo.GetByTelegramIdAsync(callbackQuery.From.Id, cancellationToken);
+        if (user?.Role != Domain.Enums.UserRole.Admin)
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "⛔ У вас немає прав адміністратора",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        var appealIdStr = callbackQuery.Data!.Replace("admin_reply_", "");
+        if (!int.TryParse(appealIdStr, out var appealId))
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "❌ Невірний ID звернення",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        // Store appeal ID and set state for reply input
+        await _stateManager.SetDataAsync(user.TelegramId, "reply_appeal_id", appealId, cancellationToken);
+        await _stateManager.SetStateAsync(user.TelegramId, UserConversationState.WaitingAdminReply, cancellationToken);
+
+        await botClient.AnswerCallbackQueryAsync(
+            callbackQuery.Id,
+            cancellationToken: cancellationToken);
+
+        await botClient.SendTextMessageAsync(
+            chatId: callbackQuery.Message!.Chat.Id,
+            text: "💬 <b>Відповідь на звернення</b>\n\n" +
+                  "Введіть текст вашої відповіді користувачу:\n\n" +
+                  "<i>Мінімум 5 символів, максимум 2000 символів.</i>\n\n" +
+                  "Натисніть /cancel для відміни.",
+            parseMode: ParseMode.Html,
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task HandleAdminBackupMenuCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+
+        var user = await userRepo.GetByTelegramIdAsync(callbackQuery.From.Id, cancellationToken);
+        if (user?.Role != Domain.Enums.UserRole.Admin)
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "⛔ У вас немає прав адміністратора",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        var keyboard = new InlineKeyboardMarkup(new[]
+        {
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("➕ Створити Backup", "admin_backup_create")
+            },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("📋 Список Backups", "admin_backup_list")
+            },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("🔙 Адмін панель", "admin_panel")
+            }
+        });
+
+        await botClient.EditMessageTextAsync(
+            chatId: callbackQuery.Message!.Chat.Id,
+            messageId: callbackQuery.Message.MessageId,
+            text: "💾 <b>Управління Backup</b>\n\n" +
+                  "Виберіть дію:",
+            parseMode: ParseMode.Html,
+            replyMarkup: keyboard,
+            cancellationToken: cancellationToken);
+
+        await botClient.AnswerCallbackQueryAsync(
+            callbackQuery.Id,
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task HandleAdminBackupCreateCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+
+        var user = await userRepo.GetByTelegramIdAsync(callbackQuery.From.Id, cancellationToken);
+        if (user?.Role != Domain.Enums.UserRole.Admin)
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "⛔ У вас немає прав адміністратора",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        try
+        {
+            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+            
+            await botClient.EditMessageTextAsync(
+                chatId: callbackQuery.Message!.Chat.Id,
+                messageId: callbackQuery.Message.MessageId,
+                text: "⏳ <b>Створення backup...</b>\n\nБудь ласка, зачекайте...",
+                parseMode: ParseMode.Html,
+                cancellationToken: cancellationToken);
+
+            var result = await _mediator.Send(new CreateBackupCommand(), cancellationToken);
+
+            if (result.IsSuccess)
+            {
+                await botClient.EditMessageTextAsync(
+                    chatId: callbackQuery.Message.Chat.Id,
+                    messageId: callbackQuery.Message.MessageId,
+                    text: $"✅ <b>Backup створено успішно!</b>\n\n" +
+                          $"📁 Файл: {result.Value}",
+                    parseMode: ParseMode.Html,
+                    replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("🔙 Backup меню", "admin_backup")),
+                    cancellationToken: cancellationToken);
+            }
+            else
+            {
+                await botClient.EditMessageTextAsync(
+                    chatId: callbackQuery.Message.Chat.Id,
+                    messageId: callbackQuery.Message.MessageId,
+                    text: $"❌ <b>Помилка створення backup</b>\n\n{result.Error}",
+                    parseMode: ParseMode.Html,
+                    replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("🔙 Backup меню", "admin_backup")),
+                    cancellationToken: cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error creating backup");
+            
+            await botClient.EditMessageTextAsync(
+                chatId: callbackQuery.Message!.Chat.Id,
+                messageId: callbackQuery.Message.MessageId,
+                text: "❌ <b>Виникла помилка</b>\n\nСпробуйте пізніше.",
+                parseMode: ParseMode.Html,
+                replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("🔙 Backup меню", "admin_backup")),
+                cancellationToken: cancellationToken);
+        }
+
+        await botClient.AnswerCallbackQueryAsync(
+            callbackQuery.Id,
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task HandleAdminBackupListCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+
+        var user = await userRepo.GetByTelegramIdAsync(callbackQuery.From.Id, cancellationToken);
+        if (user?.Role != Domain.Enums.UserRole.Admin)
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "⛔ У вас немає прав адміністратора",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        try
+        {
+            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+            var result = await _mediator.Send(new GetBackupsQuery(), cancellationToken);
+
+            if (!result.IsSuccess || result.Value == null || result.Value.Count == 0)
+            {
+                await botClient.EditMessageTextAsync(
+                    chatId: callbackQuery.Message!.Chat.Id,
+                    messageId: callbackQuery.Message.MessageId,
+                    text: "📋 <b>Список Backups</b>\n\n❌ Backups не знайдено.",
+                    parseMode: ParseMode.Html,
+                    replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("🔙 Backup меню", "admin_backup")),
+                    cancellationToken: cancellationToken);
+                return;
+            }
+
+            var backups = result.Value.OrderByDescending(b => b.CreatedAt).Take(10).ToList();
+            var text = "📋 <b>Останні 10 Backups</b>\n\n";
+
+            var buttons = new List<InlineKeyboardButton[]>();
+
+            foreach (var backup in backups)
+            {
+                text += $"📁 <code>{backup.FileName}</code>\n";
+                text += $"📅 {backup.CreatedAt:dd.MM.yyyy HH:mm}\n";
+                text += $"💾 {backup.FileSizeBytes / 1024.0:F2} KB\n\n";
+
+                buttons.Add(new[]
+                {
+                    InlineKeyboardButton.WithCallbackData($"🔄 {backup.FileName}", $"admin_backup_restore_{backup.FileName}")
+                });
+            }
+
+            buttons.Add(new[]
+            {
+                InlineKeyboardButton.WithCallbackData("🔙 Backup меню", "admin_backup")
+            });
+
+            await botClient.EditMessageTextAsync(
+                chatId: callbackQuery.Message!.Chat.Id,
+                messageId: callbackQuery.Message.MessageId,
+                text: text,
+                parseMode: ParseMode.Html,
+                replyMarkup: new InlineKeyboardMarkup(buttons),
+                cancellationToken: cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error listing backups");
+            
+            await botClient.EditMessageTextAsync(
+                chatId: callbackQuery.Message!.Chat.Id,
+                messageId: callbackQuery.Message.MessageId,
+                text: "❌ <b>Помилка отримання списку</b>",
+                parseMode: ParseMode.Html,
+                replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("🔙 Backup меню", "admin_backup")),
+                cancellationToken: cancellationToken);
+        }
+
+        await botClient.AnswerCallbackQueryAsync(
+            callbackQuery.Id,
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task HandleAdminBackupRestoreCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+
+        var user = await userRepo.GetByTelegramIdAsync(callbackQuery.From.Id, cancellationToken);
+        if (user?.Role != Domain.Enums.UserRole.Admin)
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "⛔ У вас немає прав адміністратора",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        var fileName = callbackQuery.Data!.Replace("admin_backup_restore_", "");
+
+        try
+        {
+            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+            
+            await botClient.EditMessageTextAsync(
+                chatId: callbackQuery.Message!.Chat.Id,
+                messageId: callbackQuery.Message.MessageId,
+                text: $"⏳ <b>Відновлення з backup...</b>\n\n📁 {fileName}\n\nБудь ласка, зачекайте...",
+                parseMode: ParseMode.Html,
+                cancellationToken: cancellationToken);
+
+            var result = await _mediator.Send(new RestoreBackupCommand 
+            { 
+                AdminId = callbackQuery.From.Id,
+                BackupFilePath = fileName 
+            }, cancellationToken);
+
+            if (result.IsSuccess)
+            {
+                await botClient.EditMessageTextAsync(
+                    chatId: callbackQuery.Message.Chat.Id,
+                    messageId: callbackQuery.Message.MessageId,
+                    text: $"✅ <b>Backup відновлено успішно!</b>\n\n📁 {fileName}",
+                    parseMode: ParseMode.Html,
+                    replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("🔙 Backup меню", "admin_backup")),
+                    cancellationToken: cancellationToken);
+            }
+            else
+            {
+                await botClient.EditMessageTextAsync(
+                    chatId: callbackQuery.Message.Chat.Id,
+                    messageId: callbackQuery.Message.MessageId,
+                    text: $"❌ <b>Помилка відновлення backup</b>\n\n{result.Error}",
+                    parseMode: ParseMode.Html,
+                    replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("🔙 Backup меню", "admin_backup")),
+                    cancellationToken: cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error restoring backup {FileName}", fileName);
+            
+            await botClient.EditMessageTextAsync(
+                chatId: callbackQuery.Message!.Chat.Id,
+                messageId: callbackQuery.Message.MessageId,
+                text: "❌ <b>Виникла помилка</b>\n\nСпробуйте пізніше.",
+                parseMode: ParseMode.Html,
+                replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("🔙 Backup меню", "admin_backup")),
+                cancellationToken: cancellationToken);
+        }
+
+        await botClient.AnswerCallbackQueryAsync(
+            callbackQuery.Id,
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task HandleAdminBroadcastMenuCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+
+        var user = await userRepo.GetByTelegramIdAsync(callbackQuery.From.Id, cancellationToken);
+        if (user?.Role != Domain.Enums.UserRole.Admin)
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "⛔ У вас немає прав адміністратора",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        var keyboard = new InlineKeyboardMarkup(new[]
+        {
+            new[] { InlineKeyboardButton.WithCallbackData("👥 Всі користувачі", "broadcast_audience_all") },
+            new[] { InlineKeyboardButton.WithCallbackData("🎓 Тільки студенти", "broadcast_audience_students") },
+            new[] { InlineKeyboardButton.WithCallbackData("👨‍💼 Тільки адміни", "broadcast_audience_admins") },
+            new[] { InlineKeyboardButton.WithCallbackData("� Custom список (emails)", "broadcast_audience_custom") },
+            new[] { InlineKeyboardButton.WithCallbackData("�🔙 Адмін панель", "admin_panel") }
+        });
+
+        await botClient.EditMessageTextAsync(
+            chatId: callbackQuery.Message!.Chat.Id,
+            messageId: callbackQuery.Message.MessageId,
+            text: "📢 <b>Масова розсилка</b>\n\n" +
+                  "Оберіть аудиторію для розсилки:",
+            parseMode: ParseMode.Html,
+            replyMarkup: keyboard,
+            cancellationToken: cancellationToken);
+
+        await botClient.AnswerCallbackQueryAsync(
+            callbackQuery.Id,
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task HandleBroadcastAudienceCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+        var stateManager = scope.ServiceProvider.GetRequiredService<IUserStateManager>();
+
+        var user = await userRepo.GetByTelegramIdAsync(callbackQuery.From.Id, cancellationToken);
+        if (user?.Role != Domain.Enums.UserRole.Admin)
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "⛔ У вас немає прав адміністратора",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        var audience = callbackQuery.Data!.Replace("broadcast_audience_", "");
+        
+        // Зберігаємо аудиторію
+        await stateManager.SetDataAsync(callbackQuery.From.Id, "broadcast_audience", audience, cancellationToken);
+        
+        // Для custom списку запитуємо emails
+        if (audience == "custom")
+        {
+            await stateManager.SetStateAsync(callbackQuery.From.Id, UserConversationState.WaitingBroadcastCustomEmails, cancellationToken);
+
+            await botClient.EditMessageTextAsync(
+                chatId: callbackQuery.Message!.Chat.Id,
+                messageId: callbackQuery.Message.MessageId,
+                text: "📢 <b>Масова розсилка - Custom список</b>\n\n" +
+                      "📧 Введіть email адреси користувачів (по одній на рядок).\n\n" +
+                      "<b>Формат:</b>\n" +
+                      "<code>user1@example.com\n" +
+                      "user2@example.com\n" +
+                      "user3@example.com</code>\n\n" +
+                      "<i>Бот знайде користувачів з цими email адресами та підготує розсилку.</i>",
+                parseMode: ParseMode.Html,
+                cancellationToken: cancellationToken);
+        }
+        else
+        {
+            // Встановлюємо стан очікування повідомлення
+            await stateManager.SetStateAsync(callbackQuery.From.Id, UserConversationState.WaitingBroadcastMessage, cancellationToken);
+
+            var audienceText = audience switch
+            {
+                "all" => "👥 Всі користувачі",
+                "students" => "🎓 Тільки студенти",
+                "admins" => "👨‍💼 Тільки адміни",
+                _ => "Невідомо"
+            };
+
+            await botClient.EditMessageTextAsync(
+                chatId: callbackQuery.Message!.Chat.Id,
+                messageId: callbackQuery.Message.MessageId,
+                text: $"📢 <b>Масова розсилка</b>\n\n" +
+                      $"Аудиторія: {audienceText}\n\n" +
+                      $"📝 Тепер введіть текст повідомлення для розсилки.\n\n" +
+                      $"<i>Мінімум 10 символів, максимум 4000 символів.</i>",
+                parseMode: ParseMode.Html,
+                cancellationToken: cancellationToken);
+        }
+
+        await botClient.AnswerCallbackQueryAsync(
+            callbackQuery.Id,
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task HandleBroadcastCustomEmailsInputAsync(
+        ITelegramBotClient botClient,
+        Message message,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+            var stateManager = scope.ServiceProvider.GetRequiredService<IUserStateManager>();
+
+            var user = await userRepo.GetByTelegramIdAsync(message.From!.Id, cancellationToken);
+            if (user?.Role != Domain.Enums.UserRole.Admin)
+            {
+                await botClient.SendTextMessageAsync(
+                    chatId: message.Chat.Id,
+                    text: "⛔ У вас немає прав адміністратора",
+                    cancellationToken: cancellationToken);
+                return;
+            }
+
+            var emailsText = message.Text?.Trim();
+
+            // Валідація
+            if (string.IsNullOrWhiteSpace(emailsText))
+            {
+                await botClient.SendTextMessageAsync(
+                    chatId: message.Chat.Id,
+                    text: "❌ Список email адрес не може бути порожнім. Спробуйте ще раз.",
+                    cancellationToken: cancellationToken);
+                return;
+            }
+
+            // Парсимо emails (по рядках або через кому)
+            var emailLines = emailsText.Split(new[] { '\n', '\r', ',', ';' }, StringSplitOptions.RemoveEmptyEntries);
+            var emails = emailLines.Select(e => e.Trim()).Where(e => !string.IsNullOrWhiteSpace(e)).ToList();
+
+            if (emails.Count == 0)
+            {
+                await botClient.SendTextMessageAsync(
+                    chatId: message.Chat.Id,
+                    text: "❌ Не знайдено жодної email адреси. Спробуйте ще раз.",
+                    cancellationToken: cancellationToken);
+                return;
+            }
+
+            if (emails.Count > 100)
+            {
+                await botClient.SendTextMessageAsync(
+                    chatId: message.Chat.Id,
+                    text: "❌ Максимум 100 email адрес за раз. Спробуйте ще раз з меншою кількістю.",
+                    cancellationToken: cancellationToken);
+                return;
+            }
+
+            // Простий email regex для валідації
+            var emailRegex = new System.Text.RegularExpressions.Regex(
+                @"^[^@\s]+@[^@\s]+\.[^@\s]+$",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+            var invalidEmails = emails.Where(e => !emailRegex.IsMatch(e)).ToList();
+            if (invalidEmails.Any())
+            {
+                await botClient.SendTextMessageAsync(
+                    chatId: message.Chat.Id,
+                    text: $"❌ Невірний формат email адрес:\n" +
+                          string.Join("\n", invalidEmails.Take(5)) +
+                          (invalidEmails.Count > 5 ? $"\n... та ще {invalidEmails.Count - 5}" : ""),
+                    cancellationToken: cancellationToken);
+                return;
+            }
+
+            // Шукаємо користувачів з цими emails
+            var foundUsers = new List<BotUser>();
+            var notFoundEmails = new List<string>();
+
+            foreach (var email in emails)
+            {
+                var foundUser = await userRepo.GetByEmailAsync(email, cancellationToken);
+                if (foundUser != null)
+                {
+                    foundUsers.Add(foundUser);
+                }
+                else
+                {
+                    notFoundEmails.Add(email);
+                }
+            }
+
+            if (foundUsers.Count == 0)
+            {
+                await botClient.SendTextMessageAsync(
+                    chatId: message.Chat.Id,
+                    text: "❌ Не знайдено користувачів з введеними email адресами.\n\n" +
+                          "Переконайтеся що користувачі зареєстровані в боті та верифікували свої email.",
+                    cancellationToken: cancellationToken);
+                return;
+            }
+
+            // Зберігаємо список emails знайдених користувачів
+            var foundEmails = foundUsers.Select(u => u.Email).ToList();
+            var emailsJson = System.Text.Json.JsonSerializer.Serialize(foundEmails);
+            await stateManager.SetDataAsync(message.From.Id, "broadcast_custom_emails", emailsJson, cancellationToken);
+
+            // Показуємо статистику та переходимо до введення повідомлення
+            await stateManager.SetStateAsync(message.From.Id, UserConversationState.WaitingBroadcastMessage, cancellationToken);
+
+            var resultText = $"✅ <b>Email адреси оброблено</b>\n\n" +
+                           $"📊 Статистика:\n" +
+                           $"• Знайдено користувачів: <b>{foundUsers.Count}</b>\n" +
+                           $"• Не знайдено: <b>{notFoundEmails.Count}</b>\n\n";
+
+            if (notFoundEmails.Any())
+            {
+                resultText += $"⚠️ <b>Не знайдено користувачів з email:</b>\n" +
+                            $"<code>{string.Join("\n", notFoundEmails.Take(5))}</code>\n";
+                if (notFoundEmails.Count > 5)
+                {
+                    resultText += $"<i>... та ще {notFoundEmails.Count - 5}</i>\n";
+                }
+                resultText += "\n";
+            }
+
+            resultText += $"📝 <b>Тепер введіть текст повідомлення для розсилки.</b>\n\n" +
+                         $"<i>Мінімум 10 символів, максимум 4000 символів.</i>";
+
+            await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: resultText,
+                parseMode: ParseMode.Html,
+                cancellationToken: cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing custom emails input from user {UserId}", message.From?.Id);
+            
+            await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "❌ Виникла помилка при обробці email адрес. Спробуйте пізніше.",
+                cancellationToken: cancellationToken);
+        }
+    }
+
+    private async Task HandleBroadcastMessageInputAsync(
+        ITelegramBotClient botClient,
+        Message message,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+            var stateManager = scope.ServiceProvider.GetRequiredService<IUserStateManager>();
+
+            var user = await userRepo.GetByTelegramIdAsync(message.From!.Id, cancellationToken);
+            if (user?.Role != Domain.Enums.UserRole.Admin)
+            {
+                await botClient.SendTextMessageAsync(
+                    chatId: message.Chat.Id,
+                    text: "⛔ У вас немає прав адміністратора",
+                    cancellationToken: cancellationToken);
+                return;
+            }
+
+            var broadcastText = message.Text?.Trim();
+
+            // Валідація
+            if (string.IsNullOrWhiteSpace(broadcastText))
+            {
+                await botClient.SendTextMessageAsync(
+                    chatId: message.Chat.Id,
+                    text: "❌ Повідомлення не може бути порожнім. Спробуйте ще раз.",
+                    cancellationToken: cancellationToken);
+                return;
+            }
+
+            if (broadcastText.Length < 10)
+            {
+                await botClient.SendTextMessageAsync(
+                    chatId: message.Chat.Id,
+                    text: "❌ Повідомлення занадто коротке. Мінімум 10 символів.",
+                    cancellationToken: cancellationToken);
+                return;
+            }
+
+            if (broadcastText.Length > 4000)
+            {
+                await botClient.SendTextMessageAsync(
+                    chatId: message.Chat.Id,
+                    text: "❌ Повідомлення занадто довге. Максимум 4000 символів.",
+                    cancellationToken: cancellationToken);
+                return;
+            }
+
+            // Зберігаємо текст повідомлення
+            await stateManager.SetDataAsync(message.From.Id, "broadcast_message", broadcastText, cancellationToken);
+
+            // Отримуємо аудиторію
+            var audience = await stateManager.GetDataAsync<string>(message.From.Id, "broadcast_audience", cancellationToken);
+
+            // Підраховуємо кількість отримувачів
+            int recipientsCount = 0;
+            string audienceText = "";
+            
+            if (audience == "all")
+            {
+                var allUsers = await userRepo.GetActiveUsersAsync(cancellationToken);
+                recipientsCount = allUsers.Count;
+                audienceText = "👥 Всі користувачі";
+            }
+            else if (audience == "students")
+            {
+                var allUsers = await userRepo.GetActiveUsersAsync(cancellationToken);
+                recipientsCount = allUsers.Count(u => u.Role == Domain.Enums.UserRole.Student);
+                audienceText = "🎓 Тільки студенти";
+            }
+            else if (audience == "admins")
+            {
+                var admins = await userRepo.GetAdminsAsync(cancellationToken);
+                recipientsCount = admins.Count;
+                audienceText = "👨‍💼 Тільки адміни";
+            }
+            else if (audience == "custom")
+            {
+                // Отримуємо збережений список emails
+                var emailsJson = await stateManager.GetDataAsync<string>(message.From.Id, "broadcast_custom_emails", cancellationToken);
+                if (!string.IsNullOrEmpty(emailsJson))
+                {
+                    var emails = System.Text.Json.JsonSerializer.Deserialize<List<string>>(emailsJson);
+                    recipientsCount = emails?.Count ?? 0;
+                }
+                audienceText = "📧 Custom список (по email)";
+            }
+
+            // Показуємо попередній перегляд
+            var keyboard = new InlineKeyboardMarkup(new[]
+            {
+                new[] { InlineKeyboardButton.WithCallbackData("✅ Підтвердити відправку", "broadcast_confirm") },
+                new[] { InlineKeyboardButton.WithCallbackData("❌ Скасувати", "broadcast_cancel") }
+            });
+
+            var previewText = $"📢 <b>Попередній перегляд розсилки</b>\n\n" +
+                            $"Аудиторія: {audienceText}\n" +
+                            $"Кількість отримувачів: <b>{recipientsCount}</b>\n\n" +
+                            $"<b>Текст повідомлення:</b>\n" +
+                            $"━━━━━━━━━━━━━━━━━━\n" +
+                            $"{broadcastText}\n" +
+                            $"━━━━━━━━━━━━━━━━━━\n\n" +
+                            $"⚠️ Підтвердити відправку?";
+
+            await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: previewText,
+                parseMode: ParseMode.Html,
+                replyMarkup: keyboard,
+                cancellationToken: cancellationToken);
+
+            // Встановлюємо стан очікування підтвердження
+            await stateManager.SetStateAsync(message.From.Id, UserConversationState.WaitingBroadcastConfirmation, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error processing broadcast message input from user {UserId}", message.From?.Id);
+            
+            await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "❌ Виникла помилка. Спробуйте пізніше.",
+                cancellationToken: cancellationToken);
+        }
+    }
+
+    private async Task HandleBroadcastConfirmCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+        var stateManager = scope.ServiceProvider.GetRequiredService<IUserStateManager>();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        var user = await userRepo.GetByTelegramIdAsync(callbackQuery.From.Id, cancellationToken);
+        if (user?.Role != Domain.Enums.UserRole.Admin)
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "⛔ У вас немає прав адміністратора",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        try
+        {
+            // Отримуємо збережені дані
+            var audience = await stateManager.GetDataAsync<string>(callbackQuery.From.Id, "broadcast_audience", cancellationToken);
+            var broadcastMessage = await stateManager.GetDataAsync<string>(callbackQuery.From.Id, "broadcast_message", cancellationToken);
+
+            if (string.IsNullOrEmpty(audience) || string.IsNullOrEmpty(broadcastMessage))
+            {
+                await botClient.AnswerCallbackQueryAsync(
+                    callbackQuery.Id,
+                    "❌ Дані розсилки втрачені. Спробуйте ще раз.",
+                    showAlert: true,
+                    cancellationToken: cancellationToken);
+                return;
+            }
+
+            // Показуємо повідомлення про початок відправки
+            await botClient.EditMessageTextAsync(
+                chatId: callbackQuery.Message!.Chat.Id,
+                messageId: callbackQuery.Message.MessageId,
+                text: "⏳ <b>Відправка розсилки...</b>\n\nБудь ласка, зачекайте.",
+                parseMode: ParseMode.Html,
+                cancellationToken: cancellationToken);
+
+            // Отримуємо список отримувачів
+            List<BotUser> recipients = new();
+            
+            if (audience == "all")
+            {
+                recipients = await userRepo.GetActiveUsersAsync(cancellationToken);
+            }
+            else if (audience == "students")
+            {
+                var allUsers = await userRepo.GetActiveUsersAsync(cancellationToken);
+                recipients = allUsers.Where(u => u.Role == Domain.Enums.UserRole.Student).ToList();
+            }
+            else if (audience == "admins")
+            {
+                recipients = await userRepo.GetAdminsAsync(cancellationToken);
+            }
+            else if (audience == "custom")
+            {
+                // Отримуємо збережений список emails
+                var emailsJson = await stateManager.GetDataAsync<string>(callbackQuery.From.Id, "broadcast_custom_emails", cancellationToken);
+                if (!string.IsNullOrEmpty(emailsJson))
+                {
+                    var emails = System.Text.Json.JsonSerializer.Deserialize<List<string>>(emailsJson);
+                    if (emails != null && emails.Any())
+                    {
+                        // Шукаємо користувачів за emails
+                        foreach (var email in emails)
+                        {
+                            var foundUser = await userRepo.GetByEmailAsync(email, cancellationToken);
+                            if (foundUser != null)
+                            {
+                                recipients.Add(foundUser);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Відправляємо повідомлення кожному отримувачу
+            int successCount = 0;
+            int failCount = 0;
+
+            foreach (var recipient in recipients)
+            {
+                try
+                {
+                    var command = new SendNotificationCommand(
+                        userId: recipient.TelegramId,
+                        notificationEvent: NotificationEvent.SystemNotification,
+                        type: NotificationType.Push,
+                        title: "📢 Повідомлення від адміністрації",
+                        message: broadcastMessage,
+                        priority: NotificationPriority.High);
+
+                    var result = await _mediator.Send(command, cancellationToken);
+
+                    if (result.IsSuccess)
+                    {
+                        successCount++;
+                    }
+                    else
+                    {
+                        failCount++;
+                        _logger.LogWarning("Failed to send broadcast to user {TelegramId}: {Error}", 
+                            recipient.TelegramId, result.Error);
+                    }
+
+                    // Додаємо невелику затримку щоб не перевантажити Telegram API
+                    await Task.Delay(50, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    failCount++;
+                    _logger.LogError(ex, "Error sending broadcast to user {TelegramId}", recipient.TelegramId);
+                }
+            }
+
+            // Показуємо результат
+            var resultText = $"✅ <b>Розсилка завершена!</b>\n\n" +
+                           $"📊 Статистика:\n" +
+                           $"• Успішно відправлено: <b>{successCount}</b>\n" +
+                           $"• Помилок: <b>{failCount}</b>\n" +
+                           $"• Всього: <b>{recipients.Count}</b>";
+
+            await botClient.EditMessageTextAsync(
+                chatId: callbackQuery.Message.Chat.Id,
+                messageId: callbackQuery.Message.MessageId,
+                text: resultText,
+                parseMode: ParseMode.Html,
+                replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("🔙 Адмін панель", "admin_panel")),
+                cancellationToken: cancellationToken);
+
+            // Очищаємо стан та дані
+            await stateManager.ClearStateAsync(callbackQuery.From.Id, cancellationToken);
+            await stateManager.RemoveDataAsync(callbackQuery.From.Id, "broadcast_audience", cancellationToken);
+            await stateManager.RemoveDataAsync(callbackQuery.From.Id, "broadcast_message", cancellationToken);
+            await stateManager.RemoveDataAsync(callbackQuery.From.Id, "broadcast_custom_emails", cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error confirming broadcast from user {UserId}", callbackQuery.From.Id);
+            
+            await botClient.EditMessageTextAsync(
+                chatId: callbackQuery.Message!.Chat.Id,
+                messageId: callbackQuery.Message.MessageId,
+                text: "❌ <b>Виникла помилка</b>\n\nСпробуйте пізніше.",
+                parseMode: ParseMode.Html,
+                replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("🔙 Адмін панель", "admin_panel")),
+                cancellationToken: cancellationToken);
+        }
+
+        await botClient.AnswerCallbackQueryAsync(
+            callbackQuery.Id,
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task HandleBroadcastCancelCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+        var stateManager = scope.ServiceProvider.GetRequiredService<IUserStateManager>();
+
+        var user = await userRepo.GetByTelegramIdAsync(callbackQuery.From.Id, cancellationToken);
+        if (user?.Role != Domain.Enums.UserRole.Admin)
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "⛔ У вас немає прав адміністратора",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        // Очищаємо стан та дані
+        await stateManager.ClearStateAsync(callbackQuery.From.Id, cancellationToken);
+        await stateManager.RemoveDataAsync(callbackQuery.From.Id, "broadcast_audience", cancellationToken);
+        await stateManager.RemoveDataAsync(callbackQuery.From.Id, "broadcast_message", cancellationToken);
+        await stateManager.RemoveDataAsync(callbackQuery.From.Id, "broadcast_custom_emails", cancellationToken);
+
+        await botClient.EditMessageTextAsync(
+            chatId: callbackQuery.Message!.Chat.Id,
+            messageId: callbackQuery.Message.MessageId,
+            text: "❌ <b>Розсилка скасована</b>",
+            parseMode: ParseMode.Html,
+            replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("🔙 Адмін панель", "admin_panel")),
+            cancellationToken: cancellationToken);
+
+        await botClient.AnswerCallbackQueryAsync(
+            callbackQuery.Id,
+            cancellationToken: cancellationToken);
+    }
+
+    #endregion
+
+    #region Event Registration Handlers
+
+    private async Task HandleEventDetailsCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        var eventIdStr = callbackQuery.Data!.Replace("event_details_", "");
+        if (!int.TryParse(eventIdStr, out var eventId))
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "❌ Невірний ID події",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        try
+        {
+            
+            
+            var query = new GetEventByIdQuery(eventId, callbackQuery.From.Id);
+            var result = await _mediator.Send(query, cancellationToken);
+
+            if (!result.IsSuccess || result.Value == null)
+            {
+                await botClient.AnswerCallbackQueryAsync(
+                    callbackQuery.Id,
+                    "❌ Подію не знайдено",
+                    showAlert: true,
+                    cancellationToken: cancellationToken);
+                return;
+            }
+
+            var ev = result.Value;
+            
+            var text = $"{ev.TypeEmoji} <b>{ev.Title}</b>\n\n";
+            text += $"<b>Опис:</b>\n{ev.Description}\n\n";
+            text += $"📅 <b>Початок:</b> {ev.StartDate:dd.MM.yyyy HH:mm}\n";
+            
+            if (ev.EndDate.HasValue)
+            {
+                text += $"🏁 <b>Завершення:</b> {ev.EndDate.Value:dd.MM.yyyy HH:mm}\n";
+            }
+            
+            if (!string.IsNullOrEmpty(ev.Location))
+            {
+                text += $"📍 <b>Місце:</b> {ev.Location}\n";
+            }
+            
+            text += $"\n📋 <b>Тип:</b> {ev.TypeDisplayName}\n";
+            text += $"🏷️ <b>Статус:</b> {ev.Status.GetDisplayName()}\n";
+            
+            if (ev.RequiresRegistration)
+            {
+                text += $"\n👥 <b>Реєстрація:</b>\n";
+                text += $"• Зареєстровано: {ev.CurrentParticipants}";
+                
+                if (ev.MaxParticipants.HasValue)
+                {
+                    var spotsLeft = ev.MaxParticipants.Value - ev.CurrentParticipants;
+                    text += $" / {ev.MaxParticipants.Value}\n";
+                    text += $"• Вільних місць: {spotsLeft}\n";
+                }
+                else
+                {
+                    text += " (без обмежень)\n";
+                }
+                
+                if (ev.RegistrationDeadline.HasValue)
+                {
+                    text += $"⏰ <b>Реєстрація до:</b> {ev.RegistrationDeadline.Value:dd.MM.yyyy HH:mm}\n";
+                }
+                
+                if (ev.IsUserRegistered)
+                {
+                    text += "\n✅ <b>Ви зареєстровані на цю подію</b>";
+                }
+            }
+
+            var buttons = new List<InlineKeyboardButton[]>();
+            
+            if (ev.RequiresRegistration)
+            {
+                if (ev.IsUserRegistered)
+                {
+                    buttons.Add(new[]
+                    {
+                        InlineKeyboardButton.WithCallbackData("❌ Скасувати реєстрацію", $"event_unregister_{eventId}")
+                    });
+                }
+                else if (ev.CanRegister)
+                {
+                    buttons.Add(new[]
+                    {
+                        InlineKeyboardButton.WithCallbackData("✅ Зареєструватися", $"event_register_{eventId}")
+                    });
+                }
+                else
+                {
+                    text += "\n\n⚠️ <i>Реєстрація недоступна (немає місць або минув дедлайн)</i>";
+                }
+            }
+            
+            buttons.Add(new[]
+            {
+                InlineKeyboardButton.WithCallbackData("🔙 До списку подій", "events_list")
+            });
+
+            var keyboard = new InlineKeyboardMarkup(buttons);
+
+            await botClient.EditMessageTextAsync(
+                chatId: callbackQuery.Message!.Chat.Id,
+                messageId: callbackQuery.Message.MessageId,
+                text: text,
+                parseMode: ParseMode.Html,
+                replyMarkup: keyboard,
+                cancellationToken: cancellationToken);
+
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                cancellationToken: cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при отриманні деталей події {EventId}", eventId);
+            
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "❌ Виникла помилка",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+        }
+    }
+
+    private async Task HandleEventRegisterCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        var eventIdStr = callbackQuery.Data!.Replace("event_register_", "");
+        if (!int.TryParse(eventIdStr, out var eventId))
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "❌ Невірний ID події",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        try
+        {
+            
+            
+            var command = new RegisterForEventCommand(callbackQuery.From.Id, eventId);
+            var result = await _mediator.Send(command, cancellationToken);
+
+            if (result.IsSuccess)
+            {
+                await botClient.AnswerCallbackQueryAsync(
+                    callbackQuery.Id,
+                    "✅ Ви успішно зареєструвалися на подію!",
+                    showAlert: true,
+                    cancellationToken: cancellationToken);
+                
+                // Оновлюємо деталі події
+                await HandleEventDetailsCallback(botClient, new CallbackQuery 
+                { 
+                    Id = callbackQuery.Id,
+                    From = callbackQuery.From,
+                    Message = callbackQuery.Message,
+                    Data = $"event_details_{eventId}"
+                }, cancellationToken);
+            }
+            else
+            {
+                await botClient.AnswerCallbackQueryAsync(
+                    callbackQuery.Id,
+                    $"❌ {result.Error}",
+                    showAlert: true,
+                    cancellationToken: cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при реєстрації на подію {EventId}", eventId);
+            
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "❌ Виникла помилка при реєстрації",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+        }
+    }
+
+    private async Task HandleEventUnregisterCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        var eventIdStr = callbackQuery.Data!.Replace("event_unregister_", "");
+        if (!int.TryParse(eventIdStr, out var eventId))
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "❌ Невірний ID події",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        try
+        {
+            
+            
+            var command = new UnregisterFromEventCommand(callbackQuery.From.Id, eventId);
+            var result = await _mediator.Send(command, cancellationToken);
+
+            if (result.IsSuccess)
+            {
+                await botClient.AnswerCallbackQueryAsync(
+                    callbackQuery.Id,
+                    "✅ Реєстрацію скасовано",
+                    showAlert: true,
+                    cancellationToken: cancellationToken);
+                
+                // Оновлюємо деталі події
+                await HandleEventDetailsCallback(botClient, new CallbackQuery 
+                { 
+                    Id = callbackQuery.Id,
+                    From = callbackQuery.From,
+                    Message = callbackQuery.Message,
+                    Data = $"event_details_{eventId}"
+                }, cancellationToken);
+            }
+            else
+            {
+                await botClient.AnswerCallbackQueryAsync(
+                    callbackQuery.Id,
+                    $"❌ {result.Error}",
+                    showAlert: true,
+                    cancellationToken: cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при скасуванні реєстрації на подію {EventId}", eventId);
+            
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "❌ Виникла помилка при скасуванні",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+        }
+    }
+
     #endregion
 
     private Task HandleEditedMessageAsync(
@@ -2446,3 +4012,4 @@ public class UpdateHandler : IBotUpdateHandler
         return Task.CompletedTask;
     }
 }
+

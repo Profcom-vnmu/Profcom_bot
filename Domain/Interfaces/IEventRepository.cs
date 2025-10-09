@@ -30,4 +30,9 @@ public interface IEventRepository : IRepository<Event>
     /// Отримати виділені події
     /// </summary>
     Task<List<Event>> GetFeaturedEventsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Отримати подію з учасниками
+    /// </summary>
+    Task<Event?> GetByIdWithParticipantsAsync(int id, CancellationToken cancellationToken = default);
 }

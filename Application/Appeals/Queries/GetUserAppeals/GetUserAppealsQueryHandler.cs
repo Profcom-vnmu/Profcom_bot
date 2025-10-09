@@ -91,8 +91,6 @@ public class GetUserAppealsQueryHandler : IRequestHandler<GetUserAppealsQuery, R
             UpdatedAt = appeal.UpdatedAt,
             FirstResponseAt = appeal.FirstResponseAt,
             ClosedAt = appeal.ClosedAt,
-            Rating = appeal.Rating,
-            RatingComment = appeal.RatingComment,
             MessageCount = appeal.Messages?.Count ?? 0
         };
     }

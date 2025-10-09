@@ -63,5 +63,30 @@ public enum UserConversationState
     /// <summary>
     /// Waiting for group input
     /// </summary>
-    WaitingGroupInput = 11
+    WaitingGroupInput = 11,
+
+    /// <summary>
+    /// Waiting for admin reply message to appeal
+    /// </summary>
+    WaitingAdminReply = 12,
+
+    /// <summary>
+    /// Waiting for broadcast audience selection (admin only)
+    /// </summary>
+    WaitingBroadcastAudience = 13,
+
+    /// <summary>
+    /// Waiting for broadcast message text input (admin only)
+    /// </summary>
+    WaitingBroadcastMessage = 14,
+
+    /// <summary>
+    /// Waiting for broadcast confirmation (admin only)
+    /// </summary>
+    WaitingBroadcastConfirmation = 15,
+
+    /// <summary>
+    /// Waiting for custom email list input for broadcast (admin only)
+    /// </summary>
+    WaitingBroadcastCustomEmails = 16
 }

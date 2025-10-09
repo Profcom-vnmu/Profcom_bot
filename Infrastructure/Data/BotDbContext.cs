@@ -70,7 +70,6 @@ public class BotDbContext : DbContext
             entity.Property(e => e.Subject).HasMaxLength(200).IsRequired();
             entity.Property(e => e.Message).HasMaxLength(4000).IsRequired();
             entity.Property(e => e.ClosedReason).HasMaxLength(500);
-            entity.Property(e => e.RatingComment).HasMaxLength(1000);
 
             entity.HasIndex(e => e.StudentId);
             entity.HasIndex(e => e.Status);
@@ -140,6 +139,11 @@ public class BotDbContext : DbContext
             entity.HasIndex(e => e.IsFeatured);
             entity.HasIndex(e => e.StartDate);
             entity.HasIndex(e => e.CreatedAt);
+            
+            // Many-to-many relationship with BotUser (event participants)
+            entity.HasMany(e => e.RegisteredParticipants)
+                .WithMany()
+                .UsingEntity(j => j.ToTable("EventParticipants"));
         });
 
         // ContactInfo configuration
