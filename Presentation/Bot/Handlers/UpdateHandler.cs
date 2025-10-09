@@ -19,6 +19,7 @@ using StudentUnionBot.Application.Appeals.Commands.UpdatePriority;
 using StudentUnionBot.Application.Users.Commands.SendVerificationEmail;
 using StudentUnionBot.Application.Users.Commands.VerifyEmail;
 using StudentUnionBot.Application.Users.Commands.ChangeLanguage;
+using StudentUnionBot.Application.Admin.Queries.GetAppealStatistics;
 using StudentUnionBot.Presentation.Bot.Keyboards;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
@@ -812,6 +813,10 @@ public class UpdateHandler : IBotUpdateHandler
             else if (data == "admin_panel")
             {
                 await HandleAdminPanelCallback(botClient, callbackQuery, cancellationToken);
+            }
+            else if (data == "admin_stats")
+            {
+                await HandleAdminStatisticsCallback(botClient, callbackQuery, cancellationToken);
             }
             else if (data.StartsWith("admin_appeals_"))
             {
@@ -1806,6 +1811,131 @@ public class UpdateHandler : IBotUpdateHandler
             parseMode: ParseMode.Html,
             replyMarkup: GetAdminPanel(),
             cancellationToken: cancellationToken);
+    }
+
+    private async Task HandleAdminStatisticsCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+
+        var user = await userRepo.GetByTelegramIdAsync(callbackQuery.From.Id, cancellationToken);
+        if (user?.Role != Domain.Enums.UserRole.Admin)
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "⛔ У вас немає прав адміністратора",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        try
+        {
+            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+            
+            var query = new GetAppealStatisticsQuery
+            {
+                AdminId = user.TelegramId,
+                Days = 30
+            };
+
+            var result = await mediator.Send(query, cancellationToken);
+
+            if (!result.IsSuccess || result.Value == null)
+            {
+                await botClient.AnswerCallbackQueryAsync(
+                    callbackQuery.Id,
+                    $"❌ {result.Error}",
+                    showAlert: true,
+                    cancellationToken: cancellationToken);
+                return;
+            }
+
+            var stats = result.Value;
+            
+            // Формуємо красиве повідомлення зі статистикою
+            var statsText = $"📊 <b>Статистика звернень</b>\n" +
+                           $"📅 Період: {stats.FromDate:dd.MM.yyyy} - {stats.ToDate:dd.MM.yyyy}\n\n" +
+                           
+                           $"📋 <b>Загальна статистика:</b>\n" +
+                           $"• Всього звернень: {stats.TotalAppeals}\n" +
+                           $"• 🟢 Відкрито: {stats.OpenAppeals}\n" +
+                           $"• ⚙️ В роботі: {stats.InProgressAppeals}\n" +
+                           $"• ✅ Закрито: {stats.ClosedAppeals}\n" +
+                           $"• ⏱ Середній час вирішення: {stats.FormattedAverageResolutionTime}\n\n";
+
+            // Додаємо розбивку за категоріями
+            if (stats.CategoryBreakdown.Any())
+            {
+                statsText += "📂 <b>За категоріями:</b>\n";
+                foreach (var category in stats.CategoryBreakdown.OrderByDescending(c => c.Count).Take(5))
+                {
+                    var progressBar = CreateProgressBar(category.Percentage);
+                    statsText += $"{category.Icon} {category.Category}: {category.Count} ({category.Percentage:0.0}%)\n";
+                    statsText += $"{progressBar}\n";
+                }
+                statsText += "\n";
+            }
+
+            // Додаємо розбивку за пріоритетами
+            if (stats.PriorityBreakdown.Any())
+            {
+                statsText += "🎯 <b>За пріоритетами:</b>\n";
+                foreach (var priority in stats.PriorityBreakdown.OrderByDescending(p => p.Count))
+                {
+                    var progressBar = CreateProgressBar(priority.Percentage);
+                    statsText += $"{priority.Icon} {priority.Priority}: {priority.Count} ({priority.Percentage:0.0}%)\n";
+                    statsText += $"{progressBar}\n";
+                }
+                statsText += "\n";
+            }
+
+            // Додаємо тренд за останні дні (топ 7)
+            if (stats.DailyStats.Any())
+            {
+                statsText += "📈 <b>Тренд за останні 7 днів:</b>\n";
+                foreach (var day in stats.DailyStats.OrderByDescending(d => d.Date).Take(7))
+                {
+                    var trend = day.Created > day.Closed ? "📈" : day.Created < day.Closed ? "📉" : "➡️";
+                    statsText += $"{trend} {day.FormattedDate}: +{day.Created} / -{day.Closed}\n";
+                }
+            }
+
+            var keyboard = new InlineKeyboardMarkup(new[]
+            {
+                new[]
+                {
+                    InlineKeyboardButton.WithCallbackData("🔙 Адмін панель", "admin_panel")
+                }
+            });
+
+            await botClient.EditMessageTextAsync(
+                chatId: callbackQuery.Message!.Chat.Id,
+                messageId: callbackQuery.Message.MessageId,
+                text: statsText,
+                parseMode: ParseMode.Html,
+                replyMarkup: keyboard,
+                cancellationToken: cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при отриманні статистики для адміна {AdminId}", user.TelegramId);
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "❌ Виникла помилка при отриманні статистики",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+        }
+    }
+
+    private string CreateProgressBar(double percentage, int length = 10)
+    {
+        var filled = (int)Math.Round(percentage / 100 * length);
+        var empty = length - filled;
+        return new string('▓', filled) + new string('░', empty);
     }
 
     private async Task HandleAdminAppealsListCallback(
