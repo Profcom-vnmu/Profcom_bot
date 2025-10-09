@@ -31,6 +31,7 @@ public class Appeal
     // Navigation properties
     public BotUser Student { get; private set; } = null!;
     public ICollection<AppealMessage> Messages { get; private set; } = new List<AppealMessage>();
+    public ICollection<AppealFileAttachment> FileAttachments { get; private set; } = new List<AppealFileAttachment>();
 
     /// <summary>
     /// Створення нового звернення

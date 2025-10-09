@@ -15,10 +15,18 @@ public class UnitOfWork : IUnitOfWork
 
     public IUserRepository Users { get; }
     public IAppealRepository Appeals { get; }
+    public IAdminWorkloadRepository AdminWorkloads { get; }
     public INewsRepository News { get; }
     public IEventRepository Events { get; }
     public IPartnerRepository Partners { get; }
     public IContactInfoRepository Contacts { get; }
+    public INotificationRepository Notifications { get; }
+    public INotificationPreferenceRepository NotificationPreferences { get; }
+    public INotificationTemplateRepository NotificationTemplates { get; }
+    public IFileAttachmentRepository FileAttachments { get; }
+    public IAppealFileAttachmentRepository AppealFileAttachments { get; }
+
+    private readonly Dictionary<Type, object> _repositories = new();
 
     public UnitOfWork(
         BotDbContext context,
@@ -27,10 +35,29 @@ public class UnitOfWork : IUnitOfWork
         _context = context;
         Users = new UserRepository(context, userLogger);
         Appeals = new AppealRepository(context);
+        AdminWorkloads = new AdminWorkloadRepository(context);
         News = new NewsRepository(context);
         Events = new EventRepository(context);
         Partners = new PartnerRepository(context);
         Contacts = new ContactInfoRepository(context);
+        Notifications = new NotificationRepository(context);
+        NotificationPreferences = new NotificationPreferenceRepository(context);
+        NotificationTemplates = new NotificationTemplateRepository(context);
+        FileAttachments = new FileAttachmentRepository(context);
+        AppealFileAttachments = new AppealFileAttachmentRepository(context);
+    }
+
+    public IRepository<T> GetRepository<T>() where T : class
+    {
+        var type = typeof(T);
+        if (_repositories.ContainsKey(type))
+        {
+            return (IRepository<T>)_repositories[type];
+        }
+
+        var repository = new GenericRepository<T>(_context);
+        _repositories.Add(type, repository);
+        return repository;
     }
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

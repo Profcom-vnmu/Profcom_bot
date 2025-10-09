@@ -66,14 +66,6 @@ public class RateLimiter : IRateLimiter
             // Додаємо поточну спробу
             attempts.Add(now);
 
-            _logger.LogDebug(
-                "Rate limit check passed for user {UserId}, action {Action}. Attempts: {Count}/{Max}",
-                userId,
-                action,
-                attempts.Count,
-                config.MaxAttempts
-            );
-
             return Task.FromResult(true);
         }
     }
@@ -171,8 +163,6 @@ public class RateLimiter : IRateLimiter
         {
             _attempts.TryRemove(key, out _);
         }
-
-        _logger.LogDebug("Rate limiter cleanup completed. Removed {Count} empty entries", keysToRemove.Count);
     }
 
     private class RateLimitConfig

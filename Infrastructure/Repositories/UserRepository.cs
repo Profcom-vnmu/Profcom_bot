@@ -20,14 +20,6 @@ public class UserRepository : BaseRepository<BotUser>, IUserRepository
         var user = await DbSet
             .FirstOrDefaultAsync(u => u.TelegramId == telegramId, cancellationToken);
         
-        if (user != null)
-        {
-            _logger.LogWarning(
-                "REPOSITORY LOAD: User {TelegramId} loaded with Role={Role}", 
-                telegramId, 
-                user.Role);
-        }
-        
         return user;
     }
 

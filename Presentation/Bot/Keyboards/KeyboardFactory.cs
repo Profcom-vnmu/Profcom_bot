@@ -1,3 +1,5 @@
+using StudentUnionBot.Domain.Enums;
+using StudentUnionBot.Domain.Interfaces;
 using Telegram.Bot.Types.ReplyMarkups;
 
 namespace StudentUnionBot.Presentation.Bot.Keyboards;
@@ -10,29 +12,29 @@ public static class KeyboardFactory
     /// <summary>
     /// Головне меню
     /// </summary>
-    public static InlineKeyboardMarkup GetMainMenuKeyboard(bool isAdmin = false)
+    public static async Task<InlineKeyboardMarkup> GetMainMenuKeyboardAsync(ILocalizationService localization, Language userLanguage, bool isAdmin = false, CancellationToken cancellationToken = default)
     {
         var buttons = new List<InlineKeyboardButton[]>
         {
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("📝 Створити звернення", "appeal_create"),
-                InlineKeyboardButton.WithCallbackData("📋 Мої звернення", "appeal_list")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.create_appeal", userLanguage, cancellationToken), "appeal_create"),
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.my_appeals", userLanguage, cancellationToken), "appeal_list")
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("📰 Новини", "news_list"),
-                InlineKeyboardButton.WithCallbackData("🎉 Заходи", "events_list")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.news", userLanguage, cancellationToken), "news_list"),
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.events", userLanguage, cancellationToken), "events_list")
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("🤝 Партнери", "partners_list"),
-                InlineKeyboardButton.WithCallbackData("📞 Контакти", "contacts_list")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.partners", userLanguage, cancellationToken), "partners_list"),
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.contacts", userLanguage, cancellationToken), "contacts_list")
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("👤 Мій профіль", "profile_view"),
-                InlineKeyboardButton.WithCallbackData("ℹ️ Допомога", "help")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.profile", userLanguage, cancellationToken), "profile_view"),
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.help", userLanguage, cancellationToken), "help")
             }
         };
 
@@ -41,7 +43,7 @@ public static class KeyboardFactory
         {
             buttons.Add(new[]
             {
-                InlineKeyboardButton.WithCallbackData("👨‍💼 Адмін панель", "admin_panel")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.admin_panel", userLanguage, cancellationToken), "admin_panel")
             });
         }
 
@@ -51,28 +53,28 @@ public static class KeyboardFactory
     /// <summary>
     /// Меню категорій звернень
     /// </summary>
-    public static InlineKeyboardMarkup GetAppealCategoriesKeyboard()
+    public static async Task<InlineKeyboardMarkup> GetAppealCategoriesKeyboardAsync(ILocalizationService localization, Language userLanguage, CancellationToken cancellationToken = default)
     {
         return new InlineKeyboardMarkup(new[]
         {
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("💰 Стипендія", "appeal_cat_1"),
-                InlineKeyboardButton.WithCallbackData("🏠 Гуртожиток", "appeal_cat_2")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.category.scholarship", userLanguage, cancellationToken), "appeal_cat_1"),
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.category.dormitory", userLanguage, cancellationToken), "appeal_cat_2")
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("🎉 Заходи", "appeal_cat_3"),
-                InlineKeyboardButton.WithCallbackData("💡 Пропозиція", "appeal_cat_4")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.category.events", userLanguage, cancellationToken), "appeal_cat_3"),
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.category.suggestion", userLanguage, cancellationToken), "appeal_cat_4")
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("⚠️ Скарга", "appeal_cat_5"),
-                InlineKeyboardButton.WithCallbackData("📝 Інше", "appeal_cat_6")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.category.complaint", userLanguage, cancellationToken), "appeal_cat_5"),
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.category.other", userLanguage, cancellationToken), "appeal_cat_6")
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("⬅️ Назад", "back_to_main")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.back", userLanguage, cancellationToken), "back_to_main")
             }
         });
     }
@@ -80,13 +82,13 @@ public static class KeyboardFactory
     /// <summary>
     /// Кнопка "Назад до головного меню"
     /// </summary>
-    public static InlineKeyboardMarkup GetBackToMainMenuKeyboard()
+    public static async Task<InlineKeyboardMarkup> GetBackToMainMenuKeyboardAsync(ILocalizationService localization, Language userLanguage, CancellationToken cancellationToken = default)
     {
         return new InlineKeyboardMarkup(new[]
         {
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("⬅️ Головне меню", "back_to_main")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.main_menu", userLanguage, cancellationToken), "back_to_main")
             }
         });
     }
@@ -94,7 +96,7 @@ public static class KeyboardFactory
     /// <summary>
     /// Клавіатура для конкретного звернення
     /// </summary>
-    public static InlineKeyboardMarkup GetAppealDetailsKeyboard(int appealId, bool isActive)
+    public static async Task<InlineKeyboardMarkup> GetAppealDetailsKeyboardAsync(ILocalizationService localization, Language userLanguage, int appealId, bool isActive, CancellationToken cancellationToken = default)
     {
         var buttons = new List<InlineKeyboardButton[]>();
 
@@ -102,15 +104,15 @@ public static class KeyboardFactory
         {
             buttons.Add(new[]
             {
-                InlineKeyboardButton.WithCallbackData("💬 Додати повідомлення", $"appeal_msg_{appealId}"),
-                InlineKeyboardButton.WithCallbackData("✅ Закрити", $"appeal_close_{appealId}")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.add_message", userLanguage, cancellationToken), $"appeal_msg_{appealId}"),
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.close", userLanguage, cancellationToken), $"appeal_close_{appealId}")
             });
         }
 
         buttons.Add(new[]
         {
-            InlineKeyboardButton.WithCallbackData("🔄 Оновити", $"appeal_view_{appealId}"),
-            InlineKeyboardButton.WithCallbackData("⬅️ Назад", "appeal_list")
+            InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.update", userLanguage, cancellationToken), $"appeal_view_{appealId}"),
+            InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.back", userLanguage, cancellationToken), "appeal_list")
         });
 
         return new InlineKeyboardMarkup(buttons);
@@ -119,11 +121,14 @@ public static class KeyboardFactory
     /// <summary>
     /// Пагінація для списків
     /// </summary>
-    public static InlineKeyboardMarkup GetPaginationKeyboard(
+    public static async Task<InlineKeyboardMarkup> GetPaginationKeyboardAsync(
+        ILocalizationService localization,
+        Language userLanguage,
         string dataPrefix,
         int currentPage,
         int totalPages,
-        string? backCallback = null)
+        string? backCallback = null,
+        CancellationToken cancellationToken = default)
     {
         var buttons = new List<InlineKeyboardButton>();
 
@@ -145,7 +150,7 @@ public static class KeyboardFactory
         {
             rows.Add(new[]
             {
-                InlineKeyboardButton.WithCallbackData("⬅️ Назад", backCallback)
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.back", userLanguage, cancellationToken), backCallback)
             });
         }
 
@@ -155,14 +160,14 @@ public static class KeyboardFactory
     /// <summary>
     /// Підтвердження дії (Так/Ні)
     /// </summary>
-    public static InlineKeyboardMarkup GetConfirmationKeyboard(string confirmCallback, string cancelCallback)
+    public static async Task<InlineKeyboardMarkup> GetConfirmationKeyboardAsync(ILocalizationService localization, Language userLanguage, string confirmCallback, string cancelCallback, CancellationToken cancellationToken = default)
     {
         return new InlineKeyboardMarkup(new[]
         {
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("✅ Так", confirmCallback),
-                InlineKeyboardButton.WithCallbackData("❌ Ні", cancelCallback)
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.yes", userLanguage, cancellationToken), confirmCallback),
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.no", userLanguage, cancellationToken), cancelCallback)
             }
         });
     }
@@ -172,28 +177,28 @@ public static class KeyboardFactory
     /// <summary>
     /// Головне меню адмін панелі
     /// </summary>
-    public static InlineKeyboardMarkup GetAdminPanelKeyboard()
+    public static async Task<InlineKeyboardMarkup> GetAdminPanelKeyboardAsync(ILocalizationService localization, Language userLanguage, CancellationToken cancellationToken = default)
     {
         return new InlineKeyboardMarkup(new[]
         {
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("📋 Всі звернення", "admin_appeals_all"),
-                InlineKeyboardButton.WithCallbackData("🆕 Нові", "admin_appeals_new")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.admin.all_appeals", userLanguage, cancellationToken), "admin_appeals_all"),
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.admin.new_appeals", userLanguage, cancellationToken), "admin_appeals_new")
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("👤 Мої звернення", "admin_appeals_my"),
-                InlineKeyboardButton.WithCallbackData("❓ Непризначені", "admin_appeals_unassigned")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.admin.my_appeals", userLanguage, cancellationToken), "admin_appeals_my"),
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.admin.unassigned", userLanguage, cancellationToken), "admin_appeals_unassigned")
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("🔍 Пошук", "admin_appeals_search"),
-                InlineKeyboardButton.WithCallbackData("📊 Статистика", "admin_stats")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.admin.search", userLanguage, cancellationToken), "admin_appeals_search"),
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.admin.statistics", userLanguage, cancellationToken), "admin_stats")
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("⬅️ Головне меню", "back_to_main")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.main_menu", userLanguage, cancellationToken), "back_to_main")
             }
         });
     }
@@ -201,7 +206,7 @@ public static class KeyboardFactory
     /// <summary>
     /// Клавіатура для керування зверненням (адмін)
     /// </summary>
-    public static InlineKeyboardMarkup GetAdminAppealActionsKeyboard(int appealId, bool isAssignedToMe, bool isClosed)
+    public static async Task<InlineKeyboardMarkup> GetAdminAppealActionsKeyboardAsync(ILocalizationService localization, Language userLanguage, int appealId, bool isAssignedToMe, bool isClosed, CancellationToken cancellationToken = default)
     {
         var buttons = new List<InlineKeyboardButton[]>();
 
@@ -210,7 +215,7 @@ public static class KeyboardFactory
             // Відповісти
             buttons.Add(new[]
             {
-                InlineKeyboardButton.WithCallbackData("💬 Відповісти", $"admin_reply_{appealId}")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.admin.reply", userLanguage, cancellationToken), $"admin_reply_{appealId}")
             });
 
             // Призначення
@@ -218,30 +223,30 @@ public static class KeyboardFactory
             {
                 buttons.Add(new[]
                 {
-                    InlineKeyboardButton.WithCallbackData("❌ Зняти призначення", $"admin_unassign_{appealId}")
+                    InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.admin.unassign", userLanguage, cancellationToken), $"admin_unassign_{appealId}")
                 });
             }
             else
             {
                 buttons.Add(new[]
                 {
-                    InlineKeyboardButton.WithCallbackData("✋ Взяти в роботу", $"admin_assign_me_{appealId}")
+                    InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.admin.assign_me", userLanguage, cancellationToken), $"admin_assign_me_{appealId}")
                 });
             }
 
             // Пріоритет та закриття
             buttons.Add(new[]
             {
-                InlineKeyboardButton.WithCallbackData("⚡ Пріоритет", $"admin_priority_{appealId}"),
-                InlineKeyboardButton.WithCallbackData("✅ Закрити", $"admin_close_{appealId}")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.admin.priority", userLanguage, cancellationToken), $"admin_priority_{appealId}"),
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.close", userLanguage, cancellationToken), $"admin_close_{appealId}")
             });
         }
 
         // Навігація
         buttons.Add(new[]
         {
-            InlineKeyboardButton.WithCallbackData("🔄 Оновити", $"admin_view_{appealId}"),
-            InlineKeyboardButton.WithCallbackData("⬅️ Назад", "admin_panel")
+            InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.update", userLanguage, cancellationToken), $"admin_view_{appealId}"),
+            InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.admin.panel", userLanguage, cancellationToken), "admin_panel")
         });
 
         return new InlineKeyboardMarkup(buttons);
@@ -250,23 +255,23 @@ public static class KeyboardFactory
     /// <summary>
     /// Вибір пріоритету
     /// </summary>
-    public static InlineKeyboardMarkup GetPrioritySelectionKeyboard(int appealId)
+    public static async Task<InlineKeyboardMarkup> GetPrioritySelectionKeyboardAsync(ILocalizationService localization, Language userLanguage, int appealId, CancellationToken cancellationToken = default)
     {
         return new InlineKeyboardMarkup(new[]
         {
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("🟢 Низький", $"admin_set_priority_{appealId}_1"),
-                InlineKeyboardButton.WithCallbackData("🟡 Нормальний", $"admin_set_priority_{appealId}_2")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.priority.low", userLanguage, cancellationToken), $"admin_set_priority_{appealId}_1"),
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.priority.normal", userLanguage, cancellationToken), $"admin_set_priority_{appealId}_2")
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("🟠 Високий", $"admin_set_priority_{appealId}_3"),
-                InlineKeyboardButton.WithCallbackData("🔴 Терміновий", $"admin_set_priority_{appealId}_4")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.priority.high", userLanguage, cancellationToken), $"admin_set_priority_{appealId}_3"),
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.priority.urgent", userLanguage, cancellationToken), $"admin_set_priority_{appealId}_4")
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("⬅️ Назад", $"admin_view_{appealId}")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.back", userLanguage, cancellationToken), $"admin_view_{appealId}")
             }
         });
     }
@@ -274,24 +279,74 @@ public static class KeyboardFactory
     /// <summary>
     /// Фільтри для звернень
     /// </summary>
-    public static InlineKeyboardMarkup GetAdminAppealFiltersKeyboard(string currentFilter = "all")
+    public static async Task<InlineKeyboardMarkup> GetAdminAppealFiltersKeyboardAsync(ILocalizationService localization, Language userLanguage, string currentFilter = "all", CancellationToken cancellationToken = default)
     {
         return new InlineKeyboardMarkup(new[]
         {
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("📋 Всі", "admin_filter_all"),
-                InlineKeyboardButton.WithCallbackData("🆕 Нові", "admin_filter_new")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.filter.all", userLanguage, cancellationToken), "admin_filter_all"),
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.filter.new", userLanguage, cancellationToken), "admin_filter_new")
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("⏳ В роботі", "admin_filter_inprogress"),
-                InlineKeyboardButton.WithCallbackData("✅ Закриті", "admin_filter_closed")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.filter.inprogress", userLanguage, cancellationToken), "admin_filter_inprogress"),
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.filter.closed", userLanguage, cancellationToken), "admin_filter_closed")
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("⬅️ Адмін панель", "admin_panel")
+                InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.admin.panel", userLanguage, cancellationToken), "admin_panel")
             }
         });
+    }
+
+    // ==================== SYNCHRONOUS WRAPPERS (для сумісності) ====================
+
+    /// <summary>
+    /// Головне меню (синхронна версія)
+    /// </summary>
+    public static InlineKeyboardMarkup GetMainMenuKeyboard(ILocalizationService localization, Language userLanguage, bool isAdmin = false)
+    {
+        return GetMainMenuKeyboardAsync(localization, userLanguage, isAdmin).GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Меню категорій звернень (синхронна версія)
+    /// </summary>
+    public static InlineKeyboardMarkup GetAppealCategoriesKeyboard(ILocalizationService localization, Language userLanguage)
+    {
+        return GetAppealCategoriesKeyboardAsync(localization, userLanguage).GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Кнопка "Назад до головного меню" (синхронна версія)
+    /// </summary>
+    public static InlineKeyboardMarkup GetBackToMainMenuKeyboard(ILocalizationService localization, Language userLanguage)
+    {
+        return GetBackToMainMenuKeyboardAsync(localization, userLanguage).GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Головне меню адмін панелі (синхронна версія)
+    /// </summary>
+    public static InlineKeyboardMarkup GetAdminPanelKeyboard(ILocalizationService localization, Language userLanguage)
+    {
+        return GetAdminPanelKeyboardAsync(localization, userLanguage).GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Клавіатура для керування зверненням (адмін) (синхронна версія)
+    /// </summary>
+    public static InlineKeyboardMarkup GetAdminAppealActionsKeyboard(ILocalizationService localization, Language userLanguage, int appealId, bool isAssignedToMe, bool isClosed)
+    {
+        return GetAdminAppealActionsKeyboardAsync(localization, userLanguage, appealId, isAssignedToMe, isClosed).GetAwaiter().GetResult();
+    }
+
+    /// <summary>
+    /// Вибір пріоритету (синхронна версія)
+    /// </summary>
+    public static InlineKeyboardMarkup GetPrioritySelectionKeyboard(ILocalizationService localization, Language userLanguage, int appealId)
+    {
+        return GetPrioritySelectionKeyboardAsync(localization, userLanguage, appealId).GetAwaiter().GetResult();
     }
 }

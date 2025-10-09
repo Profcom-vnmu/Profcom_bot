@@ -1,4 +1,4 @@
-using MediatR;
+﻿using MediatR;
 using Microsoft.Extensions.Logging;
 using StudentUnionBot.Application.Common.Interfaces;
 using StudentUnionBot.Domain.Enums;
@@ -18,6 +18,7 @@ using StudentUnionBot.Application.Appeals.Commands.AssignAppeal;
 using StudentUnionBot.Application.Appeals.Commands.UpdatePriority;
 using StudentUnionBot.Application.Users.Commands.SendVerificationEmail;
 using StudentUnionBot.Application.Users.Commands.VerifyEmail;
+using StudentUnionBot.Application.Users.Commands.ChangeLanguage;
 using StudentUnionBot.Presentation.Bot.Keyboards;
 using Telegram.Bot;
 using Telegram.Bot.Exceptions;
@@ -28,22 +29,56 @@ using Telegram.Bot.Types.ReplyMarkups;
 namespace StudentUnionBot.Presentation.Bot.Handlers;
 
 /// <summary>
-/// Головний обробник оновлень від Telegram
+/// ╨ô╨╛╨╗╨╛╨▓╨╜╨╕╨╣ ╨╛╨▒╤Ç╨╛╨▒╨╜╨╕╨║ ╨╛╨╜╨╛╨▓╨╗╨╡╨╜╤î ╨▓╤û╨┤ Telegram
 /// </summary>
 public class UpdateHandler : IBotUpdateHandler
 {
     private readonly ILogger<UpdateHandler> _logger;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IUserStateManager _stateManager;
+    private readonly ILocalizationService _localizationService;
 
     public UpdateHandler(
         ILogger<UpdateHandler> logger,
         IServiceScopeFactory scopeFactory,
-        IUserStateManager stateManager)
+        IUserStateManager stateManager,
+        ILocalizationService localizationService)
     {
         _logger = logger;
         _scopeFactory = scopeFactory;
         _stateManager = stateManager;
+        _localizationService = localizationService;
+    }
+
+    // Helper methods for keyboards
+    private InlineKeyboardMarkup GetMainMenu(bool isAdmin = false)
+    {
+        return KeyboardFactory.GetMainMenuKeyboard(_localizationService, Language.Ukrainian, isAdmin);
+    }
+
+    private InlineKeyboardMarkup GetBackToMainMenu()
+    {
+        return KeyboardFactory.GetBackToMainMenuKeyboard(_localizationService, Language.Ukrainian);
+    }
+
+    private InlineKeyboardMarkup GetAppealCategories()
+    {
+        return KeyboardFactory.GetAppealCategoriesKeyboard(_localizationService, Language.Ukrainian);
+    }
+
+    private InlineKeyboardMarkup GetAdminPanel()
+    {
+        return KeyboardFactory.GetAdminPanelKeyboard(_localizationService, Language.Ukrainian);
+    }
+
+    private InlineKeyboardMarkup GetAdminAppealActions(int appealId, bool isAssignedToMe, bool isClosed)
+    {
+        return KeyboardFactory.GetAdminAppealActionsKeyboard(_localizationService, Language.Ukrainian, appealId, isAssignedToMe, isClosed);
+    }
+
+    private InlineKeyboardMarkup GetPrioritySelection(int appealId)
+    {
+        return KeyboardFactory.GetPrioritySelectionKeyboard(_localizationService, Language.Ukrainian, appealId);
     }
 
     public async Task HandleUpdateAsync(
@@ -81,22 +116,22 @@ public class UpdateHandler : IBotUpdateHandler
         var userId = message.From?.Id ?? 0;
 
         _logger.LogInformation(
-            "Отримано повідомлення від {UserId} в чаті {ChatId}: {Text}",
+            "╨₧╤é╤Ç╨╕╨╝╨░╨╜╨╛ ╨┐╨╛╨▓╤û╨┤╨╛╨╝╨╗╨╡╨╜╨╜╤Å ╨▓╤û╨┤ {UserId} ╨▓ ╤ç╨░╤é╤û {ChatId}: {Text}",
             userId,
             chatId,
             messageText);
 
-        // Реєструємо/оновлюємо користувача при кожній взаємодії
+        // ╨á╨╡╤ö╤ü╤é╤Ç╤â╤ö╨╝╨╛/╨╛╨╜╨╛╨▓╨╗╤Ä╤ö╨╝╨╛ ╨║╨╛╤Ç╨╕╤ü╤é╤â╨▓╨░╤ç╨░ ╨┐╤Ç╨╕ ╨║╨╛╨╢╨╜╤û╨╣ ╨▓╨╖╨░╤ö╨╝╨╛╨┤╤û╤ù
         await RegisterOrUpdateUserAsync(message.From, cancellationToken);
 
-        // Обробка команд
+        // ╨₧╨▒╤Ç╨╛╨▒╨║╨░ ╨║╨╛╨╝╨░╨╜╨┤
         if (messageText.StartsWith('/'))
         {
             await HandleCommandAsync(botClient, message, cancellationToken);
             return;
         }
 
-        // Обробка звичайних повідомлень
+        // ╨₧╨▒╤Ç╨╛╨▒╨║╨░ ╨╖╨▓╨╕╤ç╨░╨╣╨╜╨╕╤à ╨┐╨╛╨▓╤û╨┤╨╛╨╝╨╗╨╡╨╜╤î
         await HandleTextMessageAsync(botClient, message, cancellationToken);
     }
 
@@ -115,14 +150,14 @@ public class UpdateHandler : IBotUpdateHandler
                 Username = user.Username,
                 FirstName = user.FirstName,
                 LastName = user.LastName,
-                Language = user.LanguageCode ?? "uk"
+                Language = (user.LanguageCode?.ToLower() == "en") ? Language.English : Language.Ukrainian
             };
 
             await mediator.Send(command, cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Помилка при реєстрації користувача {UserId}", user.Id);
+            _logger.LogError(ex, "╨ƒ╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╤Ç╨╡╤ö╤ü╤é╤Ç╨░╤å╤û╤ù ╨║╨╛╤Ç╨╕╤ü╤é╤â╨▓╨░╤ç╨░ {UserId}", user.Id);
         }
     }
 
@@ -134,9 +169,9 @@ public class UpdateHandler : IBotUpdateHandler
         var command = message.Text!.Split(' ')[0].ToLower();
         var userId = message.From!.Id;
 
-        _logger.LogInformation("Обробка команди: {Command}", command);
+        _logger.LogInformation("╨₧╨▒╤Ç╨╛╨▒╨║╨░ ╨║╨╛╨╝╨░╨╜╨┤╨╕: {Command}", command);
 
-        // Команди /start та /appeal скасовують поточний процес
+        // ╨Ü╨╛╨╝╨░╨╜╨┤╨╕ /start ╤é╨░ /appeal ╤ü╨║╨░╤ü╨╛╨▓╤â╤Ä╤é╤î ╨┐╨╛╤é╨╛╤ç╨╜╨╕╨╣ ╨┐╤Ç╨╛╤å╨╡╤ü
         if (command == "/start" || command == "/appeal")
         {
             await _stateManager.ClearStateAsync(userId, cancellationToken);
@@ -150,7 +185,7 @@ public class UpdateHandler : IBotUpdateHandler
         var isAdmin = userForMenu?.Role == UserRole.Admin;
 
         _logger.LogInformation(
-            "Користувач {TelegramId} має роль {Role}, isAdmin={IsAdmin}",
+            "╨Ü╨╛╤Ç╨╕╤ü╤é╤â╨▓╨░╤ç {TelegramId} ╨╝╨░╤ö ╤Ç╨╛╨╗╤î {Role}, isAdmin={IsAdmin}",
             message.From.Id,
             userForMenu?.Role,
             isAdmin);
@@ -158,68 +193,68 @@ public class UpdateHandler : IBotUpdateHandler
         var (responseText, keyboard) = command switch
         {
             "/start" => (
-                "🎓 <b>Вітаємо в боті Студентського Профкому ВНМУ!</b>\n\n" +
-                "Я допоможу вам:\n" +
-                "📝 Створити звернення до профкому\n" +
-                "📋 Відстежувати статус ваших звернень\n" +
-                "📰 Дізнаватися останні новини\n" +
-                "🎉 Бути в курсі майбутніх подій\n" +
-                "🤝 Отримувати знижки від партнерів\n\n" +
-                "Оберіть дію з меню нижче:",
-                KeyboardFactory.GetMainMenuKeyboard(isAdmin) as IReplyMarkup),
+                "≡ƒÄô <b>╨Æ╤û╤é╨░╤ö╨╝╨╛ ╨▓ ╨▒╨╛╤é╤û ╨í╤é╤â╨┤╨╡╨╜╤é╤ü╤î╨║╨╛╨│╨╛ ╨ƒ╤Ç╨╛╤ä╨║╨╛╨╝╤â ╨Æ╨¥╨£╨ú!</b>\n\n" +
+                "╨» ╨┤╨╛╨┐╨╛╨╝╨╛╨╢╤â ╨▓╨░╨╝:\n" +
+                "≡ƒô¥ ╨í╤é╨▓╨╛╤Ç╨╕╤é╨╕ ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å ╨┤╨╛ ╨┐╤Ç╨╛╤ä╨║╨╛╨╝╤â\n" +
+                "≡ƒôï ╨Æ╤û╨┤╤ü╤é╨╡╨╢╤â╨▓╨░╤é╨╕ ╤ü╤é╨░╤é╤â╤ü ╨▓╨░╤ê╨╕╤à ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╤î\n" +
+                "≡ƒô░ ╨ö╤û╨╖╨╜╨░╨▓╨░╤é╨╕╤ü╤Å ╨╛╤ü╤é╨░╨╜╨╜╤û ╨╜╨╛╨▓╨╕╨╜╨╕\n" +
+                "≡ƒÄë ╨æ╤â╤é╨╕ ╨▓ ╨║╤â╤Ç╤ü╤û ╨╝╨░╨╣╨▒╤â╤é╨╜╤û╤à ╨┐╨╛╨┤╤û╨╣\n" +
+                "≡ƒñ¥ ╨₧╤é╤Ç╨╕╨╝╤â╨▓╨░╤é╨╕ ╨╖╨╜╨╕╨╢╨║╨╕ ╨▓╤û╨┤ ╨┐╨░╤Ç╤é╨╜╨╡╤Ç╤û╨▓\n\n" +
+                "╨₧╨▒╨╡╤Ç╤û╤é╤î ╨┤╤û╤Ä ╨╖ ╨╝╨╡╨╜╤Ä ╨╜╨╕╨╢╤ç╨╡:",
+                GetMainMenu(isAdmin) as IReplyMarkup),
             
             "/help" => (
-                "📌 <b>Довідка по боту</b>\n\n" +
-                "<b>Основні команди:</b>\n" +
-                "/start - Головне меню\n" +
-                "/appeal - Створити звернення\n" +
-                "/myappeals - Мої звернення\n" +
-                "/news - Новини\n" +
-                "/events - Заходи\n" +
-                "/profile - Мій профіль\n" +
-                "/contacts - Контакти\n\n" +
-                "<b>Як створити звернення?</b>\n" +
-                "1. Натисніть '📝 Створити звернення'\n" +
-                "2. Оберіть категорію\n" +
-                "3. Опишіть вашу проблему\n" +
-                "4. Очікуйте на відповідь від адміністрації\n\n" +
-                "За питаннями звертайтесь: @vnmu_profkom",
-                KeyboardFactory.GetBackToMainMenuKeyboard() as IReplyMarkup),
+                "≡ƒôî <b>╨ö╨╛╨▓╤û╨┤╨║╨░ ╨┐╨╛ ╨▒╨╛╤é╤â</b>\n\n" +
+                "<b>╨₧╤ü╨╜╨╛╨▓╨╜╤û ╨║╨╛╨╝╨░╨╜╨┤╨╕:</b>\n" +
+                "/start - ╨ô╨╛╨╗╨╛╨▓╨╜╨╡ ╨╝╨╡╨╜╤Ä\n" +
+                "/appeal - ╨í╤é╨▓╨╛╤Ç╨╕╤é╨╕ ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å\n" +
+                "/myappeals - ╨£╨╛╤ù ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å\n" +
+                "/news - ╨¥╨╛╨▓╨╕╨╜╨╕\n" +
+                "/events - ╨ù╨░╤à╨╛╨┤╨╕\n" +
+                "/profile - ╨£╤û╨╣ ╨┐╤Ç╨╛╤ä╤û╨╗╤î\n" +
+                "/contacts - ╨Ü╨╛╨╜╤é╨░╨║╤é╨╕\n\n" +
+                "<b>╨»╨║ ╤ü╤é╨▓╨╛╤Ç╨╕╤é╨╕ ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å?</b>\n" +
+                "1. ╨¥╨░╤é╨╕╤ü╨╜╤û╤é╤î '≡ƒô¥ ╨í╤é╨▓╨╛╤Ç╨╕╤é╨╕ ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å'\n" +
+                "2. ╨₧╨▒╨╡╤Ç╤û╤é╤î ╨║╨░╤é╨╡╨│╨╛╤Ç╤û╤Ä\n" +
+                "3. ╨₧╨┐╨╕╤ê╤û╤é╤î ╨▓╨░╤ê╤â ╨┐╤Ç╨╛╨▒╨╗╨╡╨╝╤â\n" +
+                "4. ╨₧╤ç╤û╨║╤â╨╣╤é╨╡ ╨╜╨░ ╨▓╤û╨┤╨┐╨╛╨▓╤û╨┤╤î ╨▓╤û╨┤ ╨░╨┤╨╝╤û╨╜╤û╤ü╤é╤Ç╨░╤å╤û╤ù\n\n" +
+                "╨ù╨░ ╨┐╨╕╤é╨░╨╜╨╜╤Å╨╝╨╕ ╨╖╨▓╨╡╤Ç╤é╨░╨╣╤é╨╡╤ü╤î: @vnmu_profkom",
+                GetBackToMainMenu() as IReplyMarkup),
             
             "/appeal" => (
-                "📝 <b>Створення звернення</b>\n\n" +
-                "Оберіть категорію вашого звернення:",
-                KeyboardFactory.GetAppealCategoriesKeyboard() as IReplyMarkup),
+                "≡ƒô¥ <b>╨í╤é╨▓╨╛╤Ç╨╡╨╜╨╜╤Å ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å</b>\n\n" +
+                "╨₧╨▒╨╡╤Ç╤û╤é╤î ╨║╨░╤é╨╡╨│╨╛╤Ç╤û╤Ä ╨▓╨░╤ê╨╛╨│╨╛ ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å:",
+                GetAppealCategories() as IReplyMarkup),
             
             "/myappeals" => (
-                "📋 Завантаження ваших звернень...",
+                "≡ƒôï ╨ù╨░╨▓╨░╨╜╤é╨░╨╢╨╡╨╜╨╜╤Å ╨▓╨░╤ê╨╕╤à ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╤î...",
                 null as IReplyMarkup),
             
             "/news" => (
-                "📰 Завантаження новин...",
+                "≡ƒô░ ╨ù╨░╨▓╨░╨╜╤é╨░╨╢╨╡╨╜╨╜╤Å ╨╜╨╛╨▓╨╕╨╜...",
                 null as IReplyMarkup),
             
             "/events" => (
-                "🎉 Завантаження подій...",
+                "≡ƒÄë ╨ù╨░╨▓╨░╨╜╤é╨░╨╢╨╡╨╜╨╜╤Å ╨┐╨╛╨┤╤û╨╣...",
                 null as IReplyMarkup),
             
             "/profile" => (
-                "👤 Завантаження профілю...",
+                "≡ƒæñ ╨ù╨░╨▓╨░╨╜╤é╨░╨╢╨╡╨╜╨╜╤Å ╨┐╤Ç╨╛╤ä╤û╨╗╤Ä...",
                 null as IReplyMarkup),
             
             "/contacts" => (
-                "📞 <b>Контактна інформація</b>\n\n" +
-                "🏛 <b>Студентський профспілковий комітет ВНМУ</b>\n\n" +
-                "📧 Email: profkom@vnmu.edu.ua\n" +
-                "📱 Telegram: @vnmu_profkom\n" +
-                "📍 Адреса: вул. Пирогова, 56, Вінниця\n" +
-                "🕐 Години роботи: ПН-ПТ 9:00-17:00\n\n" +
-                "Ми завжди раді вам допомогти! 🤝",
-                KeyboardFactory.GetBackToMainMenuKeyboard() as IReplyMarkup),
+                "≡ƒô₧ <b>╨Ü╨╛╨╜╤é╨░╨║╤é╨╜╨░ ╤û╨╜╤ä╨╛╤Ç╨╝╨░╤å╤û╤Å</b>\n\n" +
+                "≡ƒÅ¢ <b>╨í╤é╤â╨┤╨╡╨╜╤é╤ü╤î╨║╨╕╨╣ ╨┐╤Ç╨╛╤ä╤ü╨┐╤û╨╗╨║╨╛╨▓╨╕╨╣ ╨║╨╛╨╝╤û╤é╨╡╤é ╨Æ╨¥╨£╨ú</b>\n\n" +
+                "≡ƒôº Email: profkom@vnmu.edu.ua\n" +
+                "≡ƒô▒ Telegram: @vnmu_profkom\n" +
+                "≡ƒôì ╨É╨┤╤Ç╨╡╤ü╨░: ╨▓╤â╨╗. ╨ƒ╨╕╤Ç╨╛╨│╨╛╨▓╨░, 56, ╨Æ╤û╨╜╨╜╨╕╤å╤Å\n" +
+                "≡ƒòÉ ╨ô╨╛╨┤╨╕╨╜╨╕ ╤Ç╨╛╨▒╨╛╤é╨╕: ╨ƒ╨¥-╨ƒ╨ó 9:00-17:00\n\n" +
+                "╨£╨╕ ╨╖╨░╨▓╨╢╨┤╨╕ ╤Ç╨░╨┤╤û ╨▓╨░╨╝ ╨┤╨╛╨┐╨╛╨╝╨╛╨│╤é╨╕! ≡ƒñ¥",
+                GetBackToMainMenu() as IReplyMarkup),
             
             _ => (
-                "❓ Невідома команда. Використовуйте /help для перегляду списку команд.",
-                KeyboardFactory.GetBackToMainMenuKeyboard() as IReplyMarkup)
+                "Γ¥ô ╨¥╨╡╨▓╤û╨┤╨╛╨╝╨░ ╨║╨╛╨╝╨░╨╜╨┤╨░. ╨Æ╨╕╨║╨╛╤Ç╨╕╤ü╤é╨╛╨▓╤â╨╣╤é╨╡ /help ╨┤╨╗╤Å ╨┐╨╡╤Ç╨╡╨│╨╗╤Å╨┤╤â ╤ü╨┐╨╕╤ü╨║╤â ╨║╨╛╨╝╨░╨╜╨┤.",
+                GetBackToMainMenu() as IReplyMarkup)
         };
 
         await botClient.SendTextMessageAsync(
@@ -238,7 +273,7 @@ public class UpdateHandler : IBotUpdateHandler
         var userId = message.From!.Id;
         var state = await _stateManager.GetStateAsync(userId, cancellationToken);
 
-        // Обробка повідомлень на основі поточного стану
+        // ╨₧╨▒╤Ç╨╛╨▒╨║╨░ ╨┐╨╛╨▓╤û╨┤╨╛╨╝╨╗╨╡╨╜╤î ╨╜╨░ ╨╛╤ü╨╜╨╛╨▓╤û ╨┐╨╛╤é╨╛╤ç╨╜╨╛╨│╨╛ ╤ü╤é╨░╨╜╤â
         switch (state)
         {
             case UserConversationState.WaitingAppealSubject:
@@ -257,12 +292,16 @@ public class UpdateHandler : IBotUpdateHandler
                 await HandleVerificationCodeInputAsync(botClient, message, cancellationToken);
                 break;
 
+            case UserConversationState.WaitingCloseReason:
+                await HandleCloseReasonInputAsync(botClient, message, cancellationToken);
+                break;
+
             default:
-                // Стандартна відповідь для Idle стану
+                // ╨í╤é╨░╨╜╨┤╨░╤Ç╤é╨╜╨░ ╨▓╤û╨┤╨┐╨╛╨▓╤û╨┤╤î ╨┤╨╗╤Å Idle ╤ü╤é╨░╨╜╤â
                 await botClient.SendTextMessageAsync(
                     chatId: message.Chat.Id,
-                    text: "Я отримав ваше повідомлення. Використовуйте /help для перегляду доступних команд.",
-                    replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                    text: "╨» ╨╛╤é╤Ç╨╕╨╝╨░╨▓ ╨▓╨░╤ê╨╡ ╨┐╨╛╨▓╤û╨┤╨╛╨╝╨╗╨╡╨╜╨╜╤Å. ╨Æ╨╕╨║╨╛╤Ç╨╕╤ü╤é╨╛╨▓╤â╨╣╤é╨╡ /help ╨┤╨╗╤Å ╨┐╨╡╤Ç╨╡╨│╨╗╤Å╨┤╤â ╨┤╨╛╤ü╤é╤â╨┐╨╜╨╕╤à ╨║╨╛╨╝╨░╨╜╨┤.",
+                    replyMarkup: GetBackToMainMenu(),
                     cancellationToken: cancellationToken);
                 break;
         }
@@ -280,7 +319,7 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.SendTextMessageAsync(
                 chatId: message.Chat.Id,
-                text: "❌ Тема звернення занадто коротка. Будь ласка, введіть щонайменше 5 символів.",
+                text: "Γ¥î ╨ó╨╡╨╝╨░ ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å ╨╖╨░╨╜╨░╨┤╤é╨╛ ╨║╨╛╤Ç╨╛╤é╨║╨░. ╨æ╤â╨┤╤î ╨╗╨░╤ü╨║╨░, ╨▓╨▓╨╡╨┤╤û╤é╤î ╤ë╨╛╨╜╨░╨╣╨╝╨╡╨╜╤ê╨╡ 5 ╤ü╨╕╨╝╨▓╨╛╨╗╤û╨▓.",
                 cancellationToken: cancellationToken);
             return;
         }
@@ -289,22 +328,22 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.SendTextMessageAsync(
                 chatId: message.Chat.Id,
-                text: "❌ Тема звернення занадто довга. Максимум 200 символів.",
+                text: "Γ¥î ╨ó╨╡╨╝╨░ ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å ╨╖╨░╨╜╨░╨┤╤é╨╛ ╨┤╨╛╨▓╨│╨░. ╨£╨░╨║╤ü╨╕╨╝╤â╨╝ 200 ╤ü╨╕╨╝╨▓╨╛╨╗╤û╨▓.",
                 cancellationToken: cancellationToken);
             return;
         }
 
-        // Зберігаємо тему
+        // ╨ù╨▒╨╡╤Ç╤û╨│╨░╤ö╨╝╨╛ ╤é╨╡╨╝╤â
         await _stateManager.SetDataAsync(userId, "appeal_subject", subject, cancellationToken);
 
-        // Переходимо до наступного кроку
+        // ╨ƒ╨╡╤Ç╨╡╤à╨╛╨┤╨╕╨╝╨╛ ╨┤╨╛ ╨╜╨░╤ü╤é╤â╨┐╨╜╨╛╨│╨╛ ╨║╤Ç╨╛╨║╤â
         await _stateManager.SetStateAsync(userId, UserConversationState.WaitingAppealMessage, cancellationToken);
 
         await botClient.SendTextMessageAsync(
             chatId: message.Chat.Id,
-            text: $"✅ Тема збережена: <b>{subject}</b>\n\n" +
-                  "📝 Тепер опишіть вашу проблему детально.\n\n" +
-                  "<i>Мінімум 10 символів, максимум 2000 символів.</i>",
+            text: $"Γ£à ╨ó╨╡╨╝╨░ ╨╖╨▒╨╡╤Ç╨╡╨╢╨╡╨╜╨░: <b>{subject}</b>\n\n" +
+                  "≡ƒô¥ ╨ó╨╡╨┐╨╡╤Ç ╨╛╨┐╨╕╤ê╤û╤é╤î ╨▓╨░╤ê╤â ╨┐╤Ç╨╛╨▒╨╗╨╡╨╝╤â ╨┤╨╡╤é╨░╨╗╤î╨╜╨╛.\n\n" +
+                  "<i>╨£╤û╨╜╤û╨╝╤â╨╝ 10 ╤ü╨╕╨╝╨▓╨╛╨╗╤û╨▓, ╨╝╨░╨║╤ü╨╕╨╝╤â╨╝ 2000 ╤ü╨╕╨╝╨▓╨╛╨╗╤û╨▓.</i>",
             parseMode: ParseMode.Html,
             cancellationToken: cancellationToken);
     }
@@ -321,7 +360,7 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.SendTextMessageAsync(
                 chatId: message.Chat.Id,
-                text: "❌ Повідомлення занадто коротке. Будь ласка, опишіть проблему детальніше (мінімум 10 символів).",
+                text: "Γ¥î ╨ƒ╨╛╨▓╤û╨┤╨╛╨╝╨╗╨╡╨╜╨╜╤Å ╨╖╨░╨╜╨░╨┤╤é╨╛ ╨║╨╛╤Ç╨╛╤é╨║╨╡. ╨æ╤â╨┤╤î ╨╗╨░╤ü╨║╨░, ╨╛╨┐╨╕╤ê╤û╤é╤î ╨┐╤Ç╨╛╨▒╨╗╨╡╨╝╤â ╨┤╨╡╤é╨░╨╗╤î╨╜╤û╤ê╨╡ (╨╝╤û╨╜╤û╨╝╤â╨╝ 10 ╤ü╨╕╨╝╨▓╨╛╨╗╤û╨▓).",
                 cancellationToken: cancellationToken);
             return;
         }
@@ -330,22 +369,22 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.SendTextMessageAsync(
                 chatId: message.Chat.Id,
-                text: "❌ Повідомлення занадто довге. Максимум 2000 символів.",
+                text: "Γ¥î ╨ƒ╨╛╨▓╤û╨┤╨╛╨╝╨╗╨╡╨╜╨╜╤Å ╨╖╨░╨╜╨░╨┤╤é╨╛ ╨┤╨╛╨▓╨│╨╡. ╨£╨░╨║╤ü╨╕╨╝╤â╨╝ 2000 ╤ü╨╕╨╝╨▓╨╛╨╗╤û╨▓.",
                 cancellationToken: cancellationToken);
             return;
         }
 
-        // Отримуємо збережені дані
+        // ╨₧╤é╤Ç╨╕╨╝╤â╤ö╨╝╨╛ ╨╖╨▒╨╡╤Ç╨╡╨╢╨╡╨╜╤û ╨┤╨░╨╜╤û
         var category = await _stateManager.GetDataAsync<AppealCategory>(userId, "appeal_category", cancellationToken);
         var subject = await _stateManager.GetDataAsync<string>(userId, "appeal_subject", cancellationToken);
 
-        // AppealCategory є enum, тому перевіряємо subject
+        // AppealCategory ╤ö enum, ╤é╨╛╨╝╤â ╨┐╨╡╤Ç╨╡╨▓╤û╤Ç╤Å╤ö╨╝╨╛ subject
         if (string.IsNullOrEmpty(subject))
         {
             await botClient.SendTextMessageAsync(
                 chatId: message.Chat.Id,
-                text: "❌ Помилка: дані звернення втрачено. Почніть спочатку /appeal",
-                replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                text: "Γ¥î ╨ƒ╨╛╨╝╨╕╨╗╨║╨░: ╨┤╨░╨╜╤û ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å ╨▓╤é╤Ç╨░╤ç╨╡╨╜╨╛. ╨ƒ╨╛╤ç╨╜╤û╤é╤î ╤ü╨┐╨╛╤ç╨░╤é╨║╤â /appeal",
+                replyMarkup: GetBackToMainMenu(),
                 cancellationToken: cancellationToken);
 
             await _stateManager.ClearStateAsync(userId, cancellationToken);
@@ -353,7 +392,7 @@ public class UpdateHandler : IBotUpdateHandler
             return;
         }
 
-        // Створюємо звернення через MediatR
+        // ╨í╤é╨▓╨╛╤Ç╤Ä╤ö╨╝╨╛ ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å ╤ç╨╡╤Ç╨╡╨╖ MediatR
         try
         {
             using var scope = _scopeFactory.CreateScope();
@@ -374,18 +413,18 @@ public class UpdateHandler : IBotUpdateHandler
             {
                 await botClient.SendTextMessageAsync(
                     chatId: message.Chat.Id,
-                    text: $"✅ <b>Звернення успішно створено!</b>\n\n" +
-                          $"📋 Номер: #{result.Value!.Id}\n" +
-                          $"📂 Категорія: {result.Value.Category}\n" +
-                          $"📌 Тема: {result.Value.Subject}\n" +
-                          $"📊 Статус: {result.Value.Status}\n\n" +
-                          $"Ми розглянемо ваше звернення найближчим часом.\n" +
-                          $"Ви отримаєте сповіщення про зміну статусу.",
+                    text: $"Γ£à <b>╨ù╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å ╤â╤ü╨┐╤û╤ê╨╜╨╛ ╤ü╤é╨▓╨╛╤Ç╨╡╨╜╨╛!</b>\n\n" +
+                          $"≡ƒôï ╨¥╨╛╨╝╨╡╤Ç: #{result.Value!.Id}\n" +
+                          $"≡ƒôé ╨Ü╨░╤é╨╡╨│╨╛╤Ç╤û╤Å: {result.Value.Category}\n" +
+                          $"≡ƒôî ╨ó╨╡╨╝╨░: {result.Value.Subject}\n" +
+                          $"≡ƒôè ╨í╤é╨░╤é╤â╤ü: {result.Value.Status}\n\n" +
+                          $"╨£╨╕ ╤Ç╨╛╨╖╨│╨╗╤Å╨╜╨╡╨╝╨╛ ╨▓╨░╤ê╨╡ ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å ╨╜╨░╨╣╨▒╨╗╨╕╨╢╤ç╨╕╨╝ ╤ç╨░╤ü╨╛╨╝.\n" +
+                          $"╨Æ╨╕ ╨╛╤é╤Ç╨╕╨╝╨░╤ö╤é╨╡ ╤ü╨┐╨╛╨▓╤û╤ë╨╡╨╜╨╜╤Å ╨┐╤Ç╨╛ ╨╖╨╝╤û╨╜╤â ╤ü╤é╨░╤é╤â╤ü╤â.",
                     parseMode: ParseMode.Html,
-                    replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                    replyMarkup: GetBackToMainMenu(),
                     cancellationToken: cancellationToken);
 
-                // Очищаємо стан
+                // ╨₧╤ç╨╕╤ë╨░╤ö╨╝╨╛ ╤ü╤é╨░╨╜
                 await _stateManager.ClearStateAsync(userId, cancellationToken);
                 await _stateManager.ClearAllDataAsync(userId, cancellationToken);
             }
@@ -393,9 +432,9 @@ public class UpdateHandler : IBotUpdateHandler
             {
                 await botClient.SendTextMessageAsync(
                     chatId: message.Chat.Id,
-                    text: $"❌ Помилка при створенні звернення:\n{result.Error}\n\nСпробуйте ще раз /appeal",
+                    text: $"Γ¥î ╨ƒ╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╤ü╤é╨▓╨╛╤Ç╨╡╨╜╨╜╤û ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å:\n{result.Error}\n\n╨í╨┐╤Ç╨╛╨▒╤â╨╣╤é╨╡ ╤ë╨╡ ╤Ç╨░╨╖ /appeal",
                     parseMode: ParseMode.Html,
-                    replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                    replyMarkup: GetBackToMainMenu(),
                     cancellationToken: cancellationToken);
 
                 await _stateManager.ClearStateAsync(userId, cancellationToken);
@@ -404,12 +443,12 @@ public class UpdateHandler : IBotUpdateHandler
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Помилка при створенні звернення для користувача {UserId}", userId);
+            _logger.LogError(ex, "╨ƒ╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╤ü╤é╨▓╨╛╤Ç╨╡╨╜╨╜╤û ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å ╨┤╨╗╤Å ╨║╨╛╤Ç╨╕╤ü╤é╤â╨▓╨░╤ç╨░ {UserId}", userId);
 
             await botClient.SendTextMessageAsync(
                 chatId: message.Chat.Id,
-                text: "❌ Виникла технічна помилка. Спробуйте пізніше або зверніться до адміністратора.",
-                replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                text: "Γ¥î ╨Æ╨╕╨╜╨╕╨║╨╗╨░ ╤é╨╡╤à╨╜╤û╤ç╨╜╨░ ╨┐╨╛╨╝╨╕╨╗╨║╨░. ╨í╨┐╤Ç╨╛╨▒╤â╨╣╤é╨╡ ╨┐╤û╨╖╨╜╤û╤ê╨╡ ╨░╨▒╨╛ ╨╖╨▓╨╡╤Ç╨╜╤û╤é╤î╤ü╤Å ╨┤╨╛ ╨░╨┤╨╝╤û╨╜╤û╤ü╤é╤Ç╨░╤é╨╛╤Ç╨░.",
+                replyMarkup: GetBackToMainMenu(),
                 cancellationToken: cancellationToken);
 
             await _stateManager.ClearStateAsync(userId, cancellationToken);
@@ -430,8 +469,8 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.SendTextMessageAsync(
                 chatId: message.Chat.Id,
-                text: "❌ Невірний формат email. Будь ласка, введіть коректну адресу.\n\n" +
-                      "<i>Наприклад: student@vnmu.edu.ua</i>",
+                text: "Γ¥î ╨¥╨╡╨▓╤û╤Ç╨╜╨╕╨╣ ╤ä╨╛╤Ç╨╝╨░╤é email. ╨æ╤â╨┤╤î ╨╗╨░╤ü╨║╨░, ╨▓╨▓╨╡╨┤╤û╤é╤î ╨║╨╛╤Ç╨╡╨║╤é╨╜╤â ╨░╨┤╤Ç╨╡╤ü╤â.\n\n" +
+                      "<i>╨¥╨░╨┐╤Ç╨╕╨║╨╗╨░╨┤: student@vnmu.edu.ua</i>",
                 parseMode: ParseMode.Html,
                 cancellationToken: cancellationToken);
             return;
@@ -441,7 +480,7 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.SendTextMessageAsync(
                 chatId: message.Chat.Id,
-                text: "❌ Email занадто довгий. Максимум 100 символів.",
+                text: "Γ¥î Email ╨╖╨░╨╜╨░╨┤╤é╨╛ ╨┤╨╛╨▓╨│╨╕╨╣. ╨£╨░╨║╤ü╨╕╨╝╤â╨╝ 100 ╤ü╨╕╨╝╨▓╨╛╨╗╤û╨▓.",
                 cancellationToken: cancellationToken);
             return;
         }
@@ -467,31 +506,31 @@ public class UpdateHandler : IBotUpdateHandler
 
                 await botClient.SendTextMessageAsync(
                     chatId: message.Chat.Id,
-                    text: $"✅ <b>Код верифікації відправлено!</b>\n\n" +
-                          $"📧 На адресу <code>{email}</code> надіслано лист з 6-значним кодом.\n\n" +
-                          $"⏰ Код дійсний протягом 15 хвилин.\n\n" +
-                          $"Введіть код з листа:",
+                    text: $"Γ£à <b>╨Ü╨╛╨┤ ╨▓╨╡╤Ç╨╕╤ä╤û╨║╨░╤å╤û╤ù ╨▓╤û╨┤╨┐╤Ç╨░╨▓╨╗╨╡╨╜╨╛!</b>\n\n" +
+                          $"≡ƒôº ╨¥╨░ ╨░╨┤╤Ç╨╡╤ü╤â <code>{email}</code> ╨╜╨░╨┤╤û╤ü╨╗╨░╨╜╨╛ ╨╗╨╕╤ü╤é ╨╖ 6-╨╖╨╜╨░╤ç╨╜╨╕╨╝ ╨║╨╛╨┤╨╛╨╝.\n\n" +
+                          $"ΓÅ░ ╨Ü╨╛╨┤ ╨┤╤û╨╣╤ü╨╜╨╕╨╣ ╨┐╤Ç╨╛╤é╤Å╨│╨╛╨╝ 15 ╤à╨▓╨╕╨╗╨╕╨╜.\n\n" +
+                          $"╨Æ╨▓╨╡╨┤╤û╤é╤î ╨║╨╛╨┤ ╨╖ ╨╗╨╕╤ü╤é╨░:",
                     parseMode: ParseMode.Html,
-                    replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("❌ Скасувати", "profile_view")),
+                    replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("Γ¥î ╨í╨║╨░╤ü╤â╨▓╨░╤é╨╕", "profile_view")),
                     cancellationToken: cancellationToken);
             }
             else
             {
                 await botClient.SendTextMessageAsync(
                     chatId: message.Chat.Id,
-                    text: $"❌ {result.Error}\n\nСпробуйте ще раз або скасуйте операцію /cancel",
-                    replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("❌ Скасувати", "profile_view")),
+                    text: $"Γ¥î {result.Error}\n\n╨í╨┐╤Ç╨╛╨▒╤â╨╣╤é╨╡ ╤ë╨╡ ╤Ç╨░╨╖ ╨░╨▒╨╛ ╤ü╨║╨░╤ü╤â╨╣╤é╨╡ ╨╛╨┐╨╡╤Ç╨░╤å╤û╤Ä /cancel",
+                    replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("Γ¥î ╨í╨║╨░╤ü╤â╨▓╨░╤é╨╕", "profile_view")),
                     cancellationToken: cancellationToken);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Помилка при відправці verification email для користувача {UserId}", userId);
+            _logger.LogError(ex, "╨ƒ╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╨▓╤û╨┤╨┐╤Ç╨░╨▓╤å╤û verification email ╨┤╨╗╤Å ╨║╨╛╤Ç╨╕╤ü╤é╤â╨▓╨░╤ç╨░ {UserId}", userId);
 
             await botClient.SendTextMessageAsync(
                 chatId: message.Chat.Id,
-                text: "❌ Виникла технічна помилка при відправці коду. Спробуйте пізніше.",
-                replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                text: "Γ¥î ╨Æ╨╕╨╜╨╕╨║╨╗╨░ ╤é╨╡╤à╨╜╤û╤ç╨╜╨░ ╨┐╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╨▓╤û╨┤╨┐╤Ç╨░╨▓╤å╤û ╨║╨╛╨┤╤â. ╨í╨┐╤Ç╨╛╨▒╤â╨╣╤é╨╡ ╨┐╤û╨╖╨╜╤û╤ê╨╡.",
+                replyMarkup: GetBackToMainMenu(),
                 cancellationToken: cancellationToken);
 
             await _stateManager.ClearStateAsync(userId, cancellationToken);
@@ -511,8 +550,8 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.SendTextMessageAsync(
                 chatId: message.Chat.Id,
-                text: "❌ Невірний формат коду. Будь ласка, введіть 6 цифр.\n\n" +
-                      "<i>Перевірте код у листі та спробуйте ще раз.</i>",
+                text: "Γ¥î ╨¥╨╡╨▓╤û╤Ç╨╜╨╕╨╣ ╤ä╨╛╤Ç╨╝╨░╤é ╨║╨╛╨┤╤â. ╨æ╤â╨┤╤î ╨╗╨░╤ü╨║╨░, ╨▓╨▓╨╡╨┤╤û╤é╤î 6 ╤å╨╕╤ä╤Ç.\n\n" +
+                      "<i>╨ƒ╨╡╤Ç╨╡╨▓╤û╤Ç╤é╨╡ ╨║╨╛╨┤ ╤â ╨╗╨╕╤ü╤é╤û ╤é╨░ ╤ü╨┐╤Ç╨╛╨▒╤â╨╣╤é╨╡ ╤ë╨╡ ╤Ç╨░╨╖.</i>",
                 parseMode: ParseMode.Html,
                 cancellationToken: cancellationToken);
             return;
@@ -536,11 +575,11 @@ public class UpdateHandler : IBotUpdateHandler
             {
                 await botClient.SendTextMessageAsync(
                     chatId: message.Chat.Id,
-                    text: "✅ <b>Email успішно підтверджено!</b>\n\n" +
-                          "🎉 Тепер ви можете отримувати сповіщення на вашу електронну пошту.\n\n" +
-                          "Дякуємо за верифікацію!",
+                    text: "Γ£à <b>Email ╤â╤ü╨┐╤û╤ê╨╜╨╛ ╨┐╤û╨┤╤é╨▓╨╡╤Ç╨┤╨╢╨╡╨╜╨╛!</b>\n\n" +
+                          "≡ƒÄë ╨ó╨╡╨┐╨╡╤Ç ╨▓╨╕ ╨╝╨╛╨╢╨╡╤é╨╡ ╨╛╤é╤Ç╨╕╨╝╤â╨▓╨░╤é╨╕ ╤ü╨┐╨╛╨▓╤û╤ë╨╡╨╜╨╜╤Å ╨╜╨░ ╨▓╨░╤ê╤â ╨╡╨╗╨╡╨║╤é╤Ç╨╛╨╜╨╜╤â ╨┐╨╛╤ê╤é╤â.\n\n" +
+                          "╨ö╤Å╨║╤â╤ö╨╝╨╛ ╨╖╨░ ╨▓╨╡╤Ç╨╕╤ä╤û╨║╨░╤å╤û╤Ä!",
                     parseMode: ParseMode.Html,
-                    replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                    replyMarkup: GetBackToMainMenu(),
                     cancellationToken: cancellationToken);
 
                 // Clear state
@@ -550,23 +589,117 @@ public class UpdateHandler : IBotUpdateHandler
             {
                 await botClient.SendTextMessageAsync(
                     chatId: message.Chat.Id,
-                    text: $"❌ {result.Error}\n\n" +
-                          "Перевірте код та спробуйте ще раз, або запитайте новий код повторно.",
-                    replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("❌ Скасувати", "profile_view")),
+                    text: $"Γ¥î {result.Error}\n\n" +
+                          "╨ƒ╨╡╤Ç╨╡╨▓╤û╤Ç╤é╨╡ ╨║╨╛╨┤ ╤é╨░ ╤ü╨┐╤Ç╨╛╨▒╤â╨╣╤é╨╡ ╤ë╨╡ ╤Ç╨░╨╖, ╨░╨▒╨╛ ╨╖╨░╨┐╨╕╤é╨░╨╣╤é╨╡ ╨╜╨╛╨▓╨╕╨╣ ╨║╨╛╨┤ ╨┐╨╛╨▓╤é╨╛╤Ç╨╜╨╛.",
+                    replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("Γ¥î ╨í╨║╨░╤ü╤â╨▓╨░╤é╨╕", "profile_view")),
                     cancellationToken: cancellationToken);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Помилка при верифікації email для користувача {UserId}", userId);
+            _logger.LogError(ex, "╨ƒ╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╨▓╨╡╤Ç╨╕╤ä╤û╨║╨░╤å╤û╤ù email ╨┤╨╗╤Å ╨║╨╛╤Ç╨╕╤ü╤é╤â╨▓╨░╤ç╨░ {UserId}", userId);
 
             await botClient.SendTextMessageAsync(
                 chatId: message.Chat.Id,
-                text: "❌ Виникла технічна помилка при перевірці коду. Спробуйте пізніше.",
-                replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                text: "Γ¥î ╨Æ╨╕╨╜╨╕╨║╨╗╨░ ╤é╨╡╤à╨╜╤û╤ç╨╜╨░ ╨┐╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╨┐╨╡╤Ç╨╡╨▓╤û╤Ç╤å╤û ╨║╨╛╨┤╤â. ╨í╨┐╤Ç╨╛╨▒╤â╨╣╤é╨╡ ╨┐╤û╨╖╨╜╤û╤ê╨╡.",
+                replyMarkup: GetBackToMainMenu(),
                 cancellationToken: cancellationToken);
 
             await _stateManager.ClearStateAsync(userId, cancellationToken);
+        }
+    }
+
+    private async Task HandleCloseReasonInputAsync(
+        ITelegramBotClient botClient,
+        Message message,
+        CancellationToken cancellationToken)
+    {
+        var userId = message.From!.Id;
+        var reason = message.Text?.Trim();
+
+        // Validate reason length
+        if (string.IsNullOrWhiteSpace(reason) || reason.Length < 5)
+        {
+            await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "❌ Причина занадто коротка. Будь ласка, введіть мінімум 5 символів.",
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        if (reason.Length > 500)
+        {
+            await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "❌ Причина занадто довга. Максимум 500 символів.",
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+            // Retrieve stored appeal ID
+            var appealId = await _stateManager.GetDataAsync<int>(userId, "close_appeal_id", cancellationToken);
+
+            if (appealId == 0)
+            {
+                await botClient.SendTextMessageAsync(
+                    chatId: message.Chat.Id,
+                    text: "❌ Помилка: ID звернення не знайдено. Спробуйте ще раз через адмін-панель.",
+                    replyMarkup: GetBackToMainMenu(),
+                    cancellationToken: cancellationToken);
+
+                await _stateManager.ClearStateAsync(userId, cancellationToken);
+                await _stateManager.ClearAllDataAsync(userId, cancellationToken);
+                return;
+            }
+
+            // Close appeal with provided reason
+            var result = await mediator.Send(new CloseAppealCommand
+            {
+                AppealId = appealId,
+                AdminId = userId,
+                Reason = reason
+            }, cancellationToken);
+
+            if (result.IsSuccess)
+            {
+                await botClient.SendTextMessageAsync(
+                    chatId: message.Chat.Id,
+                    text: $"✅ <b>Звернення #{appealId} успішно закрито</b>\n\n" +
+                          $"📝 Причина: {reason}",
+                    parseMode: ParseMode.Html,
+                    replyMarkup: GetBackToMainMenu(),
+                    cancellationToken: cancellationToken);
+
+                // Clear state and data
+                await _stateManager.ClearStateAsync(userId, cancellationToken);
+                await _stateManager.RemoveDataAsync(userId, "close_appeal_id", cancellationToken);
+            }
+            else
+            {
+                await botClient.SendTextMessageAsync(
+                    chatId: message.Chat.Id,
+                    text: $"❌ Помилка при закритті звернення: {result.Error}\n\n" +
+                          "Спробуйте ще раз.",
+                    cancellationToken: cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при обробці причини закриття звернення для користувача {UserId}", userId);
+
+            await botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "❌ Виникла технічна помилка при закритті звернення. Спробуйте пізніше.",
+                replyMarkup: GetBackToMainMenu(),
+                cancellationToken: cancellationToken);
+
+            await _stateManager.ClearStateAsync(userId, cancellationToken);
+            await _stateManager.ClearAllDataAsync(userId, cancellationToken);
         }
     }
 
@@ -576,7 +709,7 @@ public class UpdateHandler : IBotUpdateHandler
         CancellationToken cancellationToken)
     {
         _logger.LogInformation(
-            "Отримано callback від {UserId}: {Data}",
+            "╨₧╤é╤Ç╨╕╨╝╨░╨╜╨╛ callback ╨▓╤û╨┤ {UserId}: {Data}",
             callbackQuery.From.Id,
             callbackQuery.Data);
 
@@ -585,12 +718,12 @@ public class UpdateHandler : IBotUpdateHandler
 
         var data = callbackQuery.Data;
 
-        // Обробка різних callback'ів
+        // ╨₧╨▒╤Ç╨╛╨▒╨║╨░ ╤Ç╤û╨╖╨╜╨╕╤à callback'╤û╨▓
         try
         {
             if (data == "back_to_main")
             {
-                // Скасовуємо будь-який активний процес
+                // ╨í╨║╨░╤ü╨╛╨▓╤â╤ö╨╝╨╛ ╨▒╤â╨┤╤î-╤Å╨║╨╕╨╣ ╨░╨║╤é╨╕╨▓╨╜╨╕╨╣ ╨┐╤Ç╨╛╤å╨╡╤ü
                 var userId = callbackQuery.From.Id;
                 await _stateManager.ClearStateAsync(userId, cancellationToken);
                 await _stateManager.ClearAllDataAsync(userId, cancellationToken);
@@ -604,9 +737,9 @@ public class UpdateHandler : IBotUpdateHandler
                 await botClient.EditMessageTextAsync(
                     chatId: callbackQuery.Message.Chat.Id,
                     messageId: callbackQuery.Message.MessageId,
-                    text: "🎓 <b>Головне меню</b>\n\nОберіть дію:",
+                    text: "≡ƒÄô <b>╨ô╨╛╨╗╨╛╨▓╨╜╨╡ ╨╝╨╡╨╜╤Ä</b>\n\n╨₧╨▒╨╡╤Ç╤û╤é╤î ╨┤╤û╤Ä:",
                     parseMode: ParseMode.Html,
-                    replyMarkup: KeyboardFactory.GetMainMenuKeyboard(isAdminBack),
+                    replyMarkup: GetMainMenu(isAdminBack),
                     cancellationToken: cancellationToken);
             }
             else if (data == "appeal_create")
@@ -614,9 +747,9 @@ public class UpdateHandler : IBotUpdateHandler
                 await botClient.EditMessageTextAsync(
                     chatId: callbackQuery.Message.Chat.Id,
                     messageId: callbackQuery.Message.MessageId,
-                    text: "📝 <b>Створення звернення</b>\n\nОберіть категорію:",
+                    text: "≡ƒô¥ <b>╨í╤é╨▓╨╛╤Ç╨╡╨╜╨╜╤Å ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å</b>\n\n╨₧╨▒╨╡╤Ç╤û╤é╤î ╨║╨░╤é╨╡╨│╨╛╤Ç╤û╤Ä:",
                     parseMode: ParseMode.Html,
-                    replyMarkup: KeyboardFactory.GetAppealCategoriesKeyboard(),
+                    replyMarkup: GetAppealCategories(),
                     cancellationToken: cancellationToken);
             }
             else if (data.StartsWith("appeal_cat_"))
@@ -655,16 +788,24 @@ public class UpdateHandler : IBotUpdateHandler
             {
                 await HandleProfileEditEmailCallback(botClient, callbackQuery, cancellationToken);
             }
+            else if (data == "profile_change_language")
+            {
+                await HandleProfileChangeLanguageCallback(botClient, callbackQuery, cancellationToken);
+            }
+            else if (data.StartsWith("set_lang_"))
+            {
+                await HandleSetLanguageCallback(botClient, callbackQuery, cancellationToken);
+            }
             else if (data == "help")
             {
                 await botClient.EditMessageTextAsync(
                     chatId: callbackQuery.Message.Chat.Id,
                     messageId: callbackQuery.Message.MessageId,
-                    text: "ℹ️ <b>Допомога</b>\n\n" +
-                          "Використовуйте меню для навігації.\n" +
-                          "Команди: /start, /help, /appeal, /contacts",
+                    text: "Γä╣∩╕Å <b>╨ö╨╛╨┐╨╛╨╝╨╛╨│╨░</b>\n\n" +
+                          "╨Æ╨╕╨║╨╛╤Ç╨╕╤ü╤é╨╛╨▓╤â╨╣╤é╨╡ ╨╝╨╡╨╜╤Ä ╨┤╨╗╤Å ╨╜╨░╨▓╤û╨│╨░╤å╤û╤ù.\n" +
+                          "╨Ü╨╛╨╝╨░╨╜╨┤╨╕: /start, /help, /appeal, /contacts",
                     parseMode: ParseMode.Html,
-                    replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                    replyMarkup: GetBackToMainMenu(),
                     cancellationToken: cancellationToken);
             }
             // ==================== ADMIN CALLBACKS ====================
@@ -707,10 +848,10 @@ public class UpdateHandler : IBotUpdateHandler
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Помилка при обробці callback: {Data}", data);
+            _logger.LogError(ex, "╨ƒ╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╨╛╨▒╤Ç╨╛╨▒╤å╤û callback: {Data}", data);
             await botClient.AnswerCallbackQueryAsync(
                 callbackQueryId: callbackQuery.Id,
-                text: "❌ Виникла помилка. Спробуйте ще раз.",
+                text: "Γ¥î ╨Æ╨╕╨╜╨╕╨║╨╗╨░ ╨┐╨╛╨╝╨╕╨╗╨║╨░. ╨í╨┐╤Ç╨╛╨▒╤â╨╣╤é╨╡ ╤ë╨╡ ╤Ç╨░╨╖.",
                 showAlert: true,
                 cancellationToken: cancellationToken);
         }
@@ -727,32 +868,32 @@ public class UpdateHandler : IBotUpdateHandler
         
         var categoryNames = new Dictionary<int, string>
         {
-            { 1, "💰 Стипендія" },
-            { 2, "🏠 Гуртожиток" },
-            { 3, "🎉 Заходи" },
-            { 4, "💡 Пропозиція" },
-            { 5, "⚠️ Скарга" },
-            { 6, "📝 Інше" }
+            { 1, "≡ƒÆ░ ╨í╤é╨╕╨┐╨╡╨╜╨┤╤û╤Å" },
+            { 2, "≡ƒÅá ╨ô╤â╤Ç╤é╨╛╨╢╨╕╤é╨╛╨║" },
+            { 3, "≡ƒÄë ╨ù╨░╤à╨╛╨┤╨╕" },
+            { 4, "≡ƒÆí ╨ƒ╤Ç╨╛╨┐╨╛╨╖╨╕╤å╤û╤Å" },
+            { 5, "ΓÜá∩╕Å ╨í╨║╨░╤Ç╨│╨░" },
+            { 6, "≡ƒô¥ ╨å╨╜╤ê╨╡" }
         };
 
-        var categoryName = categoryNames.GetValueOrDefault(categoryId, "Невідома категорія");
+        var categoryName = categoryNames.GetValueOrDefault(categoryId, "╨¥╨╡╨▓╤û╨┤╨╛╨╝╨░ ╨║╨░╤é╨╡╨│╨╛╤Ç╤û╤Å");
         var category = (AppealCategory)categoryId;
 
-        // Зберігаємо обрану категорію
+        // ╨ù╨▒╨╡╤Ç╤û╨│╨░╤ö╨╝╨╛ ╨╛╨▒╤Ç╨░╨╜╤â ╨║╨░╤é╨╡╨│╨╛╤Ç╤û╤Ä
         await _stateManager.SetDataAsync(userId, "appeal_category", category, cancellationToken);
 
-        // Встановлюємо стан очікування теми
+        // ╨Æ╤ü╤é╨░╨╜╨╛╨▓╨╗╤Ä╤ö╨╝╨╛ ╤ü╤é╨░╨╜ ╨╛╤ç╤û╨║╤â╨▓╨░╨╜╨╜╤Å ╤é╨╡╨╝╨╕
         await _stateManager.SetStateAsync(userId, UserConversationState.WaitingAppealSubject, cancellationToken);
 
         await botClient.EditMessageTextAsync(
             chatId: callbackQuery.Message!.Chat.Id,
             messageId: callbackQuery.Message.MessageId,
-            text: $"📝 <b>Створення звернення</b>\n\n" +
-                  $"✅ Категорія: {categoryName}\n\n" +
-                  $"Напишіть <b>тему</b> вашого звернення:\n\n" +
-                  $"<i>Мінімум 5 символів, максимум 200 символів</i>",
+            text: $"≡ƒô¥ <b>╨í╤é╨▓╨╛╤Ç╨╡╨╜╨╜╤Å ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å</b>\n\n" +
+                  $"Γ£à ╨Ü╨░╤é╨╡╨│╨╛╤Ç╤û╤Å: {categoryName}\n\n" +
+                  $"╨¥╨░╨┐╨╕╤ê╤û╤é╤î <b>╤é╨╡╨╝╤â</b> ╨▓╨░╤ê╨╛╨│╨╛ ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å:\n\n" +
+                  $"<i>╨£╤û╨╜╤û╨╝╤â╨╝ 5 ╤ü╨╕╨╝╨▓╨╛╨╗╤û╨▓, ╨╝╨░╨║╤ü╨╕╨╝╤â╨╝ 200 ╤ü╨╕╨╝╨▓╨╛╨╗╤û╨▓</i>",
             parseMode: ParseMode.Html,
-            replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+            replyMarkup: GetBackToMainMenu(),
             cancellationToken: cancellationToken);
     }
 
@@ -768,13 +909,13 @@ public class UpdateHandler : IBotUpdateHandler
             using var scope = _scopeFactory.CreateScope();
             var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
-            // Отримуємо звернення користувача
+            // ╨₧╤é╤Ç╨╕╨╝╤â╤ö╨╝╨╛ ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å ╨║╨╛╤Ç╨╕╤ü╤é╤â╨▓╨░╤ç╨░
             var query = new GetUserAppealsQuery
             {
                 UserId = userId,
                 PageSize = 5,
                 PageNumber = 1,
-                OnlyActive = false // Показуємо всі звернення
+                OnlyActive = false // ╨ƒ╨╛╨║╨░╨╖╤â╤ö╨╝╨╛ ╨▓╤ü╤û ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å
             };
 
             var result = await mediator.Send(query, cancellationToken);
@@ -784,9 +925,9 @@ public class UpdateHandler : IBotUpdateHandler
                 await botClient.EditMessageTextAsync(
                     chatId: callbackQuery.Message!.Chat.Id,
                     messageId: callbackQuery.Message.MessageId,
-                    text: $"❌ Помилка: {result.Error}",
+                    text: $"Γ¥î ╨ƒ╨╛╨╝╨╕╨╗╨║╨░: {result.Error}",
                     parseMode: ParseMode.Html,
-                    replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                    replyMarkup: GetBackToMainMenu(),
                     cancellationToken: cancellationToken);
                 return;
             }
@@ -798,47 +939,47 @@ public class UpdateHandler : IBotUpdateHandler
                 await botClient.EditMessageTextAsync(
                     chatId: callbackQuery.Message!.Chat.Id,
                     messageId: callbackQuery.Message.MessageId,
-                    text: "📋 <b>Мої звернення</b>\n\n" +
-                          "У вас поки немає звернень.\n\n" +
-                          "Натисніть \"📝 Створити звернення\" щоб подати нове звернення.",
+                    text: "≡ƒôï <b>╨£╨╛╤ù ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å</b>\n\n" +
+                          "╨ú ╨▓╨░╤ü ╨┐╨╛╨║╨╕ ╨╜╨╡╨╝╨░╤ö ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╤î.\n\n" +
+                          "╨¥╨░╤é╨╕╤ü╨╜╤û╤é╤î \"≡ƒô¥ ╨í╤é╨▓╨╛╤Ç╨╕╤é╨╕ ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å\" ╤ë╨╛╨▒ ╨┐╨╛╨┤╨░╤é╨╕ ╨╜╨╛╨▓╨╡ ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å.",
                     parseMode: ParseMode.Html,
-                    replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                    replyMarkup: GetBackToMainMenu(),
                     cancellationToken: cancellationToken);
                 return;
             }
 
-            // Формуємо текст зі списком звернень
-            var text = "📋 <b>Мої звернення</b>\n\n";
+            // ╨ñ╨╛╤Ç╨╝╤â╤ö╨╝╨╛ ╤é╨╡╨║╤ü╤é ╨╖╤û ╤ü╨┐╨╕╤ü╨║╨╛╨╝ ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╤î
+            var text = "≡ƒôï <b>╨£╨╛╤ù ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å</b>\n\n";
 
             foreach (var appeal in appeals)
             {
                 var statusEmoji = appeal.Status.GetEmoji();
                 var categoryEmoji = appeal.Category.GetEmoji();
                 var daysAgo = (DateTime.UtcNow - appeal.CreatedAt).Days;
-                var timeAgo = daysAgo == 0 ? "сьогодні" : 
-                              daysAgo == 1 ? "вчора" : 
-                              $"{daysAgo} дн. тому";
+                var timeAgo = daysAgo == 0 ? "╤ü╤î╨╛╨│╨╛╨┤╨╜╤û" : 
+                              daysAgo == 1 ? "╨▓╤ç╨╛╤Ç╨░" : 
+                              $"{daysAgo} ╨┤╨╜. ╤é╨╛╨╝╤â";
 
-                text += $"━━━━━━━━━━━━━━\n";
+                text += $"ΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöü\n";
                 text += $"<b>#{appeal.Id}</b> {categoryEmoji} {appeal.CategoryName}\n";
-                text += $"📌 <b>{appeal.Subject}</b>\n";
+                text += $"≡ƒôî <b>{appeal.Subject}</b>\n";
                 text += $"{statusEmoji} {appeal.StatusName}\n";
-                text += $"📅 {appeal.CreatedAt:dd.MM.yyyy} ({timeAgo})\n";
+                text += $"≡ƒôà {appeal.CreatedAt:dd.MM.yyyy} ({timeAgo})\n";
 
                 if (appeal.MessageCount > 0)
                 {
-                    text += $"💬 Повідомлень: {appeal.MessageCount}\n";
+                    text += $"≡ƒÆ¼ ╨ƒ╨╛╨▓╤û╨┤╨╛╨╝╨╗╨╡╨╜╤î: {appeal.MessageCount}\n";
                 }
 
                 if (appeal.ClosedAt.HasValue)
                 {
-                    text += $"✅ Закрито: {appeal.ClosedAt.Value:dd.MM.yyyy HH:mm}\n";
+                    text += $"Γ£à ╨ù╨░╨║╤Ç╨╕╤é╨╛: {appeal.ClosedAt.Value:dd.MM.yyyy HH:mm}\n";
                 }
 
                 text += "\n";
             }
 
-            // Створюємо клавіатуру з кнопками для кожного звернення
+            // ╨í╤é╨▓╨╛╤Ç╤Ä╤ö╨╝╨╛ ╨║╨╗╨░╨▓╤û╨░╤é╤â╤Ç╤â ╨╖ ╨║╨╜╨╛╨┐╨║╨░╨╝╨╕ ╨┤╨╗╤Å ╨║╨╛╨╢╨╜╨╛╨│╨╛ ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å
             var buttons = new List<List<InlineKeyboardButton>>();
 
             foreach (var appeal in appeals)
@@ -852,10 +993,10 @@ public class UpdateHandler : IBotUpdateHandler
                 });
             }
 
-            // Кнопка "Назад"
+            // ╨Ü╨╜╨╛╨┐╨║╨░ "╨¥╨░╨╖╨░╨┤"
             buttons.Add(new List<InlineKeyboardButton>
             {
-                InlineKeyboardButton.WithCallbackData("🔙 Назад до меню", "back_to_main")
+                InlineKeyboardButton.WithCallbackData("≡ƒöÖ ╨¥╨░╨╖╨░╨┤ ╨┤╨╛ ╨╝╨╡╨╜╤Ä", "back_to_main")
             });
 
             var keyboard = new InlineKeyboardMarkup(buttons);
@@ -870,14 +1011,14 @@ public class UpdateHandler : IBotUpdateHandler
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Помилка при отриманні звернень користувача {UserId}", userId);
+            _logger.LogError(ex, "╨ƒ╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╨╛╤é╤Ç╨╕╨╝╨░╨╜╨╜╤û ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╤î ╨║╨╛╤Ç╨╕╤ü╤é╤â╨▓╨░╤ç╨░ {UserId}", userId);
 
             await botClient.EditMessageTextAsync(
                 chatId: callbackQuery.Message!.Chat.Id,
                 messageId: callbackQuery.Message.MessageId,
-                text: "❌ Виникла помилка при завантаженні звернень. Спробуйте пізніше.",
+                text: "Γ¥î ╨Æ╨╕╨╜╨╕╨║╨╗╨░ ╨┐╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╨╖╨░╨▓╨░╨╜╤é╨░╨╢╨╡╨╜╨╜╤û ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╤î. ╨í╨┐╤Ç╨╛╨▒╤â╨╣╤é╨╡ ╨┐╤û╨╖╨╜╤û╤ê╨╡.",
                 parseMode: ParseMode.Html,
-                replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                replyMarkup: GetBackToMainMenu(),
                 cancellationToken: cancellationToken);
         }
     }
@@ -890,13 +1031,13 @@ public class UpdateHandler : IBotUpdateHandler
     {
         var userId = callbackQuery.From.Id;
         
-        // Парсимо ID звернення з callback data (appeal_view_123)
+        // ╨ƒ╨░╤Ç╤ü╨╕╨╝╨╛ ID ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å ╨╖ callback data (appeal_view_123)
         var appealIdStr = callbackData.Replace("appeal_view_", "");
         if (!int.TryParse(appealIdStr, out var appealId))
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                "❌ Невірний формат звернення",
+                "Γ¥î ╨¥╨╡╨▓╤û╤Ç╨╜╨╕╨╣ ╤ä╨╛╤Ç╨╝╨░╤é ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å",
                 showAlert: true,
                 cancellationToken: cancellationToken);
             return;
@@ -907,7 +1048,7 @@ public class UpdateHandler : IBotUpdateHandler
             using var scope = _scopeFactory.CreateScope();
             var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
-            // Отримуємо деталі звернення
+            // ╨₧╤é╤Ç╨╕╨╝╤â╤ö╨╝╨╛ ╨┤╨╡╤é╨░╨╗╤û ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å
             var query = new StudentUnionBot.Application.Appeals.Queries.GetAppealById.GetAppealByIdQuery
             {
                 AppealId = appealId,
@@ -921,11 +1062,11 @@ public class UpdateHandler : IBotUpdateHandler
                 await botClient.EditMessageTextAsync(
                     chatId: callbackQuery.Message!.Chat.Id,
                     messageId: callbackQuery.Message.MessageId,
-                    text: $"❌ {result.Error}",
+                    text: $"Γ¥î {result.Error}",
                     parseMode: ParseMode.Html,
                     replyMarkup: new InlineKeyboardMarkup(new[]
                     {
-                        InlineKeyboardButton.WithCallbackData("🔙 До списку звернень", "appeal_list")
+                        InlineKeyboardButton.WithCallbackData("≡ƒöÖ ╨ö╨╛ ╤ü╨┐╨╕╤ü╨║╤â ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╤î", "appeal_list")
                     }),
                     cancellationToken: cancellationToken);
                 return;
@@ -933,68 +1074,68 @@ public class UpdateHandler : IBotUpdateHandler
 
             var appeal = result.Value!;
 
-            // Формуємо текст з деталями звернення
+            // ╨ñ╨╛╤Ç╨╝╤â╤ö╨╝╨╛ ╤é╨╡╨║╤ü╤é ╨╖ ╨┤╨╡╤é╨░╨╗╤Å╨╝╨╕ ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å
             var statusEmoji = appeal.Status.GetEmoji();
             var categoryEmoji = appeal.Category.GetEmoji();
             
-            var text = $"📋 <b>Звернення #{appeal.Id}</b>\n\n";
-            text += $"{categoryEmoji} <b>Категорія:</b> {appeal.CategoryName}\n";
-            text += $"{statusEmoji} <b>Статус:</b> {appeal.StatusName}\n";
-            text += $"📊 <b>Пріоритет:</b> {appeal.PriorityName}\n";
-            text += $"📅 <b>Створено:</b> {appeal.CreatedAt:dd.MM.yyyy HH:mm}\n";
+            var text = $"≡ƒôï <b>╨ù╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å #{appeal.Id}</b>\n\n";
+            text += $"{categoryEmoji} <b>╨Ü╨░╤é╨╡╨│╨╛╤Ç╤û╤Å:</b> {appeal.CategoryName}\n";
+            text += $"{statusEmoji} <b>╨í╤é╨░╤é╤â╤ü:</b> {appeal.StatusName}\n";
+            text += $"≡ƒôè <b>╨ƒ╤Ç╤û╨╛╤Ç╨╕╤é╨╡╤é:</b> {appeal.PriorityName}\n";
+            text += $"≡ƒôà <b>╨í╤é╨▓╨╛╤Ç╨╡╨╜╨╛:</b> {appeal.CreatedAt:dd.MM.yyyy HH:mm}\n";
             
             if (appeal.FirstResponseAt.HasValue)
             {
-                text += $"⏱ <b>Перша відповідь:</b> {appeal.FirstResponseAt.Value:dd.MM.yyyy HH:mm}\n";
+                text += $"ΓÅ▒ <b>╨ƒ╨╡╤Ç╤ê╨░ ╨▓╤û╨┤╨┐╨╛╨▓╤û╨┤╤î:</b> {appeal.FirstResponseAt.Value:dd.MM.yyyy HH:mm}\n";
             }
             
             if (appeal.ClosedAt.HasValue)
             {
-                text += $"✅ <b>Закрито:</b> {appeal.ClosedAt.Value:dd.MM.yyyy HH:mm}\n";
+                text += $"Γ£à <b>╨ù╨░╨║╤Ç╨╕╤é╨╛:</b> {appeal.ClosedAt.Value:dd.MM.yyyy HH:mm}\n";
                 if (!string.IsNullOrEmpty(appeal.ClosedReason))
                 {
-                    text += $"<b>Причина закриття:</b> {appeal.ClosedReason}\n";
+                    text += $"<b>╨ƒ╤Ç╨╕╤ç╨╕╨╜╨░ ╨╖╨░╨║╤Ç╨╕╤é╤é╤Å:</b> {appeal.ClosedReason}\n";
                 }
             }
             
-            text += $"\n<b>Тема:</b>\n{appeal.Subject}\n\n";
-            text += $"<b>Повідомлення:</b>\n{appeal.Message}\n";
+            text += $"\n<b>╨ó╨╡╨╝╨░:</b>\n{appeal.Subject}\n\n";
+            text += $"<b>╨ƒ╨╛╨▓╤û╨┤╨╛╨╝╨╗╨╡╨╜╨╜╤Å:</b>\n{appeal.Message}\n";
 
-            // Додаємо історію повідомлень, якщо вони є
+            // ╨ö╨╛╨┤╨░╤ö╨╝╨╛ ╤û╤ü╤é╨╛╤Ç╤û╤Ä ╨┐╨╛╨▓╤û╨┤╨╛╨╝╨╗╨╡╨╜╤î, ╤Å╨║╤ë╨╛ ╨▓╨╛╨╜╨╕ ╤ö
             if (appeal.Messages.Count > 0)
             {
-                text += "\n━━━━━━━━━━━━━━\n";
-                text += "<b>📬 Історія повідомлень:</b>\n\n";
+                text += "\nΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöüΓöü\n";
+                text += "<b>≡ƒô¼ ╨å╤ü╤é╨╛╤Ç╤û╤Å ╨┐╨╛╨▓╤û╨┤╨╛╨╝╨╗╨╡╨╜╤î:</b>\n\n";
 
                 foreach (var msg in appeal.Messages)
                 {
-                    var senderIcon = msg.IsFromAdmin ? "👨‍💼" : "👤";
-                    var senderLabel = msg.IsFromAdmin ? "Адміністратор" : "Ви";
+                    var senderIcon = msg.IsFromAdmin ? "≡ƒæ¿ΓÇì≡ƒÆ╝" : "≡ƒæñ";
+                    var senderLabel = msg.IsFromAdmin ? "╨É╨┤╨╝╤û╨╜╤û╤ü╤é╤Ç╨░╤é╨╛╤Ç" : "╨Æ╨╕";
                     
                     text += $"{senderIcon} <b>{senderLabel}</b> ({msg.SentAt:dd.MM HH:mm})\n";
                     text += $"{msg.Text}\n\n";
                 }
             }
 
-            // Створюємо клавіатуру
+            // ╨í╤é╨▓╨╛╤Ç╤Ä╤ö╨╝╨╛ ╨║╨╗╨░╨▓╤û╨░╤é╤â╤Ç╤â
             var buttons = new List<List<InlineKeyboardButton>>();
 
-            // Якщо звернення активне - можна додати повідомлення
+            // ╨»╨║╤ë╨╛ ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å ╨░╨║╤é╨╕╨▓╨╜╨╡ - ╨╝╨╛╨╢╨╜╨░ ╨┤╨╛╨┤╨░╤é╨╕ ╨┐╨╛╨▓╤û╨┤╨╛╨╝╨╗╨╡╨╜╨╜╤Å
             if (appeal.Status != AppealStatus.Closed)
             {
                 buttons.Add(new List<InlineKeyboardButton>
                 {
                     InlineKeyboardButton.WithCallbackData(
-                        "💬 Додати повідомлення",
+                        "≡ƒÆ¼ ╨ö╨╛╨┤╨░╤é╨╕ ╨┐╨╛╨▓╤û╨┤╨╛╨╝╨╗╨╡╨╜╨╜╤Å",
                         $"appeal_add_msg_{appeal.Id}"
                     )
                 });
             }
 
-            // Кнопка назад
+            // ╨Ü╨╜╨╛╨┐╨║╨░ ╨╜╨░╨╖╨░╨┤
             buttons.Add(new List<InlineKeyboardButton>
             {
-                InlineKeyboardButton.WithCallbackData("🔙 До списку", "appeal_list")
+                InlineKeyboardButton.WithCallbackData("≡ƒöÖ ╨ö╨╛ ╤ü╨┐╨╕╤ü╨║╤â", "appeal_list")
             });
 
             var keyboard = new InlineKeyboardMarkup(buttons);
@@ -1009,16 +1150,16 @@ public class UpdateHandler : IBotUpdateHandler
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Помилка при перегляді звернення {AppealId}", appealId);
+            _logger.LogError(ex, "╨ƒ╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╨┐╨╡╤Ç╨╡╨│╨╗╤Å╨┤╤û ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å {AppealId}", appealId);
 
             await botClient.EditMessageTextAsync(
                 chatId: callbackQuery.Message!.Chat.Id,
                 messageId: callbackQuery.Message.MessageId,
-                text: "❌ Виникла помилка при завантаженні звернення",
+                text: "Γ¥î ╨Æ╨╕╨╜╨╕╨║╨╗╨░ ╨┐╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╨╖╨░╨▓╨░╨╜╤é╨░╨╢╨╡╨╜╨╜╤û ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å",
                 parseMode: ParseMode.Html,
                 replyMarkup: new InlineKeyboardMarkup(new[]
                 {
-                    InlineKeyboardButton.WithCallbackData("🔙 До списку", "appeal_list")
+                    InlineKeyboardButton.WithCallbackData("≡ƒöÖ ╨ö╨╛ ╤ü╨┐╨╕╤ü╨║╤â", "appeal_list")
                 }),
                 cancellationToken: cancellationToken);
         }
@@ -1039,34 +1180,40 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                "❌ Помилка: користувач не знайдений",
+                "Γ¥î ╨ƒ╨╛╨╝╨╕╨╗╨║╨░: ╨║╨╛╤Ç╨╕╤ü╤é╤â╨▓╨░╤ç ╨╜╨╡ ╨╖╨╜╨░╨╣╨┤╨╡╨╜╨╕╨╣",
                 showAlert: true,
                 cancellationToken: cancellationToken);
             return;
         }
 
-        var username = user.Username ?? "немає";
+        var username = user.Username ?? "╨╜╨╡╨╝╨░╤ö";
         var fullName = user.FullName ?? $"{callbackQuery.From.FirstName} {callbackQuery.From.LastName}".Trim();
-        var email = user.Email ?? "<i>не вказано</i>";
-        var emailStatus = user.IsEmailVerified ? "✅ Підтверджено" : "❌ Не підтверджено";
+        var email = user.Email ?? "<i>╨╜╨╡ ╨▓╨║╨░╨╖╨░╨╜╨╛</i>";
+        var emailStatus = user.IsEmailVerified ? "Γ£à ╨ƒ╤û╨┤╤é╨▓╨╡╤Ç╨┤╨╢╨╡╨╜╨╛" : "Γ¥î ╨¥╨╡ ╨┐╤û╨┤╤é╨▓╨╡╤Ç╨┤╨╢╨╡╨╜╨╛";
+        var languageDisplay = user.Language == Domain.Enums.Language.Ukrainian ? "≡ƒç║≡ƒç¼ ╨ú╨║╤Ç╨░╤ù╨╜╤ü╤î╨║╨░" : "≡ƒç¼≡ƒç¿ English";
 
-        var profileText = "👤 <b>Мій профіль</b>\n\n" +
-                         $"<b>Ім'я:</b> {fullName}\n" +
+        var profileText = "≡ƒæñ <b>╨£╤û╨╣ ╨┐╤Ç╨╛╤ä╤û╨╗╤î</b>\n\n" +
+                         $"<b>╨å╨╝'╤Å:</b> {fullName}\n" +
                          $"<b>Username:</b> @{username}\n" +
                          $"<b>Email:</b> {email}\n" +
-                         $"<b>Статус email:</b> {emailStatus}\n" +
+                         $"<b>╨í╤é╨░╤é╤â╤ü email:</b> {emailStatus}\n" +
+                         $"<b>╨£╨╛╨▓╨░:</b> {languageDisplay}\n" +
                          $"<b>ID:</b> <code>{userId}</code>";
 
-        // Кнопки для редагування
+        // ╨Ü╨╜╨╛╨┐╨║╨╕ ╨┤╨╗╤Å ╤Ç╨╡╨┤╨░╨│╤â╨▓╨░╨╜╨╜╤Å
         var keyboard = new InlineKeyboardMarkup(new[]
         {
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("📧 Змінити email", "profile_edit_email")
+                InlineKeyboardButton.WithCallbackData("≡ƒôº ╨ù╨╝╤û╨╜╨╕╤é╨╕ email", "profile_edit_email")
             },
             new[]
             {
-                InlineKeyboardButton.WithCallbackData("🔙 Головне меню", "back_to_main")
+                InlineKeyboardButton.WithCallbackData("≡ƒîÅ ╨ù╨╝╤û╨╜╨╕╤é╨╕ ╨╝╨╛╨▓╤â", "profile_change_language")
+            },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("≡ƒöÖ ╨ô╨╛╨╗╨╛╨▓╨╜╨╡ ╨╝╨╡╨╜╤Ä", "back_to_main")
             }
         });
 
@@ -1092,13 +1239,97 @@ public class UpdateHandler : IBotUpdateHandler
         await botClient.EditMessageTextAsync(
             chatId: callbackQuery.Message!.Chat.Id,
             messageId: callbackQuery.Message.MessageId,
-            text: "📧 <b>Зміна email</b>\n\n" +
-                  "Введіть вашу корпоративну email адресу (бажано університетську):\n\n" +
-                  "<i>Наприклад: student@vnmu.edu.ua</i>\n\n" +
-                  "Надішліть /cancel щоб скасувати",
+            text: "≡ƒôº <b>╨ù╨╝╤û╨╜╨░ email</b>\n\n" +
+                  "╨Æ╨▓╨╡╨┤╤û╤é╤î ╨▓╨░╤ê╤â ╨║╨╛╤Ç╨┐╨╛╤Ç╨░╤é╨╕╨▓╨╜╤â email ╨░╨┤╤Ç╨╡╤ü╤â (╨▒╨░╨╢╨░╨╜╨╛ ╤â╨╜╤û╨▓╨╡╤Ç╤ü╨╕╤é╨╡╤é╤ü╤î╨║╤â):\n\n" +
+                  "<i>╨¥╨░╨┐╤Ç╨╕╨║╨╗╨░╨┤: student@vnmu.edu.ua</i>\n\n" +
+                  "╨¥╨░╨┤╤û╤ê╨╗╤û╤é╤î /cancel ╤ë╨╛╨▒ ╤ü╨║╨░╤ü╤â╨▓╨░╤é╨╕",
             parseMode: ParseMode.Html,
-            replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("❌ Скасувати", "profile_view")),
+            replyMarkup: new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("Γ¥î ╨í╨║╨░╤ü╤â╨▓╨░╤é╨╕", "profile_view")),
             cancellationToken: cancellationToken);
+    }
+
+    private async Task HandleProfileChangeLanguageCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        var keyboard = new InlineKeyboardMarkup(new[]
+        {
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("≡ƒç║≡ƒç¼ ╨ú╨║╤Ç╨░╤ù╨╜╤ü╤î╨║╨░", "set_lang_uk"),
+                InlineKeyboardButton.WithCallbackData("≡ƒç¼≡ƒç¿ English", "set_lang_en")
+            },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("≡ƒöÖ ╨¥╨░╨╖╨░╨┤", "profile_view")
+            }
+        });
+
+        await botClient.EditMessageTextAsync(
+            chatId: callbackQuery.Message!.Chat.Id,
+            messageId: callbackQuery.Message.MessageId,
+            text: "≡ƒîÅ <b>╨Æ╨╕╨▒╤û╤Ç ╨╝╨╛╨▓╨╕</b>\n\n" +
+                  "╨₧╨▒╨╡╤Ç╤û╤é╤î ╨╝╨╛╨▓╤â ╤û╨╜╤é╨╡╤Ç╤ä╨╡╨╣╤ü╤â:\n\n" +
+                  "≡ƒç║≡ƒç¼ <b>╨ú╨║╤Ç╨░╤ù╨╜╤ü╤î╨║╨░</b> - ╨╝╨╛╨▓╨░ ╨╖╨░ ╨╖╨░╨╝╨╛╨▓╤ç╤â╨▓╨░╨╜╨╜╤Å╨╝\n" +
+                  "≡ƒç¼≡ƒç¿ <b>English</b> - ╨░╨╜╨│╨╗╤û╨╣╤ü╤î╨║╨░ ╨╝╨╛╨▓╨░",
+            parseMode: ParseMode.Html,
+            replyMarkup: keyboard,
+            cancellationToken: cancellationToken);
+    }
+
+    private async Task HandleSetLanguageCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        var userId = callbackQuery.From.Id;
+        var data = callbackQuery.Data!;
+        
+        var language = data == "set_lang_uk" ? Domain.Enums.Language.Ukrainian : Domain.Enums.Language.English;
+        var languageName = data == "set_lang_uk" ? "≡ƒç║≡ƒç¼ ╨ú╨║╤Ç╨░╤ù╨╜╤ü╤î╨║╨░" : "≡ƒç¼≡ƒç¿ English";
+
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+            var command = new ChangeLanguageCommand
+            {
+                TelegramId = userId,
+                Language = language
+            };
+
+            var result = await mediator.Send(command, cancellationToken);
+
+            if (result.IsSuccess)
+            {
+                await botClient.AnswerCallbackQueryAsync(
+                    callbackQuery.Id,
+                    $"Γ£à ╨£╨╛╨▓╨░ ╨╖╨╝╤û╨╜╨╡╨╜╨░ ╨╜╨░ {languageName}",
+                    cancellationToken: cancellationToken);
+
+                // ╨ƒ╨╛╨▓╨╡╤Ç╨╜╤â╤é╨╕╤ü╤î ╨┤╨╛ ╨┐╤Ç╨╛╤ä╤û╨╗╤Ä
+                await HandleProfileViewCallback(botClient, callbackQuery, cancellationToken);
+            }
+            else
+            {
+                await botClient.AnswerCallbackQueryAsync(
+                    callbackQuery.Id,
+                    $"Γ¥î {result.Error}",
+                    showAlert: true,
+                    cancellationToken: cancellationToken);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "╨ƒ╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╨╖╨╝╤û╨╜╤û ╨╝╨╛╨▓╨╕ ╨┤╨╗╤Å ╨║╨╛╤Ç╨╕╤ü╤é╤â╨▓╨░╤ç╨░ {UserId}", userId);
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "Γ¥î ╨Æ╨╕╨╜╨╕╨║╨╗╨░ ╨┐╨╛╨╝╨╕╨╗╨║╨░. ╨í╨┐╤Ç╨╛╨▒╤â╨╣╤é╨╡ ╨┐╤û╨╖╨╜╤û╤ê╨╡.",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+        }
     }
 
     private async Task HandleNewsListCallback(
@@ -1111,7 +1342,7 @@ public class UpdateHandler : IBotUpdateHandler
             using var scope = _scopeFactory.CreateScope();
             var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
             
-            // Отримуємо новини через MediatR
+            // ╨₧╤é╤Ç╨╕╨╝╤â╤ö╨╝╨╛ ╨╜╨╛╨▓╨╕╨╜╨╕ ╤ç╨╡╤Ç╨╡╨╖ MediatR
             var query = new GetPublishedNewsQuery
             {
                 PageNumber = 1,
@@ -1125,9 +1356,9 @@ public class UpdateHandler : IBotUpdateHandler
                 await botClient.EditMessageTextAsync(
                     chatId: callbackQuery.Message!.Chat.Id,
                     messageId: callbackQuery.Message.MessageId,
-                    text: "📰 <b>Новини</b>\n\n❌ Не вдалося завантажити новини. Спробуйте пізніше.",
+                    text: "≡ƒô░ <b>╨¥╨╛╨▓╨╕╨╜╨╕</b>\n\nΓ¥î ╨¥╨╡ ╨▓╨┤╨░╨╗╨╛╤ü╤Å ╨╖╨░╨▓╨░╨╜╤é╨░╨╢╨╕╤é╨╕ ╨╜╨╛╨▓╨╕╨╜╨╕. ╨í╨┐╤Ç╨╛╨▒╤â╨╣╤é╨╡ ╨┐╤û╨╖╨╜╤û╤ê╨╡.",
                     parseMode: ParseMode.Html,
-                    replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                    replyMarkup: GetBackToMainMenu(),
                     cancellationToken: cancellationToken);
                 return;
             }
@@ -1138,19 +1369,19 @@ public class UpdateHandler : IBotUpdateHandler
                 await botClient.EditMessageTextAsync(
                     chatId: callbackQuery.Message!.Chat.Id,
                     messageId: callbackQuery.Message.MessageId,
-                    text: "📰 <b>Новини</b>\n\n📭 Поки що немає опублікованих новин.",
+                    text: "≡ƒô░ <b>╨¥╨╛╨▓╨╕╨╜╨╕</b>\n\n≡ƒô¡ ╨ƒ╨╛╨║╨╕ ╤ë╨╛ ╨╜╨╡╨╝╨░╤ö ╨╛╨┐╤â╨▒╨╗╤û╨║╨╛╨▓╨░╨╜╨╕╤à ╨╜╨╛╨▓╨╕╨╜.",
                     parseMode: ParseMode.Html,
-                    replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                    replyMarkup: GetBackToMainMenu(),
                     cancellationToken: cancellationToken);
                 return;
             }
 
-            // Формуємо текст з новинами
-            var newsText = "📰 <b>Останні новини</b>\n\n";
+            // ╨ñ╨╛╤Ç╨╝╤â╤ö╨╝╨╛ ╤é╨╡╨║╤ü╤é ╨╖ ╨╜╨╛╨▓╨╕╨╜╨░╨╝╨╕
+            var newsText = "≡ƒô░ <b>╨₧╤ü╤é╨░╨╜╨╜╤û ╨╜╨╛╨▓╨╕╨╜╨╕</b>\n\n";
             
             foreach (var news in newsList.Items.Take(5))
             {
-                var pinnedMark = news.IsPinned ? "📌 " : "";
+                var pinnedMark = news.IsPinned ? "≡ƒôî " : "";
                 newsText += $"{pinnedMark}{news.CategoryEmoji} <b>{news.Title}</b>\n";
                 
                 if (!string.IsNullOrEmpty(news.Summary))
@@ -1165,12 +1396,12 @@ public class UpdateHandler : IBotUpdateHandler
                     newsText += $"{preview}\n";
                 }
                 
-                newsText += $"📅 {news.CreatedAt:dd.MM.yyyy HH:mm}\n\n";
+                newsText += $"≡ƒôà {news.CreatedAt:dd.MM.yyyy HH:mm}\n\n";
             }
 
             if (newsList.TotalCount > 5)
             {
-                newsText += $"<i>Показано {newsList.Items.Count} з {newsList.TotalCount} новин</i>";
+                newsText += $"<i>╨ƒ╨╛╨║╨░╨╖╨░╨╜╨╛ {newsList.Items.Count} ╨╖ {newsList.TotalCount} ╨╜╨╛╨▓╨╕╨╜</i>";
             }
 
             await botClient.EditMessageTextAsync(
@@ -1178,19 +1409,19 @@ public class UpdateHandler : IBotUpdateHandler
                 messageId: callbackQuery.Message.MessageId,
                 text: newsText,
                 parseMode: ParseMode.Html,
-                replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                replyMarkup: GetBackToMainMenu(),
                 cancellationToken: cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Помилка при отриманні новин для користувача {UserId}", callbackQuery.From.Id);
+            _logger.LogError(ex, "╨ƒ╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╨╛╤é╤Ç╨╕╨╝╨░╨╜╨╜╤û ╨╜╨╛╨▓╨╕╨╜ ╨┤╨╗╤Å ╨║╨╛╤Ç╨╕╤ü╤é╤â╨▓╨░╤ç╨░ {UserId}", callbackQuery.From.Id);
             
             await botClient.EditMessageTextAsync(
                 chatId: callbackQuery.Message!.Chat.Id,
                 messageId: callbackQuery.Message.MessageId,
-                text: "📰 <b>Новини</b>\n\n❌ Виникла помилка при завантаженні новин.",
+                text: "≡ƒô░ <b>╨¥╨╛╨▓╨╕╨╜╨╕</b>\n\nΓ¥î ╨Æ╨╕╨╜╨╕╨║╨╗╨░ ╨┐╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╨╖╨░╨▓╨░╨╜╤é╨░╨╢╨╡╨╜╨╜╤û ╨╜╨╛╨▓╨╕╨╜.",
                 parseMode: ParseMode.Html,
-                replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                replyMarkup: GetBackToMainMenu(),
                 cancellationToken: cancellationToken);
         }
     }
@@ -1205,7 +1436,7 @@ public class UpdateHandler : IBotUpdateHandler
             using var scope = _scopeFactory.CreateScope();
             var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
             
-            // Отримуємо майбутні події через MediatR
+            // ╨₧╤é╤Ç╨╕╨╝╤â╤ö╨╝╨╛ ╨╝╨░╨╣╨▒╤â╤é╨╜╤û ╨┐╨╛╨┤╤û╤ù ╤ç╨╡╤Ç╨╡╨╖ MediatR
             var query = new GetUpcomingEventsQuery
             {
                 PageNumber = 1,
@@ -1219,9 +1450,9 @@ public class UpdateHandler : IBotUpdateHandler
                 await botClient.EditMessageTextAsync(
                     chatId: callbackQuery.Message!.Chat.Id,
                     messageId: callbackQuery.Message.MessageId,
-                    text: "🎉 <b>Заходи</b>\n\n❌ Не вдалося завантажити події. Спробуйте пізніше.",
+                    text: "≡ƒÄë <b>╨ù╨░╤à╨╛╨┤╨╕</b>\n\nΓ¥î ╨¥╨╡ ╨▓╨┤╨░╨╗╨╛╤ü╤Å ╨╖╨░╨▓╨░╨╜╤é╨░╨╢╨╕╤é╨╕ ╨┐╨╛╨┤╤û╤ù. ╨í╨┐╤Ç╨╛╨▒╤â╨╣╤é╨╡ ╨┐╤û╨╖╨╜╤û╤ê╨╡.",
                     parseMode: ParseMode.Html,
-                    replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                    replyMarkup: GetBackToMainMenu(),
                     cancellationToken: cancellationToken);
                 return;
             }
@@ -1232,23 +1463,23 @@ public class UpdateHandler : IBotUpdateHandler
                 await botClient.EditMessageTextAsync(
                     chatId: callbackQuery.Message!.Chat.Id,
                     messageId: callbackQuery.Message.MessageId,
-                    text: "🎉 <b>Заходи</b>\n\n📭 Наразі немає запланованих подій.\n\n" +
-                          "<i>Слідкуйте за оновленнями!</i>",
+                    text: "≡ƒÄë <b>╨ù╨░╤à╨╛╨┤╨╕</b>\n\n≡ƒô¡ ╨¥╨░╤Ç╨░╨╖╤û ╨╜╨╡╨╝╨░╤ö ╨╖╨░╨┐╨╗╨░╨╜╨╛╨▓╨░╨╜╨╕╤à ╨┐╨╛╨┤╤û╨╣.\n\n" +
+                          "<i>╨í╨╗╤û╨┤╨║╤â╨╣╤é╨╡ ╨╖╨░ ╨╛╨╜╨╛╨▓╨╗╨╡╨╜╨╜╤Å╨╝╨╕!</i>",
                     parseMode: ParseMode.Html,
-                    replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                    replyMarkup: GetBackToMainMenu(),
                     cancellationToken: cancellationToken);
                 return;
             }
 
-            // Формуємо текст з подіями
-            var eventsText = "🎉 <b>Майбутні заходи</b>\n\n";
+            // ╨ñ╨╛╤Ç╨╝╤â╤ö╨╝╨╛ ╤é╨╡╨║╤ü╤é ╨╖ ╨┐╨╛╨┤╤û╤Å╨╝╨╕
+            var eventsText = "≡ƒÄë <b>╨£╨░╨╣╨▒╤â╤é╨╜╤û ╨╖╨░╤à╨╛╨┤╨╕</b>\n\n";
             
             foreach (var ev in eventsList.Items.Take(5))
             {
-                var featuredMark = ev.IsFeatured ? "⭐ " : "";
+                var featuredMark = ev.IsFeatured ? "Γ¡É " : "";
                 eventsText += $"{featuredMark}{ev.TypeEmoji} <b>{ev.Title}</b>\n";
                 
-                eventsText += $"📅 {ev.StartDate:dd.MM.yyyy HH:mm}";
+                eventsText += $"≡ƒôà {ev.StartDate:dd.MM.yyyy HH:mm}";
                 if (ev.EndDate.HasValue)
                 {
                     eventsText += $" - {ev.EndDate.Value:HH:mm}";
@@ -1257,19 +1488,19 @@ public class UpdateHandler : IBotUpdateHandler
                 
                 if (!string.IsNullOrEmpty(ev.Location))
                 {
-                    eventsText += $"📍 {ev.Location}\n";
+                    eventsText += $"≡ƒôì {ev.Location}\n";
                 }
                 
                 if (ev.RequiresRegistration)
                 {
                     var spotsLeft = ev.MaxParticipants.HasValue 
                         ? $"{ev.MaxParticipants.Value - ev.CurrentParticipants}" 
-                        : "∞";
-                    eventsText += $"👥 Реєстрація: {ev.CurrentParticipants}/{(ev.MaxParticipants?.ToString() ?? "∞")} (вільно: {spotsLeft})\n";
+                        : "Γê₧";
+                    eventsText += $"≡ƒæÑ ╨á╨╡╤ö╤ü╤é╤Ç╨░╤å╤û╤Å: {ev.CurrentParticipants}/{(ev.MaxParticipants?.ToString() ?? "Γê₧")} (╨▓╤û╨╗╤î╨╜╨╛: {spotsLeft})\n";
                     
                     if (ev.RegistrationDeadline.HasValue)
                     {
-                        eventsText += $"⏰ Дедлайн: {ev.RegistrationDeadline.Value:dd.MM.yyyy HH:mm}\n";
+                        eventsText += $"ΓÅ░ ╨ö╨╡╨┤╨╗╨░╨╣╨╜: {ev.RegistrationDeadline.Value:dd.MM.yyyy HH:mm}\n";
                     }
                 }
                 
@@ -1278,7 +1509,7 @@ public class UpdateHandler : IBotUpdateHandler
 
             if (eventsList.TotalCount > 5)
             {
-                eventsText += $"<i>Показано {eventsList.Items.Count} з {eventsList.TotalCount} подій</i>";
+                eventsText += $"<i>╨ƒ╨╛╨║╨░╨╖╨░╨╜╨╛ {eventsList.Items.Count} ╨╖ {eventsList.TotalCount} ╨┐╨╛╨┤╤û╨╣</i>";
             }
 
             await botClient.EditMessageTextAsync(
@@ -1286,19 +1517,19 @@ public class UpdateHandler : IBotUpdateHandler
                 messageId: callbackQuery.Message.MessageId,
                 text: eventsText,
                 parseMode: ParseMode.Html,
-                replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                replyMarkup: GetBackToMainMenu(),
                 cancellationToken: cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Помилка при отриманні подій для користувача {UserId}", callbackQuery.From.Id);
+            _logger.LogError(ex, "╨ƒ╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╨╛╤é╤Ç╨╕╨╝╨░╨╜╨╜╤û ╨┐╨╛╨┤╤û╨╣ ╨┤╨╗╤Å ╨║╨╛╤Ç╨╕╤ü╤é╤â╨▓╨░╤ç╨░ {UserId}", callbackQuery.From.Id);
             
             await botClient.EditMessageTextAsync(
                 chatId: callbackQuery.Message!.Chat.Id,
                 messageId: callbackQuery.Message.MessageId,
-                text: "🎉 <b>Заходи</b>\n\n❌ Виникла помилка при завантаженні подій.",
+                text: "≡ƒÄë <b>╨ù╨░╤à╨╛╨┤╨╕</b>\n\nΓ¥î ╨Æ╨╕╨╜╨╕╨║╨╗╨░ ╨┐╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╨╖╨░╨▓╨░╨╜╤é╨░╨╢╨╡╨╜╨╜╤û ╨┐╨╛╨┤╤û╨╣.",
                 parseMode: ParseMode.Html,
-                replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                replyMarkup: GetBackToMainMenu(),
                 cancellationToken: cancellationToken);
         }
     }
@@ -1313,7 +1544,7 @@ public class UpdateHandler : IBotUpdateHandler
             using var scope = _scopeFactory.CreateScope();
             var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
             
-            // Отримуємо партнерів через MediatR
+            // ╨₧╤é╤Ç╨╕╨╝╤â╤ö╨╝╨╛ ╨┐╨░╤Ç╤é╨╜╨╡╤Ç╤û╨▓ ╤ç╨╡╤Ç╨╡╨╖ MediatR
             var query = new GetActivePartnersQuery();
             var result = await mediator.Send(query, cancellationToken);
 
@@ -1322,9 +1553,9 @@ public class UpdateHandler : IBotUpdateHandler
                 await botClient.EditMessageTextAsync(
                     chatId: callbackQuery.Message!.Chat.Id,
                     messageId: callbackQuery.Message.MessageId,
-                    text: "🤝 <b>Партнери</b>\n\n❌ Не вдалося завантажити партнерів. Спробуйте пізніше.",
+                    text: "≡ƒñ¥ <b>╨ƒ╨░╤Ç╤é╨╜╨╡╤Ç╨╕</b>\n\nΓ¥î ╨¥╨╡ ╨▓╨┤╨░╨╗╨╛╤ü╤Å ╨╖╨░╨▓╨░╨╜╤é╨░╨╢╨╕╤é╨╕ ╨┐╨░╤Ç╤é╨╜╨╡╤Ç╤û╨▓. ╨í╨┐╤Ç╨╛╨▒╤â╨╣╤é╨╡ ╨┐╤û╨╖╨╜╤û╤ê╨╡.",
                     parseMode: ParseMode.Html,
-                    replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                    replyMarkup: GetBackToMainMenu(),
                     cancellationToken: cancellationToken);
                 return;
             }
@@ -1335,21 +1566,21 @@ public class UpdateHandler : IBotUpdateHandler
                 await botClient.EditMessageTextAsync(
                     chatId: callbackQuery.Message!.Chat.Id,
                     messageId: callbackQuery.Message.MessageId,
-                    text: "🤝 <b>Партнери</b>\n\n📭 Наразі немає активних партнерів.\n\n" +
-                          "<i>Ми працюємо над новими партнерствами!</i>",
+                    text: "≡ƒñ¥ <b>╨ƒ╨░╤Ç╤é╨╜╨╡╤Ç╨╕</b>\n\n≡ƒô¡ ╨¥╨░╤Ç╨░╨╖╤û ╨╜╨╡╨╝╨░╤ö ╨░╨║╤é╨╕╨▓╨╜╨╕╤à ╨┐╨░╤Ç╤é╨╜╨╡╤Ç╤û╨▓.\n\n" +
+                          "<i>╨£╨╕ ╨┐╤Ç╨░╤å╤Ä╤ö╨╝╨╛ ╨╜╨░╨┤ ╨╜╨╛╨▓╨╕╨╝╨╕ ╨┐╨░╤Ç╤é╨╜╨╡╤Ç╤ü╤é╨▓╨░╨╝╨╕!</i>",
                     parseMode: ParseMode.Html,
-                    replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                    replyMarkup: GetBackToMainMenu(),
                     cancellationToken: cancellationToken);
                 return;
             }
 
-            // Формуємо текст з партнерами
-            var partnersText = "🤝 <b>Наші партнери</b>\n\n";
-            partnersText += "<i>Пропонуємо знижки та привілеї для членів профспілки:</i>\n\n";
+            // ╨ñ╨╛╤Ç╨╝╤â╤ö╨╝╨╛ ╤é╨╡╨║╤ü╤é ╨╖ ╨┐╨░╤Ç╤é╨╜╨╡╤Ç╨░╨╝╨╕
+            var partnersText = "≡ƒñ¥ <b>╨¥╨░╤ê╤û ╨┐╨░╤Ç╤é╨╜╨╡╤Ç╨╕</b>\n\n";
+            partnersText += "<i>╨ƒ╤Ç╨╛╨┐╨╛╨╜╤â╤ö╨╝╨╛ ╨╖╨╜╨╕╨╢╨║╨╕ ╤é╨░ ╨┐╤Ç╨╕╨▓╤û╨╗╨╡╤ù ╨┤╨╗╤Å ╤ç╨╗╨╡╨╜╤û╨▓ ╨┐╤Ç╨╛╤ä╤ü╨┐╤û╨╗╨║╨╕:</i>\n\n";
             
             foreach (var partner in partnersList.Items)
             {
-                var featuredMark = partner.IsFeatured ? "⭐ " : "";
+                var featuredMark = partner.IsFeatured ? "Γ¡É " : "";
                 partnersText += $"{featuredMark}{partner.TypeEmoji} <b>{partner.Name}</b>\n";
                 
                 if (!string.IsNullOrEmpty(partner.Description))
@@ -1359,42 +1590,42 @@ public class UpdateHandler : IBotUpdateHandler
                 
                 if (!string.IsNullOrEmpty(partner.DiscountInfo))
                 {
-                    partnersText += $"💰 <b>Знижка:</b> {partner.DiscountInfo}\n";
+                    partnersText += $"≡ƒÆ░ <b>╨ù╨╜╨╕╨╢╨║╨░:</b> {partner.DiscountInfo}\n";
                 }
                 
                 if (!string.IsNullOrEmpty(partner.Address))
                 {
-                    partnersText += $"📍 {partner.Address}\n";
+                    partnersText += $"≡ƒôì {partner.Address}\n";
                 }
                 
                 if (!string.IsNullOrEmpty(partner.PhoneNumber))
                 {
-                    partnersText += $"📞 {partner.PhoneNumber}\n";
+                    partnersText += $"≡ƒô₧ {partner.PhoneNumber}\n";
                 }
                 
                 partnersText += "\n";
             }
 
-            partnersText += $"<i>Всього партнерів: {partnersList.TotalCount}</i>";
+            partnersText += $"<i>╨Æ╤ü╤î╨╛╨│╨╛ ╨┐╨░╤Ç╤é╨╜╨╡╤Ç╤û╨▓: {partnersList.TotalCount}</i>";
 
             await botClient.EditMessageTextAsync(
                 chatId: callbackQuery.Message!.Chat.Id,
                 messageId: callbackQuery.Message.MessageId,
                 text: partnersText,
                 parseMode: ParseMode.Html,
-                replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                replyMarkup: GetBackToMainMenu(),
                 cancellationToken: cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Помилка при отриманні партнерів для користувача {UserId}", callbackQuery.From.Id);
+            _logger.LogError(ex, "╨ƒ╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╨╛╤é╤Ç╨╕╨╝╨░╨╜╨╜╤û ╨┐╨░╤Ç╤é╨╜╨╡╤Ç╤û╨▓ ╨┤╨╗╤Å ╨║╨╛╤Ç╨╕╤ü╤é╤â╨▓╨░╤ç╨░ {UserId}", callbackQuery.From.Id);
             
             await botClient.EditMessageTextAsync(
                 chatId: callbackQuery.Message!.Chat.Id,
                 messageId: callbackQuery.Message.MessageId,
-                text: "🤝 <b>Партнери</b>\n\n❌ Виникла помилка при завантаженні партнерів.",
+                text: "≡ƒñ¥ <b>╨ƒ╨░╤Ç╤é╨╜╨╡╤Ç╨╕</b>\n\nΓ¥î ╨Æ╨╕╨╜╨╕╨║╨╗╨░ ╨┐╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╨╖╨░╨▓╨░╨╜╤é╨░╨╢╨╡╨╜╨╜╤û ╨┐╨░╤Ç╤é╨╜╨╡╤Ç╤û╨▓.",
                 parseMode: ParseMode.Html,
-                replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                replyMarkup: GetBackToMainMenu(),
                 cancellationToken: cancellationToken);
         }
     }
@@ -1409,7 +1640,7 @@ public class UpdateHandler : IBotUpdateHandler
             using var scope = _scopeFactory.CreateScope();
             var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
             
-            // Отримуємо контакти через MediatR
+            // ╨₧╤é╤Ç╨╕╨╝╤â╤ö╨╝╨╛ ╨║╨╛╨╜╤é╨░╨║╤é╨╕ ╤ç╨╡╤Ç╨╡╨╖ MediatR
             var query = new GetAllContactsQuery();
             var result = await mediator.Send(query, cancellationToken);
 
@@ -1418,9 +1649,9 @@ public class UpdateHandler : IBotUpdateHandler
                 await botClient.EditMessageTextAsync(
                     chatId: callbackQuery.Message!.Chat.Id,
                     messageId: callbackQuery.Message.MessageId,
-                    text: "📞 <b>Контакти</b>\n\n❌ Не вдалося завантажити контакти. Спробуйте пізніше.",
+                    text: "≡ƒô₧ <b>╨Ü╨╛╨╜╤é╨░╨║╤é╨╕</b>\n\nΓ¥î ╨¥╨╡ ╨▓╨┤╨░╨╗╨╛╤ü╤Å ╨╖╨░╨▓╨░╨╜╤é╨░╨╢╨╕╤é╨╕ ╨║╨╛╨╜╤é╨░╨║╤é╨╕. ╨í╨┐╤Ç╨╛╨▒╤â╨╣╤é╨╡ ╨┐╤û╨╖╨╜╤û╤ê╨╡.",
                     parseMode: ParseMode.Html,
-                    replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                    replyMarkup: GetBackToMainMenu(),
                     cancellationToken: cancellationToken);
                 return;
             }
@@ -1431,24 +1662,24 @@ public class UpdateHandler : IBotUpdateHandler
                 await botClient.EditMessageTextAsync(
                     chatId: callbackQuery.Message!.Chat.Id,
                     messageId: callbackQuery.Message.MessageId,
-                    text: "📞 <b>Контактна інформація</b>\n\n" +
-                          "🏛 <b>Студентський профспілковий комітет</b>\n\n" +
-                          "📧 Email: profkom@vnmu.edu.ua\n" +
-                          "📱 Telegram: @vnmu_profkom\n" +
-                          "📍 Адреса: вул. Пирогова, 56, Вінниця\n" +
-                          "🕐 Години роботи: ПН-ПТ 9:00-17:00",
+                    text: "≡ƒô₧ <b>╨Ü╨╛╨╜╤é╨░╨║╤é╨╜╨░ ╤û╨╜╤ä╨╛╤Ç╨╝╨░╤å╤û╤Å</b>\n\n" +
+                          "≡ƒÅ¢ <b>╨í╤é╤â╨┤╨╡╨╜╤é╤ü╤î╨║╨╕╨╣ ╨┐╤Ç╨╛╤ä╤ü╨┐╤û╨╗╨║╨╛╨▓╨╕╨╣ ╨║╨╛╨╝╤û╤é╨╡╤é</b>\n\n" +
+                          "≡ƒôº Email: profkom@vnmu.edu.ua\n" +
+                          "≡ƒô▒ Telegram: @vnmu_profkom\n" +
+                          "≡ƒôì ╨É╨┤╤Ç╨╡╤ü╨░: ╨▓╤â╨╗. ╨ƒ╨╕╤Ç╨╛╨│╨╛╨▓╨░, 56, ╨Æ╤û╨╜╨╜╨╕╤å╤Å\n" +
+                          "≡ƒòÉ ╨ô╨╛╨┤╨╕╨╜╨╕ ╤Ç╨╛╨▒╨╛╤é╨╕: ╨ƒ╨¥-╨ƒ╨ó 9:00-17:00",
                     parseMode: ParseMode.Html,
-                    replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                    replyMarkup: GetBackToMainMenu(),
                     cancellationToken: cancellationToken);
                 return;
             }
 
-            // Формуємо текст з контактами
-            var contactsText = "📞 <b>Контактна інформація</b>\n\n";
+            // ╨ñ╨╛╤Ç╨╝╤â╤ö╨╝╨╛ ╤é╨╡╨║╤ü╤é ╨╖ ╨║╨╛╨╜╤é╨░╨║╤é╨░╨╝╨╕
+            var contactsText = "≡ƒô₧ <b>╨Ü╨╛╨╜╤é╨░╨║╤é╨╜╨░ ╤û╨╜╤ä╨╛╤Ç╨╝╨░╤å╤û╤Å</b>\n\n";
             
             foreach (var contact in contactsList.Items)
             {
-                contactsText += $"🏛 <b>{contact.Title}</b>\n";
+                contactsText += $"≡ƒÅ¢ <b>{contact.Title}</b>\n";
                 
                 if (!string.IsNullOrEmpty(contact.Description))
                 {
@@ -1457,27 +1688,27 @@ public class UpdateHandler : IBotUpdateHandler
                 
                 if (!string.IsNullOrEmpty(contact.PhoneNumber))
                 {
-                    contactsText += $"📞 {contact.PhoneNumber}\n";
+                    contactsText += $"≡ƒô₧ {contact.PhoneNumber}\n";
                 }
                 
                 if (!string.IsNullOrEmpty(contact.Email))
                 {
-                    contactsText += $"📧 {contact.Email}\n";
+                    contactsText += $"≡ƒôº {contact.Email}\n";
                 }
                 
                 if (!string.IsNullOrEmpty(contact.TelegramUsername))
                 {
-                    contactsText += $"📱 @{contact.TelegramUsername}\n";
+                    contactsText += $"≡ƒô▒ @{contact.TelegramUsername}\n";
                 }
                 
                 if (!string.IsNullOrEmpty(contact.Address))
                 {
-                    contactsText += $"📍 {contact.Address}\n";
+                    contactsText += $"≡ƒôì {contact.Address}\n";
                 }
                 
                 if (!string.IsNullOrEmpty(contact.WorkingHours))
                 {
-                    contactsText += $"🕐 {contact.WorkingHours}\n";
+                    contactsText += $"≡ƒòÉ {contact.WorkingHours}\n";
                 }
                 
                 contactsText += "\n";
@@ -1488,19 +1719,19 @@ public class UpdateHandler : IBotUpdateHandler
                 messageId: callbackQuery.Message.MessageId,
                 text: contactsText.TrimEnd(),
                 parseMode: ParseMode.Html,
-                replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                replyMarkup: GetBackToMainMenu(),
                 cancellationToken: cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Помилка при отриманні контактів для користувача {UserId}", callbackQuery.From.Id);
+            _logger.LogError(ex, "╨ƒ╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╨╛╤é╤Ç╨╕╨╝╨░╨╜╨╜╤û ╨║╨╛╨╜╤é╨░╨║╤é╤û╨▓ ╨┤╨╗╤Å ╨║╨╛╤Ç╨╕╤ü╤é╤â╨▓╨░╤ç╨░ {UserId}", callbackQuery.From.Id);
             
             await botClient.EditMessageTextAsync(
                 chatId: callbackQuery.Message!.Chat.Id,
                 messageId: callbackQuery.Message.MessageId,
-                text: "📞 <b>Контакти</b>\n\n❌ Виникла помилка при завантаженні контактів.",
+                text: "≡ƒô₧ <b>╨Ü╨╛╨╜╤é╨░╨║╤é╨╕</b>\n\nΓ¥î ╨Æ╨╕╨╜╨╕╨║╨╗╨░ ╨┐╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╨╖╨░╨▓╨░╨╜╤é╨░╨╢╨╡╨╜╨╜╤û ╨║╨╛╨╜╤é╨░╨║╤é╤û╨▓.",
                 parseMode: ParseMode.Html,
-                replyMarkup: KeyboardFactory.GetBackToMainMenuKeyboard(),
+                replyMarkup: GetBackToMainMenu(),
                 cancellationToken: cancellationToken);
         }
     }
@@ -1520,7 +1751,7 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                "⛔ У вас немає прав адміністратора",
+                "Γ¢ö ╨ú ╨▓╨░╤ü ╨╜╨╡╨╝╨░╤ö ╨┐╤Ç╨░╨▓ ╨░╨┤╨╝╤û╨╜╤û╤ü╤é╤Ç╨░╤é╨╛╤Ç╨░",
                 showAlert: true,
                 cancellationToken: cancellationToken);
             return;
@@ -1560,20 +1791,20 @@ public class UpdateHandler : IBotUpdateHandler
             PageSize = 1
         }, cancellationToken);
 
-        var statsText = $"👨‍💼 <b>Адмін панель</b>\n\n" +
-                       $"📊 <b>Статистика:</b>\n" +
-                       $"📋 Всього звернень: {allAppealsResult.Value?.TotalCount ?? 0}\n" +
-                       $"🆕 Нових: {newAppealsResult.Value?.TotalCount ?? 0}\n" +
-                       $"👤 Моїх: {myAppealsResult.Value?.TotalCount ?? 0}\n" +
-                       $"❓ Непризначених: {unassignedResult.Value?.TotalCount ?? 0}\n\n" +
-                       $"Оберіть дію:";
+        var statsText = $"≡ƒæ¿ΓÇì≡ƒÆ╝ <b>╨É╨┤╨╝╤û╨╜ ╨┐╨░╨╜╨╡╨╗╤î</b>\n\n" +
+                       $"≡ƒôè <b>╨í╤é╨░╤é╨╕╤ü╤é╨╕╨║╨░:</b>\n" +
+                       $"≡ƒôï ╨Æ╤ü╤î╨╛╨│╨╛ ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╤î: {allAppealsResult.Value?.TotalCount ?? 0}\n" +
+                       $"≡ƒåò ╨¥╨╛╨▓╨╕╤à: {newAppealsResult.Value?.TotalCount ?? 0}\n" +
+                       $"≡ƒæñ ╨£╨╛╤ù╤à: {myAppealsResult.Value?.TotalCount ?? 0}\n" +
+                       $"Γ¥ô ╨¥╨╡╨┐╤Ç╨╕╨╖╨╜╨░╤ç╨╡╨╜╨╕╤à: {unassignedResult.Value?.TotalCount ?? 0}\n\n" +
+                       $"╨₧╨▒╨╡╤Ç╤û╤é╤î ╨┤╤û╤Ä:";
 
         await botClient.EditMessageTextAsync(
             chatId: callbackQuery.Message!.Chat.Id,
             messageId: callbackQuery.Message.MessageId,
             text: statsText,
             parseMode: ParseMode.Html,
-            replyMarkup: KeyboardFactory.GetAdminPanelKeyboard(),
+            replyMarkup: GetAdminPanel(),
             cancellationToken: cancellationToken);
     }
 
@@ -1590,7 +1821,7 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                "⛔ У вас немає прав адміністратора",
+                "Γ¢ö ╨ú ╨▓╨░╤ü ╨╜╨╡╨╝╨░╤ö ╨┐╤Ç╨░╨▓ ╨░╨┤╨╝╤û╨╜╤û╤ü╤é╤Ç╨░╤é╨╛╤Ç╨░",
                 showAlert: true,
                 cancellationToken: cancellationToken);
             return;
@@ -1627,46 +1858,46 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                "📭 Звернень не знайдено",
+                "≡ƒô¡ ╨ù╨▓╨╡╤Ç╨╜╨╡╨╜╤î ╨╜╨╡ ╨╖╨╜╨░╨╣╨┤╨╡╨╜╨╛",
                 cancellationToken: cancellationToken);
             return;
         }
 
-        var appealsText = "📋 <b>Звернення:</b>\n\n";
+        var appealsText = "≡ƒôï <b>╨ù╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å:</b>\n\n";
         foreach (var appeal in result.Value.Appeals)
         {
             var statusEmoji = appeal.Status switch
             {
-                Domain.Enums.AppealStatus.New => "🆕",
-                Domain.Enums.AppealStatus.InProgress => "⏳",
-                Domain.Enums.AppealStatus.Closed => "✅",
-                _ => "❓"
+                Domain.Enums.AppealStatus.New => "≡ƒåò",
+                Domain.Enums.AppealStatus.InProgress => "ΓÅ│",
+                Domain.Enums.AppealStatus.Closed => "Γ£à",
+                _ => "Γ¥ô"
             };
 
             var priorityEmoji = appeal.Priority switch
             {
-                Domain.Enums.AppealPriority.Low => "🟢",
-                Domain.Enums.AppealPriority.Normal => "🟡",
-                Domain.Enums.AppealPriority.High => "🟠",
-                Domain.Enums.AppealPriority.Urgent => "🔴",
-                _ => "⚪"
+                Domain.Enums.AppealPriority.Low => "≡ƒƒó",
+                Domain.Enums.AppealPriority.Normal => "≡ƒƒí",
+                Domain.Enums.AppealPriority.High => "≡ƒƒá",
+                Domain.Enums.AppealPriority.Urgent => "≡ƒö┤",
+                _ => "ΓÜ¬"
             };
 
-            var assignedText = appeal.AssignedToAdminId.HasValue ? "👤" : "❓";
+            var assignedText = appeal.AssignedToAdminId.HasValue ? "≡ƒæñ" : "Γ¥ô";
 
             appealsText += $"{statusEmoji} {priorityEmoji} #{appeal.Id} | {appeal.Category.GetDisplayName()}\n" +
                           $"<b>{appeal.Subject}</b>\n" +
-                          $"{assignedText} Статус: {appeal.Status.GetDisplayName()}\n\n";
+                          $"{assignedText} ╨í╤é╨░╤é╤â╤ü: {appeal.Status.GetDisplayName()}\n\n";
         }
 
-        appealsText += $"Сторінка 1 з {Math.Ceiling((double)result.Value.TotalCount / 10)}";
+        appealsText += $"╨í╤é╨╛╤Ç╤û╨╜╨║╨░ 1 ╨╖ {Math.Ceiling((double)result.Value.TotalCount / 10)}";
 
         var keyboard = new InlineKeyboardMarkup(new[]
         {
             result.Value.Appeals.Select(a => 
                 InlineKeyboardButton.WithCallbackData($"#{a.Id}", $"admin_view_{a.Id}")
             ).ToArray(),
-            new[] { InlineKeyboardButton.WithCallbackData("« Назад до адмін панелі", "admin_panel") }
+            new[] { InlineKeyboardButton.WithCallbackData("┬½ ╨¥╨░╨╖╨░╨┤ ╨┤╨╛ ╨░╨┤╨╝╤û╨╜ ╨┐╨░╨╜╨╡╨╗╤û", "admin_panel") }
         });
 
         await botClient.EditMessageTextAsync(
@@ -1691,7 +1922,7 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                "⛔ У вас немає прав адміністратора",
+                "Γ¢ö ╨ú ╨▓╨░╤ü ╨╜╨╡╨╝╨░╤ö ╨┐╤Ç╨░╨▓ ╨░╨┤╨╝╤û╨╜╤û╤ü╤é╤Ç╨░╤é╨╛╤Ç╨░",
                 showAlert: true,
                 cancellationToken: cancellationToken);
             return;
@@ -1702,7 +1933,7 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                "❌ Невірний ID звернення",
+                "Γ¥î ╨¥╨╡╨▓╤û╤Ç╨╜╨╕╨╣ ID ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å",
                 showAlert: true,
                 cancellationToken: cancellationToken);
             return;
@@ -1715,7 +1946,7 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                "❌ Звернення не знайдено",
+                "Γ¥î ╨ù╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å ╨╜╨╡ ╨╖╨╜╨░╨╣╨┤╨╡╨╜╨╛",
                 showAlert: true,
                 cancellationToken: cancellationToken);
             return;
@@ -1725,40 +1956,40 @@ public class UpdateHandler : IBotUpdateHandler
         var isAssignedToMe = appeal.AssignedToAdminId == user.TelegramId;
         var isClosed = appeal.Status == Domain.Enums.AppealStatus.Closed;
 
-        var appealText = $"📋 <b>Звернення #{appeal.Id}</b>\n\n" +
-                        $"📂 Категорія: {appeal.CategoryName}\n" +
-                        $"📌 Тема: {appeal.Subject}\n" +
-                        $"📝 Опис:\n{appeal.Message}\n\n" +
-                        $"📊 Статус: {appeal.StatusName}\n" +
-                        $"🎯 Пріоритет: {appeal.PriorityName}\n" +
-                        $"👤 Призначено: {(appeal.AssignedToAdminId.HasValue ? $"Адмін #{appeal.AssignedToAdminId}" : "Непризначено")}\n" +
-                        $"📅 Створено: {appeal.CreatedAt:dd.MM.yyyy HH:mm}\n";
+        var appealText = $"≡ƒôï <b>╨ù╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å #{appeal.Id}</b>\n\n" +
+                        $"≡ƒôé ╨Ü╨░╤é╨╡╨│╨╛╤Ç╤û╤Å: {appeal.CategoryName}\n" +
+                        $"≡ƒôî ╨ó╨╡╨╝╨░: {appeal.Subject}\n" +
+                        $"≡ƒô¥ ╨₧╨┐╨╕╤ü:\n{appeal.Message}\n\n" +
+                        $"≡ƒôè ╨í╤é╨░╤é╤â╤ü: {appeal.StatusName}\n" +
+                        $"≡ƒÄ» ╨ƒ╤Ç╤û╨╛╤Ç╨╕╤é╨╡╤é: {appeal.PriorityName}\n" +
+                        $"≡ƒæñ ╨ƒ╤Ç╨╕╨╖╨╜╨░╤ç╨╡╨╜╨╛: {(appeal.AssignedToAdminId.HasValue ? $"╨É╨┤╨╝╤û╨╜ #{appeal.AssignedToAdminId}" : "╨¥╨╡╨┐╤Ç╨╕╨╖╨╜╨░╤ç╨╡╨╜╨╛")}\n" +
+                        $"≡ƒôà ╨í╤é╨▓╨╛╤Ç╨╡╨╜╨╛: {appeal.CreatedAt:dd.MM.yyyy HH:mm}\n";
 
         if (appeal.FirstResponseAt.HasValue)
         {
-            appealText += $"⏱️ Перша відповідь: {appeal.FirstResponseAt:dd.MM.yyyy HH:mm}\n";
+            appealText += $"ΓÅ▒∩╕Å ╨ƒ╨╡╤Ç╤ê╨░ ╨▓╤û╨┤╨┐╨╛╨▓╤û╨┤╤î: {appeal.FirstResponseAt:dd.MM.yyyy HH:mm}\n";
         }
 
         if (appeal.ClosedAt.HasValue)
         {
-            appealText += $"✅ Закрито: {appeal.ClosedAt:dd.MM.yyyy HH:mm}\n";
+            appealText += $"Γ£à ╨ù╨░╨║╤Ç╨╕╤é╨╛: {appeal.ClosedAt:dd.MM.yyyy HH:mm}\n";
             if (!string.IsNullOrEmpty(appeal.ClosedReason))
             {
-                appealText += $"📝 Причина закриття: {appeal.ClosedReason}\n";
+                appealText += $"≡ƒô¥ ╨ƒ╤Ç╨╕╤ç╨╕╨╜╨░ ╨╖╨░╨║╤Ç╨╕╤é╤é╤Å: {appeal.ClosedReason}\n";
             }
         }
 
         if (appeal.Messages.Any())
         {
-            appealText += $"\n💬 <b>Історія ({appeal.Messages.Count}):</b>\n";
+            appealText += $"\n≡ƒÆ¼ <b>╨å╤ü╤é╨╛╤Ç╤û╤Å ({appeal.Messages.Count}):</b>\n";
             foreach (var msg in appeal.Messages.OrderBy(m => m.SentAt).Take(3))
             {
-                var senderType = msg.IsFromAdmin ? "👨‍💼 Адмін" : "👤 Користувач";
+                var senderType = msg.IsFromAdmin ? "≡ƒæ¿ΓÇì≡ƒÆ╝ ╨É╨┤╨╝╤û╨╜" : "≡ƒæñ ╨Ü╨╛╤Ç╨╕╤ü╤é╤â╨▓╨░╤ç";
                 appealText += $"{senderType} ({msg.SentAt:dd.MM HH:mm}):\n{msg.Text}\n\n";
             }
             if (appeal.Messages.Count > 3)
             {
-                appealText += $"... та ще {appeal.Messages.Count - 3} повідомлень\n";
+                appealText += $"... ╤é╨░ ╤ë╨╡ {appeal.Messages.Count - 3} ╨┐╨╛╨▓╤û╨┤╨╛╨╝╨╗╨╡╨╜╤î\n";
             }
         }
 
@@ -1767,7 +1998,7 @@ public class UpdateHandler : IBotUpdateHandler
             messageId: callbackQuery.Message.MessageId,
             text: appealText,
             parseMode: ParseMode.Html,
-            replyMarkup: KeyboardFactory.GetAdminAppealActionsKeyboard(appealId, isAssignedToMe, isClosed),
+            replyMarkup: GetAdminAppealActions(appealId, isAssignedToMe, isClosed),
             cancellationToken: cancellationToken);
     }
 
@@ -1784,7 +2015,7 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                "⛔ У вас немає прав адміністратора",
+                "Γ¢ö ╨ú ╨▓╨░╤ü ╨╜╨╡╨╝╨░╤ö ╨┐╤Ç╨░╨▓ ╨░╨┤╨╝╤û╨╜╤û╤ü╤é╤Ç╨░╤é╨╛╤Ç╨░",
                 showAlert: true,
                 cancellationToken: cancellationToken);
             return;
@@ -1795,25 +2026,25 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                "❌ Невірний ID звернення",
+                "Γ¥î ╨¥╨╡╨▓╤û╤Ç╨╜╨╕╨╣ ID ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å",
                 showAlert: true,
                 cancellationToken: cancellationToken);
             return;
         }
 
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        var result = await mediator.Send(new AssignAppealCommand
-        {
-            AppealId = appealId,
-            RequestAdminId = user.TelegramId,
-            AssignToAdminId = user.TelegramId
-        }, cancellationToken);
+        var result = await mediator.Send(new AssignAppealCommand(
+            appealId: appealId,
+            adminId: user.TelegramId,
+            assignedByUserId: user.TelegramId,
+            reason: "Адмін призначив звернення собі"
+        ), cancellationToken);
 
         if (result.IsSuccess)
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                "✅ Звернення призначено вам",
+                "Γ£à ╨ù╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å ╨┐╤Ç╨╕╨╖╨╜╨░╤ç╨╡╨╜╨╛ ╨▓╨░╨╝",
                 cancellationToken: cancellationToken);
 
             // Refresh the view
@@ -1829,7 +2060,7 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                $"❌ {result.Error}",
+                $"Γ¥î {result.Error}",
                 showAlert: true,
                 cancellationToken: cancellationToken);
         }
@@ -1848,7 +2079,7 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                "⛔ У вас немає прав адміністратора",
+                "Γ¢ö ╨ú ╨▓╨░╤ü ╨╜╨╡╨╝╨░╤ö ╨┐╤Ç╨░╨▓ ╨░╨┤╨╝╤û╨╜╤û╤ü╤é╤Ç╨░╤é╨╛╤Ç╨░",
                 showAlert: true,
                 cancellationToken: cancellationToken);
             return;
@@ -1859,25 +2090,23 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                "❌ Невірний ID звернення",
+                "Γ¥î ╨¥╨╡╨▓╤û╤Ç╨╜╨╕╨╣ ID ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å",
                 showAlert: true,
                 cancellationToken: cancellationToken);
             return;
         }
 
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        var result = await mediator.Send(new AssignAppealCommand
-        {
-            AppealId = appealId,
-            RequestAdminId = user.TelegramId,
-            AssignToAdminId = null
-        }, cancellationToken);
+        var result = await mediator.Send(new AssignAppealCommand(
+            appealId: appealId,
+            assignedByUserId: user.TelegramId
+        ), cancellationToken);
 
         if (result.IsSuccess)
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                "✅ Призначення знято",
+                "Γ£à ╨ƒ╤Ç╨╕╨╖╨╜╨░╤ç╨╡╨╜╨╜╤Å ╨╖╨╜╤Å╤é╨╛",
                 cancellationToken: cancellationToken);
 
             // Refresh the view
@@ -1893,7 +2122,7 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                $"❌ {result.Error}",
+                $"Γ¥î {result.Error}",
                 showAlert: true,
                 cancellationToken: cancellationToken);
         }
@@ -1912,7 +2141,7 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                "⛔ У вас немає прав адміністратора",
+                "Γ¢ö ╨ú ╨▓╨░╤ü ╨╜╨╡╨╝╨░╤ö ╨┐╤Ç╨░╨▓ ╨░╨┤╨╝╤û╨╜╤û╤ü╤é╤Ç╨░╤é╨╛╤Ç╨░",
                 showAlert: true,
                 cancellationToken: cancellationToken);
             return;
@@ -1923,7 +2152,7 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                "❌ Невірний ID звернення",
+                "Γ¥î ╨¥╨╡╨▓╤û╤Ç╨╜╨╕╨╣ ID ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å",
                 showAlert: true,
                 cancellationToken: cancellationToken);
             return;
@@ -1932,12 +2161,12 @@ public class UpdateHandler : IBotUpdateHandler
         await botClient.EditMessageReplyMarkupAsync(
             chatId: callbackQuery.Message!.Chat.Id,
             messageId: callbackQuery.Message.MessageId,
-            replyMarkup: KeyboardFactory.GetPrioritySelectionKeyboard(appealId),
+            replyMarkup: GetPrioritySelection(appealId),
             cancellationToken: cancellationToken);
 
         await botClient.AnswerCallbackQueryAsync(
             callbackQuery.Id,
-            "Оберіть пріоритет:",
+            "╨₧╨▒╨╡╤Ç╤û╤é╤î ╨┐╤Ç╤û╨╛╤Ç╨╕╤é╨╡╤é:",
             cancellationToken: cancellationToken);
     }
 
@@ -1954,7 +2183,7 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                "⛔ У вас немає прав адміністратора",
+                "Γ¢ö ╨ú ╨▓╨░╤ü ╨╜╨╡╨╝╨░╤ö ╨┐╤Ç╨░╨▓ ╨░╨┤╨╝╤û╨╜╤û╤ü╤é╤Ç╨░╤é╨╛╤Ç╨░",
                 showAlert: true,
                 cancellationToken: cancellationToken);
             return;
@@ -1965,7 +2194,7 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                "❌ Невірні параметри",
+                "Γ¥î ╨¥╨╡╨▓╤û╤Ç╨╜╤û ╨┐╨░╤Ç╨░╨╝╨╡╤é╤Ç╨╕",
                 showAlert: true,
                 cancellationToken: cancellationToken);
             return;
@@ -1983,7 +2212,7 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                "✅ Пріоритет оновлено",
+                "Γ£à ╨ƒ╤Ç╤û╨╛╤Ç╨╕╤é╨╡╤é ╨╛╨╜╨╛╨▓╨╗╨╡╨╜╨╛",
                 cancellationToken: cancellationToken);
 
             // Refresh the view
@@ -1999,7 +2228,7 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                $"❌ {result.Error}",
+                $"Γ¥î {result.Error}",
                 showAlert: true,
                 cancellationToken: cancellationToken);
         }
@@ -2018,7 +2247,7 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                "⛔ У вас немає прав адміністратора",
+                "Γ¢ö ╨ú ╨▓╨░╤ü ╨╜╨╡╨╝╨░╤ö ╨┐╤Ç╨░╨▓ ╨░╨┤╨╝╤û╨╜╤û╤ü╤é╤Ç╨░╤é╨╛╤Ç╨░",
                 showAlert: true,
                 cancellationToken: cancellationToken);
             return;
@@ -2029,46 +2258,27 @@ public class UpdateHandler : IBotUpdateHandler
         {
             await botClient.AnswerCallbackQueryAsync(
                 callbackQuery.Id,
-                "❌ Невірний ID звернення",
+                "Γ¥î ╨¥╨╡╨▓╤û╤Ç╨╜╨╕╨╣ ID ╨╖╨▓╨╡╤Ç╨╜╨╡╨╜╨╜╤Å",
                 showAlert: true,
                 cancellationToken: cancellationToken);
             return;
         }
 
-        // TODO: Implement state management for close reason input
-        // For now, close with default reason
-        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
-        var result = await mediator.Send(new CloseAppealCommand
-        {
-            AppealId = appealId,
-            AdminId = user.TelegramId,
-            Reason = "Розглянуто та вирішено адміністратором"
-        }, cancellationToken);
+        // Store appeal ID and set state for close reason input
+        await _stateManager.SetDataAsync(user.TelegramId, "close_appeal_id", appealId, cancellationToken);
+        await _stateManager.SetStateAsync(user.TelegramId, UserConversationState.WaitingCloseReason, cancellationToken);
 
-        if (result.IsSuccess)
-        {
-            await botClient.AnswerCallbackQueryAsync(
-                callbackQuery.Id,
-                "✅ Звернення закрито",
-                cancellationToken: cancellationToken);
+        await botClient.AnswerCallbackQueryAsync(
+            callbackQuery.Id,
+            cancellationToken: cancellationToken);
 
-            // Refresh the view
-            await HandleAdminAppealViewCallback(botClient, new CallbackQuery
-            {
-                Id = callbackQuery.Id,
-                From = callbackQuery.From,
-                Message = callbackQuery.Message,
-                Data = $"admin_view_{appealId}"
-            }, cancellationToken);
-        }
-        else
-        {
-            await botClient.AnswerCallbackQueryAsync(
-                callbackQuery.Id,
-                $"❌ {result.Error}",
-                showAlert: true,
-                cancellationToken: cancellationToken);
-        }
+        await botClient.SendTextMessageAsync(
+            chatId: callbackQuery.Message!.Chat.Id,
+            text: "📝 Введіть причину закриття звернення:\n\n" +
+                  "<i>Мінімум 5 символів, максимум 500 символів.</i>\n\n" +
+                  "Або натисніть /cancel для відміни.",
+            parseMode: ParseMode.Html,
+            cancellationToken: cancellationToken);
     }
 
     #endregion
@@ -2078,7 +2288,7 @@ public class UpdateHandler : IBotUpdateHandler
         Message message,
         CancellationToken cancellationToken)
     {
-        _logger.LogInformation("Отримано відредаговане повідомлення від {UserId}", message.From?.Id);
+        _logger.LogInformation("╨₧╤é╤Ç╨╕╨╝╨░╨╜╨╛ ╨▓╤û╨┤╤Ç╨╡╨┤╨░╨│╨╛╨▓╨░╨╜╨╡ ╨┐╨╛╨▓╤û╨┤╨╛╨╝╨╗╨╡╨╜╨╜╤Å ╨▓╤û╨┤ {UserId}", message.From?.Id);
         return Task.CompletedTask;
     }
 
@@ -2087,7 +2297,7 @@ public class UpdateHandler : IBotUpdateHandler
         Update update,
         CancellationToken cancellationToken)
     {
-        _logger.LogWarning("Невідомий тип оновлення: {UpdateType}", update.Type);
+        _logger.LogWarning("╨¥╨╡╨▓╤û╨┤╨╛╨╝╨╕╨╣ ╤é╨╕╨┐ ╨╛╨╜╨╛╨▓╨╗╨╡╨╜╨╜╤Å: {UpdateType}", update.Type);
         return Task.CompletedTask;
     }
 
@@ -2102,7 +2312,7 @@ public class UpdateHandler : IBotUpdateHandler
             _ => exception.ToString()
         };
 
-        _logger.LogError(exception, "Помилка при обробці оновлення: {ErrorMessage}", errorMessage);
+        _logger.LogError(exception, "╨ƒ╨╛╨╝╨╕╨╗╨║╨░ ╨┐╤Ç╨╕ ╨╛╨▒╤Ç╨╛╨▒╤å╤û ╨╛╨╜╨╛╨▓╨╗╨╡╨╜╨╜╤Å: {ErrorMessage}", errorMessage);
         return Task.CompletedTask;
     }
 }

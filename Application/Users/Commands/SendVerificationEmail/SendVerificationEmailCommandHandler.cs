@@ -42,7 +42,8 @@ public class SendVerificationEmailCommandHandler : IRequestHandler<SendVerificat
                 return Result<bool>.Fail("Користувача не знайдено");
             }
 
-            // Згенерувати код верифікації
+            // Встановити email та згенерувати код верифікації
+            user.SetEmailForVerification(request.Email);
             var verificationCode = user.GenerateVerificationCode();
 
             // Зберегти в БД

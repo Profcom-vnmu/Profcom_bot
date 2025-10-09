@@ -34,4 +34,19 @@ public class CreateAppealCommand : IRequest<Result<AppealDto>>
     /// Текст звернення
     /// </summary>
     public string Message { get; set; } = string.Empty;
+
+    /// <summary>
+    /// ID фото файлу з Telegram (опціонально)
+    /// </summary>
+    public string? PhotoFileId { get; set; }
+
+    /// <summary>
+    /// ID документу з Telegram (опціонально)
+    /// </summary>
+    public string? DocumentFileId { get; set; }
+
+    /// <summary>
+    /// Назва документу (опціонально)
+    /// </summary>
+    public string? DocumentFileName { get; set; }
 }

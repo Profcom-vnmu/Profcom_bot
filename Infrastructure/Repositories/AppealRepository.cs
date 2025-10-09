@@ -91,4 +91,17 @@ public class AppealRepository : BaseRepository<Appeal>, IAppealRepository
                 a => a.StudentId == studentId && a.Status != AppealStatus.Closed,
                 cancellationToken);
     }
+
+    public async Task<List<Appeal>> GetAppealsByDateRangeAsync(
+        DateTime fromDate,
+        DateTime toDate,
+        CancellationToken cancellationToken = default)
+    {
+        return await DbSet
+            .AsNoTracking()
+            .Include(a => a.Student)
+            .Where(a => a.CreatedAt >= fromDate && a.CreatedAt < toDate)
+            .OrderByDescending(a => a.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
 }

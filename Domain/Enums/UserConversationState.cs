@@ -38,5 +38,30 @@ public enum UserConversationState
     /// <summary>
     /// Waiting for email verification code input
     /// </summary>
-    WaitingVerificationCode = 6
+    WaitingVerificationCode = 6,
+
+    /// <summary>
+    /// Waiting for custom close reason input (admin only)
+    /// </summary>
+    WaitingCloseReason = 7,
+
+    /// <summary>
+    /// Waiting for full name input
+    /// </summary>
+    WaitingFullNameInput = 8,
+
+    /// <summary>
+    /// Waiting for faculty input
+    /// </summary>
+    WaitingFacultyInput = 9,
+
+    /// <summary>
+    /// Waiting for course input
+    /// </summary>
+    WaitingCourseInput = 10,
+
+    /// <summary>
+    /// Waiting for group input
+    /// </summary>
+    WaitingGroupInput = 11
 }

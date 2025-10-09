@@ -49,9 +49,8 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, R
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 _logger.LogInformation(
-                    "Користувач {TelegramId} оновлено, Role ПІСЛЯ збереження: {Role}",
-                    request.TelegramId,
-                    existingUser.Role);
+                    "Користувач {TelegramId} успішно оновлено",
+                    request.TelegramId);
 
                 return Result<UserDto>.Ok(MapToDto(existingUser));
             }
@@ -95,7 +94,7 @@ public class RegisterUserCommandHandler : IRequestHandler<RegisterUserCommand, R
             Group = user.Group,
             Email = user.Email,
             IsEmailVerified = user.IsEmailVerified,
-            Language = user.Language,
+            Language = user.Language.GetCode(),
             JoinedAt = user.JoinedAt,
             IsActive = user.IsActive,
             RoleName = user.Role.GetDisplayName()

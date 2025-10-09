@@ -8,13 +8,14 @@ using StudentUnionBot.Domain.Interfaces;
 using StudentUnionBot.Infrastructure.Data;
 using StudentUnionBot.Infrastructure.Repositories;
 using StudentUnionBot.Infrastructure.Services;
+using StudentUnionBot.Infrastructure.Services.Notifications;
 using StudentUnionBot.Presentation.Bot.Handlers;
 using StudentUnionBot.Presentation.Bot.Services;
 using Telegram.Bot;
 
 // Налаштування Serilog
 Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Debug()
+    .MinimumLevel.Information()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
     .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
     .Enrich.FromLogContext()
@@ -68,6 +69,7 @@ try
     // Реєстрація Repository Pattern
     builder.Services.AddScoped<IUserRepository, UserRepository>();
     builder.Services.AddScoped<IAppealRepository, AppealRepository>();
+    builder.Services.AddScoped<IAdminWorkloadRepository, AdminWorkloadRepository>();
     builder.Services.AddScoped<INewsRepository, NewsRepository>();
     builder.Services.AddScoped<IEventRepository, EventRepository>();
     builder.Services.AddScoped<IPartnerRepository, PartnerRepository>();
@@ -82,6 +84,27 @@ try
 
     // Реєстрація Email Service
     builder.Services.AddScoped<IEmailService, EmailService>();
+
+    // Реєстрація Backup Service
+    builder.Services.AddScoped<IBackupService, BackupService>();
+
+    // Реєстрація Localization Service
+    builder.Services.AddSingleton<ILocalizationService, LocalizationService>();
+
+    // Реєстрація Appeal Assignment Service
+    builder.Services.AddScoped<IAppealAssignmentService, AppealAssignmentService>();
+
+    // Реєстрація File Management Services
+    builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
+    builder.Services.AddScoped<IFileValidationService, FileValidationService>();
+    builder.Services.AddScoped<IFileAttachmentRepository, FileAttachmentRepository>();
+    builder.Services.AddScoped<IAppealFileAttachmentRepository, AppealFileAttachmentRepository>();
+
+    // Реєстрація Notification Services
+    builder.Services.AddScoped<INotificationService, NotificationService>();
+    builder.Services.AddScoped<IReminderService, ReminderService>();
+    builder.Services.AddScoped<IEmailNotificationProvider, SmtpEmailNotificationProvider>();
+    builder.Services.AddScoped<IPushNotificationProvider, TelegramPushNotificationProvider>();
 
     // Telegram Bot Client
     var botToken = builder.Configuration["BotConfiguration:BotToken"] 
@@ -101,8 +124,16 @@ try
     builder.Services.AddSingleton<IBotUpdateHandler, UpdateHandler>();
     builder.Services.AddHostedService<BotBackgroundService>();
 
+    // Background Services
+    builder.Services.AddHostedService<StudentUnionBot.Infrastructure.BackgroundServices.NotificationReminderService>();
+    builder.Services.AddHostedService<StudentUnionBot.Infrastructure.BackgroundServices.DataCleanupService>();
+
     // Health checks
-    builder.Services.AddHealthChecks();
+    builder.Services.AddHealthChecks()
+        .AddCheck<StudentUnionBot.Infrastructure.HealthChecks.DatabaseHealthCheck>("database", tags: new[] { "db", "critical" })
+        .AddCheck<StudentUnionBot.Infrastructure.HealthChecks.FileStorageHealthCheck>("file_storage", tags: new[] { "storage" })
+        .AddCheck<StudentUnionBot.Infrastructure.HealthChecks.MemoryHealthCheck>("memory", tags: new[] { "memory" })
+        .AddCheck<StudentUnionBot.Infrastructure.HealthChecks.TelegramBotHealthCheck>("telegram_bot", tags: new[] { "telegram", "critical" });
 
     var app = builder.Build();
 
@@ -116,7 +147,17 @@ try
     }
 
     app.MapGet("/", () => "StudentUnionBot працює ✅");
+    
+    // Health check endpoints
     app.MapHealthChecks("/health");
+    app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+    {
+        Predicate = check => check.Tags.Contains("critical")
+    });
+    app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+    {
+        Predicate = _ => false // Завжди повертає Healthy (для kubernetes liveness probe)
+    });
 
     Log.Information("StudentUnionBot готовий до роботи");
     

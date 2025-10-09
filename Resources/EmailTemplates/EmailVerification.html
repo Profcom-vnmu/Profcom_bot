@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Верифікація Email</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 600px;
+            margin: 30px auto;
+            background-color: #ffffff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px 20px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            opacity: 0.9;
+            font-size: 16px;
+        }
+        .content {
+            padding: 40px 30px;
+        }
+        .verification-code {
+            background-color: #f8f9fa;
+            border: 2px dashed #667eea;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin: 25px 0;
+        }
+        .code {
+            font-size: 36px;
+            font-weight: 700;
+            color: #667eea;
+            letter-spacing: 8px;
+            font-family: 'Courier New', monospace;
+        }
+        .expiry {
+            color: #dc3545;
+            font-size: 14px;
+            margin-top: 10px;
+            font-weight: 500;
+        }
+        .info-box {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+        .info-box p {
+            margin: 0;
+            color: #856404;
+        }
+        .footer {
+            background-color: #f8f9fa;
+            padding: 20px 30px;
+            text-align: center;
+            font-size: 13px;
+            color: #6c757d;
+            border-top: 1px solid #dee2e6;
+        }
+        .footer a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background-color: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: 500;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎓 StudentUnionBot</h1>
+            <p>Профспілковий комітет студентів</p>
+        </div>
+        
+        <div class="content">
+            <h2 style="color: #333; margin-top: 0;">Вітаємо, {{UserName}}!</h2>
+            
+            <p>Ви отримали цей лист, оскільки запросили верифікацію email адреси для вашого облікового запису в StudentUnionBot.</p>
+            
+            <p>Для підтвердження email адреси використайте наступний код верифікації:</p>
+            
+            <div class="verification-code">
+                <div class="code">{{VerificationCode}}</div>
+                <div class="expiry">⏰ Код дійсний протягом {{ExpiryMinutes}} хвилин</div>
+            </div>
+            
+            <p>Просто скопіюйте цей код та вставте його в чат з ботом, або введіть вручну.</p>
+            
+            <div class="info-box">
+                <p>⚠️ Якщо ви не запитували верифікацію email, просто ігноруйте цей лист. Ваша email адреса не буде підтверджена без введення коду.</p>
+            </div>
+            
+            <p style="margin-top: 30px; color: #6c757d; font-size: 14px;">
+                Якщо у вас виникли питання, зверніться до профспілкового комітету або відповідайте на це повідомлення.
+            </p>
+        </div>
+        
+        <div class="footer">
+            <p>© {{Year}} StudentUnionBot - Профспілковий комітет студентів ВНМУ</p>
+            <p style="margin-top: 10px;">
+                Це автоматичне повідомлення. Якщо у вас виникли питання, зв'яжіться з нами через Telegram бот.
+            </p>
+        </div>
+    </div>
+</body>
+</html>

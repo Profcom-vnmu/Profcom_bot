@@ -17,6 +17,99 @@ namespace StudentUnionBot.Infrastructure.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.0");
 
+            modelBuilder.Entity("StudentUnionBot.Domain.Entities.AdminCategoryExpertise", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("AdminId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Category")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ExperienceLevel")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(1);
+
+                    b.Property<int>("SuccessfulResolutions")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
+
+                    b.Property<int>("TotalResolutions")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Category");
+
+                    b.HasIndex("ExperienceLevel");
+
+                    b.HasIndex("AdminId", "Category")
+                        .IsUnique();
+
+                    b.ToTable("AdminCategoryExpertises");
+                });
+
+            modelBuilder.Entity("StudentUnionBot.Domain.Entities.AdminWorkload", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ActiveAppealsCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
+
+                    b.Property<long>("AdminId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsAvailable")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(true);
+
+                    b.Property<DateTime>("LastActivityAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("LastAssignedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TotalAppealsCount")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AdminId")
+                        .IsUnique();
+
+                    b.HasIndex("IsAvailable");
+
+                    b.HasIndex("LastActivityAt");
+
+                    b.ToTable("AdminWorkloads");
+                });
+
             modelBuilder.Entity("StudentUnionBot.Domain.Entities.Appeal", b =>
                 {
                     b.Property<int>("Id")
@@ -90,6 +183,49 @@ namespace StudentUnionBot.Infrastructure.Data.Migrations
                     b.HasIndex("StudentId");
 
                     b.ToTable("Appeals");
+                });
+
+            modelBuilder.Entity("StudentUnionBot.Domain.Entities.AppealFileAttachment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("AppealId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("AttachedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("AttachedByUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("FileAttachmentId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsEvidence")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AppealId");
+
+                    b.HasIndex("AttachedAt");
+
+                    b.HasIndex("AttachedByUserId");
+
+                    b.HasIndex("FileAttachmentId");
+
+                    b.HasIndex("IsEvidence");
+
+                    b.HasIndex("AppealId", "FileAttachmentId")
+                        .IsUnique();
+
+                    b.ToTable("AppealFileAttachments");
                 });
 
             modelBuilder.Entity("StudentUnionBot.Domain.Entities.AppealMessage", b =>
@@ -194,10 +330,9 @@ namespace StudentUnionBot.Infrastructure.Data.Migrations
                     b.Property<DateTime>("JoinedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("Language")
-                        .IsRequired()
+                    b.Property<int>("Language")
                         .HasMaxLength(5)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("INTEGER");
 
                     b.Property<DateTime?>("LastActivityAt")
                         .HasColumnType("TEXT");
@@ -410,6 +545,93 @@ namespace StudentUnionBot.Infrastructure.Data.Migrations
                     b.ToTable("Events");
                 });
 
+            modelBuilder.Entity("StudentUnionBot.Domain.Entities.FileAttachment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FileHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FilePath")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("FileSize")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("FileType")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsCompressed")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("OriginalFileName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ScanResult")
+                        .HasMaxLength(1000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("ScanStatus")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("ScannedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ThumbnailPath")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("UploadedByUserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FileHash");
+
+                    b.HasIndex("FileType");
+
+                    b.HasIndex("IsDeleted");
+
+                    b.HasIndex("ScanStatus");
+
+                    b.HasIndex("UploadedAt");
+
+                    b.HasIndex("UploadedByUserId");
+
+                    b.HasIndex("IsDeleted", "FileType");
+
+                    b.HasIndex("IsDeleted", "ScanStatus");
+
+                    b.ToTable("FileAttachments");
+                });
+
             modelBuilder.Entity("StudentUnionBot.Domain.Entities.News", b =>
                 {
                     b.Property<int>("Id")
@@ -480,6 +702,192 @@ namespace StudentUnionBot.Infrastructure.Data.Migrations
                     b.HasIndex("PublishAt");
 
                     b.ToTable("News");
+                });
+
+            modelBuilder.Entity("StudentUnionBot.Domain.Entities.Notification", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Data")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DeliveredAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Event")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Message")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("ReadAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("RelatedAppealId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("RelatedEventId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("RelatedNewsId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("RetryCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("ScheduledFor")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("SentAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("Event");
+
+                    b.HasIndex("RelatedAppealId");
+
+                    b.HasIndex("RelatedEventId");
+
+                    b.HasIndex("RelatedNewsId");
+
+                    b.HasIndex("ScheduledFor");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("Type");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("Status", "ScheduledFor");
+
+                    b.HasIndex("UserId", "Status");
+
+                    b.ToTable("Notifications");
+                });
+
+            modelBuilder.Entity("StudentUnionBot.Domain.Entities.NotificationPreference", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("EmailEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Event")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("InAppEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("PushEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("SmsEnabled")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Event");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("UserId", "Event")
+                        .IsUnique();
+
+                    b.ToTable("NotificationPreferences");
+                });
+
+            modelBuilder.Entity("StudentUnionBot.Domain.Entities.NotificationTemplate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Event")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(5)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("MessageTemplate")
+                        .IsRequired()
+                        .HasMaxLength(4000)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TitleTemplate")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Event");
+
+                    b.HasIndex("IsActive");
+
+                    b.HasIndex("Language");
+
+                    b.HasIndex("Type");
+
+                    b.HasIndex("Event", "Type", "Language");
+
+                    b.ToTable("NotificationTemplates");
                 });
 
             modelBuilder.Entity("StudentUnionBot.Domain.Entities.Partner", b =>
@@ -577,6 +985,37 @@ namespace StudentUnionBot.Infrastructure.Data.Migrations
                     b.ToTable("Partners");
                 });
 
+            modelBuilder.Entity("StudentUnionBot.Domain.Entities.AdminCategoryExpertise", b =>
+                {
+                    b.HasOne("StudentUnionBot.Domain.Entities.AdminWorkload", "AdminWorkload")
+                        .WithMany("CategoryExpertises")
+                        .HasForeignKey("AdminId")
+                        .HasPrincipalKey("AdminId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("StudentUnionBot.Domain.Entities.BotUser", "Admin")
+                        .WithMany()
+                        .HasForeignKey("AdminId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Admin");
+
+                    b.Navigation("AdminWorkload");
+                });
+
+            modelBuilder.Entity("StudentUnionBot.Domain.Entities.AdminWorkload", b =>
+                {
+                    b.HasOne("StudentUnionBot.Domain.Entities.BotUser", "Admin")
+                        .WithOne()
+                        .HasForeignKey("StudentUnionBot.Domain.Entities.AdminWorkload", "AdminId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Admin");
+                });
+
             modelBuilder.Entity("StudentUnionBot.Domain.Entities.Appeal", b =>
                 {
                     b.HasOne("StudentUnionBot.Domain.Entities.BotUser", "Student")
@@ -586,6 +1025,33 @@ namespace StudentUnionBot.Infrastructure.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Student");
+                });
+
+            modelBuilder.Entity("StudentUnionBot.Domain.Entities.AppealFileAttachment", b =>
+                {
+                    b.HasOne("StudentUnionBot.Domain.Entities.Appeal", "Appeal")
+                        .WithMany("FileAttachments")
+                        .HasForeignKey("AppealId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("StudentUnionBot.Domain.Entities.BotUser", "AttachedBy")
+                        .WithMany()
+                        .HasForeignKey("AttachedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("StudentUnionBot.Domain.Entities.FileAttachment", "FileAttachment")
+                        .WithMany("AppealAttachments")
+                        .HasForeignKey("FileAttachmentId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Appeal");
+
+                    b.Navigation("AttachedBy");
+
+                    b.Navigation("FileAttachment");
                 });
 
             modelBuilder.Entity("StudentUnionBot.Domain.Entities.AppealMessage", b =>
@@ -599,14 +1065,80 @@ namespace StudentUnionBot.Infrastructure.Data.Migrations
                     b.Navigation("Appeal");
                 });
 
+            modelBuilder.Entity("StudentUnionBot.Domain.Entities.FileAttachment", b =>
+                {
+                    b.HasOne("StudentUnionBot.Domain.Entities.BotUser", "UploadedBy")
+                        .WithMany()
+                        .HasForeignKey("UploadedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("UploadedBy");
+                });
+
+            modelBuilder.Entity("StudentUnionBot.Domain.Entities.Notification", b =>
+                {
+                    b.HasOne("StudentUnionBot.Domain.Entities.Appeal", "RelatedAppeal")
+                        .WithMany()
+                        .HasForeignKey("RelatedAppealId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("StudentUnionBot.Domain.Entities.Event", "RelatedEvent")
+                        .WithMany()
+                        .HasForeignKey("RelatedEventId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("StudentUnionBot.Domain.Entities.News", "RelatedNews")
+                        .WithMany()
+                        .HasForeignKey("RelatedNewsId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("StudentUnionBot.Domain.Entities.BotUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RelatedAppeal");
+
+                    b.Navigation("RelatedEvent");
+
+                    b.Navigation("RelatedNews");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("StudentUnionBot.Domain.Entities.NotificationPreference", b =>
+                {
+                    b.HasOne("StudentUnionBot.Domain.Entities.BotUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("StudentUnionBot.Domain.Entities.AdminWorkload", b =>
+                {
+                    b.Navigation("CategoryExpertises");
+                });
+
             modelBuilder.Entity("StudentUnionBot.Domain.Entities.Appeal", b =>
                 {
+                    b.Navigation("FileAttachments");
+
                     b.Navigation("Messages");
                 });
 
             modelBuilder.Entity("StudentUnionBot.Domain.Entities.BotUser", b =>
                 {
                     b.Navigation("Appeals");
+                });
+
+            modelBuilder.Entity("StudentUnionBot.Domain.Entities.FileAttachment", b =>
+                {
+                    b.Navigation("AppealAttachments");
                 });
 #pragma warning restore 612, 618
         }

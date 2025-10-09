@@ -12,13 +12,16 @@ namespace StudentUnionBot.Application.Appeals.Commands.CloseAppeal;
 public class CloseAppealCommandHandler : IRequestHandler<CloseAppealCommand, Result<bool>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly INotificationService _notificationService;
     private readonly ILogger<CloseAppealCommandHandler> _logger;
 
     public CloseAppealCommandHandler(
         IUnitOfWork unitOfWork,
+        INotificationService notificationService,
         ILogger<CloseAppealCommandHandler> logger)
     {
         _unitOfWork = unitOfWork;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -65,6 +68,57 @@ public class CloseAppealCommandHandler : IRequestHandler<CloseAppealCommand, Res
                 "Звернення {AppealId} успішно закрито адміністратором {AdminId}",
                 request.AppealId,
                 request.AdminId);
+
+            // Відправляємо сповіщення студенту про закриття + запит на оцінку
+            var adminName = admin?.FullName ?? "Адміністратор";
+            var notificationResult = await _notificationService.CreateAndSendNotificationAsync(
+                userId: appeal.StudentId,
+                notificationEvent: NotificationEvent.AppealClosed,
+                type: NotificationType.Push,
+                title: request.IsRejection ? "❌ Звернення відхилено" : "✅ Звернення вирішено",
+                message: $"Ваше звернення #{appeal.Id} було {(request.IsRejection ? "відхилено" : "вирішено")}\n" +
+                        $"Адміністратор: {adminName}\n" +
+                        $"Причина: {request.Reason}\n\n" +
+                        $"Будь ласка, оцініть якість обслуговування ⭐",
+                priority: NotificationPriority.Normal,
+                relatedAppealId: appeal.Id,
+                cancellationToken: cancellationToken);
+
+            if (notificationResult.IsSuccess)
+            {
+                _logger.LogInformation(
+                    "Відправлено сповіщення студенту {StudentId} про закриття звернення {AppealId}",
+                    appeal.StudentId,
+                    appeal.Id);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Не вдалося відправити сповіщення студенту {StudentId} про закриття: {Error}",
+                    appeal.StudentId,
+                    notificationResult.Error);
+            }
+
+            // Відправляємо окреме сповіщення з запитом на рейтинг
+            var ratingRequestResult = await _notificationService.CreateAndSendNotificationAsync(
+                userId: appeal.StudentId,
+                notificationEvent: NotificationEvent.AppealRatingRequest,
+                type: NotificationType.Push,
+                title: "⭐ Оцініть обслуговування",
+                message: $"Дякуємо за звернення!\n\n" +
+                        $"Будь ласка, оцініть якість розгляду вашого звернення\n" +
+                        $"Це допоможе нам покращити сервіс",
+                priority: NotificationPriority.Low,
+                relatedAppealId: appeal.Id,
+                cancellationToken: cancellationToken);
+
+            if (!ratingRequestResult.IsSuccess)
+            {
+                _logger.LogWarning(
+                    "Не вдалося відправити запит на рейтинг студенту {StudentId}: {Error}",
+                    appeal.StudentId,
+                    ratingRequestResult.Error);
+            }
 
             return Result<bool>.Ok(true);
         }

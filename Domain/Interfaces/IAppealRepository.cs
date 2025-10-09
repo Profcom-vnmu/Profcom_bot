@@ -31,4 +31,9 @@ public interface IAppealRepository : IRepository<Appeal>
     Task<bool> HasActiveAppealAsync(
         long studentId,
         CancellationToken cancellationToken = default);
+    
+    Task<List<Appeal>> GetAppealsByDateRangeAsync(
+        DateTime fromDate,
+        DateTime toDate,
+        CancellationToken cancellationToken = default);
 }

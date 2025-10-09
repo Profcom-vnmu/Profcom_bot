@@ -26,9 +26,7 @@ public class RegisterUserCommandValidator : AbstractValidator<RegisterUserComman
             .WithMessage("Username не може перевищувати 100 символів");
 
         RuleFor(x => x.Language)
-            .NotEmpty()
-            .WithMessage("Мова обов'язкова")
-            .Length(2, 5)
-            .WithMessage("Код мови має бути 2-5 символів");
+            .IsInEnum()
+            .WithMessage("Неправильний тип мови");
     }
 }

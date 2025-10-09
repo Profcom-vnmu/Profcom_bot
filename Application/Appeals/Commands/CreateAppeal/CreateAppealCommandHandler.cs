@@ -16,15 +16,21 @@ public class CreateAppealCommandHandler : IRequestHandler<CreateAppealCommand, R
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IRateLimiter _rateLimiter;
+    private readonly INotificationService _notificationService;
+    private readonly IAppealAssignmentService _assignmentService;
     private readonly ILogger<CreateAppealCommandHandler> _logger;
 
     public CreateAppealCommandHandler(
         IUnitOfWork unitOfWork,
         IRateLimiter rateLimiter,
+        INotificationService notificationService,
+        IAppealAssignmentService assignmentService,
         ILogger<CreateAppealCommandHandler> logger)
     {
         _unitOfWork = unitOfWork;
         _rateLimiter = rateLimiter;
+        _notificationService = notificationService;
+        _assignmentService = assignmentService;
         _logger = logger;
     }
 
@@ -81,10 +87,91 @@ public class CreateAppealCommandHandler : IRequestHandler<CreateAppealCommand, R
             await _unitOfWork.Appeals.AddAsync(appeal, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+            // Якщо є файли, створюємо початкове повідомлення з прикріпленими файлами
+            var hasFiles = !string.IsNullOrEmpty(request.PhotoFileId) || 
+                          !string.IsNullOrEmpty(request.DocumentFileId);
+            
+            if (hasFiles)
+            {
+                var initialMessage = AppealMessage.Create(
+                    appealId: appeal.Id,
+                    senderId: request.StudentId,
+                    senderName: request.StudentName,
+                    isFromAdmin: false,
+                    text: "📎 Прикріплені файли до звернення",
+                    photoFileId: request.PhotoFileId,
+                    documentFileId: request.DocumentFileId,
+                    documentFileName: request.DocumentFileName);
+
+                appeal.AddMessage(initialMessage);
+                _unitOfWork.Appeals.Update(appeal);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                _logger.LogInformation(
+                    "Додано початкове повідомлення з файлами до звернення {AppealId}",
+                    appeal.Id);
+            }
+
             _logger.LogInformation(
                 "Звернення {AppealId} успішно створено для студента {StudentId}",
                 appeal.Id,
                 request.StudentId);
+
+            // Відправляємо сповіщення всім адміністраторам про нове звернення
+            var notificationMessage = $"Категорія: {appeal.Category.GetDisplayName()}\n" +
+                                    $"Тема: {appeal.Subject}\n" +
+                                    $"Від: {appeal.StudentName}\n" +
+                                    $"ID: #{appeal.Id}";
+            
+            if (hasFiles)
+            {
+                notificationMessage += "\n📎 З прикріпленими файлами";
+            }
+
+            var notificationResult = await _notificationService.NotifyAllAdminsAsync(
+                notificationEvent: NotificationEvent.AppealCreated,
+                title: "📝 Нове звернення",
+                message: notificationMessage,
+                priority: NotificationPriority.Normal,
+                cancellationToken: cancellationToken);
+
+            if (notificationResult.IsSuccess)
+            {
+                _logger.LogInformation(
+                    "Відправлено {Count} сповіщень адміністраторам про звернення {AppealId}",
+                    notificationResult.Value,
+                    appeal.Id);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Не вдалося відправити сповіщення адміністраторам про звернення {AppealId}: {Error}",
+                    appeal.Id,
+                    notificationResult.Error);
+            }
+
+            // Автоматичне призначення звернення найкращому доступному адміністратору
+            var assignmentResult = await _assignmentService.AssignAppealAsync(appeal, cancellationToken);
+            if (assignmentResult.IsSuccess && assignmentResult.Value != null)
+            {
+                var assignedAdmin = assignmentResult.Value;
+                _logger.LogInformation(
+                    "Звернення {AppealId} автоматично призначено адміністратору {AdminId} ({AdminName})",
+                    appeal.Id,
+                    assignedAdmin.TelegramId,
+                    assignedAdmin.FullName);
+
+                // Оновлюємо DTO з інформацією про призначення
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Не вдалося автоматично призначити звернення {AppealId}: {Error}",
+                    appeal.Id,
+                    assignmentResult.Error ?? "Немає доступних адміністраторів");
+                // Продовжуємо, звернення залишається непризначеним
+            }
 
             // Маппінг на DTO
             var dto = MapToDto(appeal);

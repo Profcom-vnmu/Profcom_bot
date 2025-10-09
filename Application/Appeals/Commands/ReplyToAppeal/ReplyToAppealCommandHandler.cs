@@ -13,13 +13,16 @@ namespace StudentUnionBot.Application.Appeals.Commands.ReplyToAppeal;
 public class ReplyToAppealCommandHandler : IRequestHandler<ReplyToAppealCommand, Result<int>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly INotificationService _notificationService;
     private readonly ILogger<ReplyToAppealCommandHandler> _logger;
 
     public ReplyToAppealCommandHandler(
         IUnitOfWork unitOfWork,
+        INotificationService notificationService,
         ILogger<ReplyToAppealCommandHandler> logger)
     {
         _unitOfWork = unitOfWork;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -93,6 +96,38 @@ public class ReplyToAppealCommandHandler : IRequestHandler<ReplyToAppealCommand,
                 request.AdminId,
                 request.AppealId,
                 message.Id);
+
+            // Відправляємо сповіщення студенту про нову відповідь адміністратора
+            var hasAttachment = !string.IsNullOrEmpty(request.PhotoFileId) || 
+                               !string.IsNullOrEmpty(request.DocumentFileId);
+            
+            var notificationResult = await _notificationService.CreateAndSendNotificationAsync(
+                userId: appeal.StudentId,
+                notificationEvent: NotificationEvent.AppealMessageReceived,
+                type: NotificationType.Push,
+                title: "💬 Нова відповідь від адміністратора",
+                message: $"Звернення: {appeal.Subject}\n" +
+                        $"Адміністратор: {request.AdminName}\n" +
+                        $"Відповідь: {(request.Text.Length > 100 ? request.Text.Substring(0, 100) + "..." : request.Text)}" +
+                        (hasAttachment ? "\n📎 З вкладенням" : ""),
+                priority: NotificationPriority.Normal,
+                relatedAppealId: appeal.Id,
+                cancellationToken: cancellationToken);
+
+            if (notificationResult.IsSuccess)
+            {
+                _logger.LogInformation(
+                    "Відправлено сповіщення студенту {StudentId} про відповідь на звернення {AppealId}",
+                    appeal.StudentId,
+                    appeal.Id);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Не вдалося відправити сповіщення студенту {StudentId} про відповідь: {Error}",
+                    appeal.StudentId,
+                    notificationResult.Error);
+            }
 
             return Result<int>.Ok(message.Id);
         }

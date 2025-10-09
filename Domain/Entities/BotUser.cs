@@ -24,7 +24,7 @@ public class BotUser
     public bool IsEmailVerified { get; private set; }
     public string? VerificationCode { get; private set; }
     public DateTime? VerificationCodeExpiry { get; private set; }
-    public string Language { get; private set; } = "uk";
+    public Language Language { get; private set; } = Language.Ukrainian;
     public string? TimeZone { get; private set; }
     public DateTime JoinedAt { get; private set; }
     public bool IsActive { get; private set; } = true;
@@ -45,7 +45,7 @@ public class BotUser
         string? username,
         string? firstName,
         string? lastName = null,
-        string? language = "uk")
+        Language? language = null)
     {
         if (telegramId <= 0)
             throw new DomainException("Telegram ID повинен бути більше 0");
@@ -61,7 +61,7 @@ public class BotUser
             LastActivityAt = DateTime.UtcNow,
             IsActive = true,
             Role = UserRole.Student,
-            Language = language ?? "uk"
+            Language = language ?? Language.Ukrainian
         };
     }
 
@@ -84,6 +84,18 @@ public class BotUser
         }
 
         ProfileUpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Встановлення email для верифікації
+    /// </summary>
+    public void SetEmailForVerification(string email)
+    {
+        if (string.IsNullOrWhiteSpace(email))
+            throw new DomainException("Email не може бути порожнім");
+
+        Email = email;
+        IsEmailVerified = false;
     }
 
     /// <summary>
@@ -120,12 +132,55 @@ public class BotUser
     /// <summary>
     /// Зміна мови інтерфейсу
     /// </summary>
-    public void SetLanguage(string language)
+    public void SetLanguage(Language language)
     {
-        if (language != "uk" && language != "en")
-            throw new DomainException("Підтримуються тільки мови: uk, en");
-
         Language = language;
+    }
+
+    /// <summary>
+    /// Оновлення профілю користувача
+    /// </summary>
+    public void UpdateProfile(string? fullName, string? faculty, int? course, string? group)
+    {
+        if (fullName != null)
+        {
+            if (string.IsNullOrWhiteSpace(fullName))
+                throw new DomainException("Повне ім'я не може бути порожнім");
+            if (fullName.Length > 100)
+                throw new DomainException("Повне ім'я не може бути довшим за 100 символів");
+            
+            FullName = fullName;
+        }
+
+        if (faculty != null)
+        {
+            if (string.IsNullOrWhiteSpace(faculty))
+                throw new DomainException("Факультет не може бути порожнім");
+            if (faculty.Length > 200)
+                throw new DomainException("Назва факультету не може бути довшою за 200 символів");
+            
+            Faculty = faculty;
+        }
+
+        if (course.HasValue)
+        {
+            if (course.Value < 1 || course.Value > 6)
+                throw new DomainException("Курс має бути від 1 до 6");
+            
+            Course = course.Value;
+        }
+
+        if (group != null)
+        {
+            if (string.IsNullOrWhiteSpace(group))
+                throw new DomainException("Група не може бути порожньою");
+            if (group.Length > 50)
+                throw new DomainException("Назва групи не може бути довшою за 50 символів");
+            
+            Group = group;
+        }
+
+        ProfileUpdatedAt = DateTime.UtcNow;
     }
 
     /// <summary>
@@ -171,16 +226,16 @@ public class BotUser
     /// <summary>
     /// Оновлення базової інформації (з Telegram)
     /// </summary>
-    public void UpdateBasicInfo(string? username, string? firstName, string? lastName, string? language = null)
+    public void UpdateBasicInfo(string? username, string? firstName, string? lastName, Language? language = null)
     {
         Username = username;
         FirstName = firstName;
         LastName = lastName;
         FullName = BuildFullName(firstName, lastName);
         
-        if (!string.IsNullOrWhiteSpace(language))
+        if (language.HasValue)
         {
-            Language = language;
+            Language = language.Value;
         }
         
         LastActivityAt = DateTime.UtcNow;

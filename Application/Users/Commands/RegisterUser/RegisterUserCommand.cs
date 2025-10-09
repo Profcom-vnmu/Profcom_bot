@@ -1,6 +1,7 @@
 using MediatR;
 using StudentUnionBot.Application.Users.DTOs;
 using StudentUnionBot.Core.Results;
+using StudentUnionBot.Domain.Enums;
 
 namespace StudentUnionBot.Application.Users.Commands.RegisterUser;
 
@@ -30,7 +31,7 @@ public class RegisterUserCommand : IRequest<Result<UserDto>>
     public string? LastName { get; set; }
     
     /// <summary>
-    /// Мова інтерфейсу (за замовчуванням "uk")
+    /// Мова інтерфейсу (за замовчуванням Ukrainian)
     /// </summary>
-    public string Language { get; set; } = "uk";
+    public Language Language { get; set; } = Language.Ukrainian;
 }
