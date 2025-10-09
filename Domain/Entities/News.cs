@@ -80,6 +80,11 @@ public class News
     public bool IsPinned { get; private set; }
     
     /// <summary>
+    /// Whether the news is archived (soft delete)
+    /// </summary>
+    public bool IsArchived { get; private set; }
+    
+    /// <summary>
     /// Multiple file attachments for the news
     /// </summary>
     private readonly List<FileAttachment> _attachments = new();
@@ -118,7 +123,8 @@ public class News
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
             ViewCount = 0,
-            IsPinned = false
+            IsPinned = false,
+            IsArchived = false
         };
         
         return news;
@@ -169,6 +175,19 @@ public class News
     public void IncrementViewCount()
     {
         ViewCount++;
+    }
+    
+    public void Archive()
+    {
+        IsArchived = true;
+        IsPublished = false; // Архівовані новини автоматично не публікуються
+        UpdatedAt = DateTime.UtcNow;
+    }
+    
+    public void Restore()
+    {
+        IsArchived = false;
+        UpdatedAt = DateTime.UtcNow;
     }
     
     public void AddAttachment(FileAttachment attachment)

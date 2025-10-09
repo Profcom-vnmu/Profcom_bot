@@ -76,4 +76,79 @@ public class NewsRepository : BaseRepository<News>, INewsRepository
             .OrderByDescending(n => n.CreatedAt)
             .ToListAsync(cancellationToken);
     }
+
+    public async Task<List<News>> GetAllNewsAsync(
+        NewsCategory? category = null,
+        bool? isPublished = null,
+        bool? isArchived = null,
+        bool sortByDateDesc = true,
+        int pageNumber = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        var query = Context.Set<News>().AsNoTracking();
+
+        // Фільтрування за категорією
+        if (category.HasValue)
+        {
+            query = query.Where(n => n.Category == category.Value);
+        }
+
+        // Фільтрування за статусом публікації
+        if (isPublished.HasValue)
+        {
+            query = query.Where(n => n.IsPublished == isPublished.Value);
+        }
+
+        // Фільтрування за статусом архівації
+        if (isArchived.HasValue)
+        {
+            query = query.Where(n => n.IsArchived == isArchived.Value);
+        }
+
+        // Сортування
+        if (sortByDateDesc)
+        {
+            query = query.OrderByDescending(n => n.CreatedAt);
+        }
+        else
+        {
+            query = query.OrderBy(n => n.CreatedAt);
+        }
+
+        // Пагінація
+        return await query
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<int> GetAllNewsCountAsync(
+        NewsCategory? category = null,
+        bool? isPublished = null,
+        bool? isArchived = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = Context.Set<News>().AsNoTracking();
+
+        // Фільтрування за категорією
+        if (category.HasValue)
+        {
+            query = query.Where(n => n.Category == category.Value);
+        }
+
+        // Фільтрування за статусом публікації
+        if (isPublished.HasValue)
+        {
+            query = query.Where(n => n.IsPublished == isPublished.Value);
+        }
+
+        // Фільтрування за статусом архівації
+        if (isArchived.HasValue)
+        {
+            query = query.Where(n => n.IsArchived == isArchived.Value);
+        }
+
+        return await query.CountAsync(cancellationToken);
+    }
 }

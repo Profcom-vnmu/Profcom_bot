@@ -48,8 +48,20 @@ public class DeleteNewsCommandHandler : IRequestHandler<DeleteNewsCommand, Resul
                 return Result<bool>.Fail("Користувач не знайдений");
             }
 
-            // TODO: Додати перевірку прав доступу для видалення
-            // if (news.AuthorId != request.DeleterId && !deleter.CanDeleteNews)
+            // Перевіряємо права доступу для видалення (автор або адміністратор)
+            var canDelete = news.AuthorId == request.DeleterId || 
+                           deleter.Role == Domain.Enums.UserRole.Admin || 
+                           deleter.Role == Domain.Enums.UserRole.SuperAdmin;
+                           
+            if (!canDelete)
+            {
+                _logger.LogWarning(
+                    "User {DeleterId} tried to delete news {NewsId} without permission",
+                    request.DeleterId,
+                    request.NewsId
+                );
+                return Result<bool>.Fail("Ви не маєте прав на видалення цієї новини");
+            }
 
             // Логуємо причину видалення, якщо вказана
             if (!string.IsNullOrEmpty(request.DeletionReason))
@@ -63,17 +75,15 @@ public class DeleteNewsCommandHandler : IRequestHandler<DeleteNewsCommand, Resul
 
             if (request.ArchiveInsteadOfDelete)
             {
-                // Архівуємо новину (знімаємо з публікації)
-                news.Unpublish();
-                
-                // TODO: Додати поле IsArchived до ентіті News
-                // news.Archive(request.DeletionReason);
+                // Архівуємо новину (автоматично знімає з публікації)
+                news.Archive();
                 
                 _unitOfWork.News.Update(news);
                 
                 _logger.LogInformation(
-                    "News article {NewsId} has been archived instead of deleted",
-                    request.NewsId
+                    "News article {NewsId} has been archived instead of deleted. Reason: {Reason}",
+                    request.NewsId,
+                    request.DeletionReason ?? "No reason provided"
                 );
             }
             else

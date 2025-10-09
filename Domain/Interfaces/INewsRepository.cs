@@ -30,4 +30,25 @@ public interface INewsRepository : IRepository<News>
     /// Отримати закріплені новини
     /// </summary>
     Task<List<News>> GetPinnedNewsAsync(CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Отримати всі новини для адміністраторів
+    /// </summary>
+    Task<List<News>> GetAllNewsAsync(
+        NewsCategory? category = null,
+        bool? isPublished = null,
+        bool? isArchived = null,
+        bool sortByDateDesc = true,
+        int pageNumber = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Отримати кількість всіх новин для адміністраторів
+    /// </summary>
+    Task<int> GetAllNewsCountAsync(
+        NewsCategory? category = null,
+        bool? isPublished = null,
+        bool? isArchived = null,
+        CancellationToken cancellationToken = default);
 }

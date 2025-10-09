@@ -88,5 +88,45 @@ public enum UserConversationState
     /// <summary>
     /// Waiting for custom email list input for broadcast (admin only)
     /// </summary>
-    WaitingBroadcastCustomEmails = 16
+    WaitingBroadcastCustomEmails = 16,
+
+    /// <summary>
+    /// Creating news: waiting for title input (admin only)
+    /// </summary>
+    CreatingNewsTitle = 17,
+
+    /// <summary>
+    /// Creating news: waiting for content input (admin only)
+    /// </summary>
+    CreatingNewsContent = 18,
+
+    /// <summary>
+    /// Editing news: waiting for new title input (admin only)
+    /// </summary>
+    EditingNewsTitle = 19,
+
+    /// <summary>
+    /// Editing news: waiting for new content input (admin only)
+    /// </summary>
+    EditingNewsContent = 20,
+
+    /// <summary>
+    /// Creating event: waiting for title input (admin only)
+    /// </summary>
+    CreatingEventTitle = 21,
+
+    /// <summary>
+    /// Creating event: waiting for description input (admin only)
+    /// </summary>
+    CreatingEventDescription = 22,
+
+    /// <summary>
+    /// Creating event: waiting for location input (admin only)
+    /// </summary>
+    CreatingEventLocation = 23,
+
+    /// <summary>
+    /// Creating event: waiting for date/time input (admin only)
+    /// </summary>
+    CreatingEventDateTime = 24
 }

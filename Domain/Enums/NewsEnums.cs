@@ -26,6 +26,16 @@ public enum NewsPriority
 }
 
 /// <summary>
+/// Статус новини
+/// </summary>
+public enum NewsStatus
+{
+    Draft = 1,      // Чернетка
+    Published = 2,  // Опублікована
+    Archived = 3    // Архівована
+}
+
+/// <summary>
 /// Методи розширення для News enums
 /// </summary>
 public static class NewsEnumExtensions
@@ -70,6 +80,28 @@ public static class NewsEnumExtensions
             NewsPriority.High => "Високий",
             NewsPriority.Urgent => "Терміновий",
             _ => "Невідомо"
+        };
+    }
+
+    public static string GetDisplayName(this NewsStatus status)
+    {
+        return status switch
+        {
+            NewsStatus.Draft => "Чернетка",
+            NewsStatus.Published => "Опублікована",
+            NewsStatus.Archived => "Архівована",
+            _ => "Невідомо"
+        };
+    }
+
+    public static string GetEmoji(this NewsStatus status)
+    {
+        return status switch
+        {
+            NewsStatus.Draft => "📝",
+            NewsStatus.Published => "✅",
+            NewsStatus.Archived => "🗃️",
+            _ => "❓"
         };
     }
 }

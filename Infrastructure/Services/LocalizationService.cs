@@ -297,6 +297,143 @@ public class LocalizationService : ILocalizationService
         
         AddResource("button.category.suggestion", Language.Ukrainian, "💡 Пропозиція");
         AddResource("button.category.suggestion", Language.English, "💡 Suggestion");
+
+        // Управління новинами (Адміністратори)
+        AddResource("admin.news_management_menu", Language.Ukrainian, "📰 <b>Управління новинами</b>\n\nОберіть дію:");
+        AddResource("admin.news_management_menu", Language.English, "📰 <b>News Management</b>\n\nSelect an action:");
+
+        AddResource("button.create_news", Language.Ukrainian, "➕ Створити новину");
+        AddResource("button.create_news", Language.English, "➕ Create News");
+
+        AddResource("button.all_news", Language.Ukrainian, "📋 Всі новини");
+        AddResource("button.all_news", Language.English, "📋 All News");
+
+        AddResource("button.draft_news", Language.Ukrainian, "📝 Чернетки");
+        AddResource("button.draft_news", Language.English, "📝 Drafts");
+
+        AddResource("button.published_news", Language.Ukrainian, "✅ Опубліковані");
+        AddResource("button.published_news", Language.English, "✅ Published");
+
+        AddResource("button.back_to_admin", Language.Ukrainian, "🔙 Адмін панель");
+        AddResource("button.back_to_admin", Language.English, "🔙 Admin Panel");
+
+        AddResource("button.back_to_news_menu", Language.Ukrainian, "🔙 Меню новин");
+        AddResource("button.back_to_news_menu", Language.English, "🔙 News Menu");
+
+        AddResource("admin.news_create_title_prompt", Language.Ukrainian, "📰 <b>Створення новини</b>\n\n📝 Введіть заголовок новини:\n\n<i>Заголовок має бути від 10 до 200 символів</i>");
+        AddResource("admin.news_create_title_prompt", Language.English, "📰 <b>Creating News</b>\n\n📝 Enter news title:\n\n<i>Title should be 10-200 characters</i>");
+
+        AddResource("admin.news_create_content_prompt", Language.Ukrainian, "✅ Заголовок збережено!\n\n📝 Тепер введіть зміст новини:\n\n<i>Мінімум 50 символів. Використовуйте HTML теги для форматування</i>");
+        AddResource("admin.news_create_content_prompt", Language.English, "✅ Title saved!\n\n📝 Now enter news content:\n\n<i>Minimum 50 characters. Use HTML tags for formatting</i>");
+
+        AddResource("admin.news_created_success", Language.Ukrainian, "✅ <b>Новину успішно створено!</b>\n\n📰 Заголовок: {0}\n📝 Статус: Чернетка\n\n<i>Ви можете опублікувати її пізніше через меню управління новинами</i>");
+        AddResource("admin.news_created_success", Language.English, "✅ <b>News created successfully!</b>\n\n📰 Title: {0}\n📝 Status: Draft\n\n<i>You can publish it later through the news management menu</i>");
+
+        AddResource("admin.news_create_error", Language.Ukrainian, "❌ Не вдалося створити новину. Спробуйте пізніше.");
+        AddResource("admin.news_create_error", Language.English, "❌ Failed to create news. Please try again later.");
+
+        AddResource("admin.news_load_error", Language.Ukrainian, "❌ Не вдалося завантажити список новин.");
+        AddResource("admin.news_load_error", Language.English, "❌ Failed to load news list.");
+
+        AddResource("admin.news_list_header", Language.Ukrainian, "📰 <b>Список новин</b>\n\n📊 Знайдено: {0}\n📄 Сторінка: {1} / {2}");
+        AddResource("admin.news_list_header", Language.English, "📰 <b>News List</b>\n\n📊 Found: {0}\n📄 Page: {1} / {2}");
+
+        AddResource("admin.news_list_empty", Language.Ukrainian, "📭 <i>Новин не знайдено</i>");
+        AddResource("admin.news_list_empty", Language.English, "📭 <i>No news found</i>");
+
+        AddResource("validation.news_title_empty", Language.Ukrainian, "❌ Заголовок новини не може бути порожнім");
+        AddResource("validation.news_title_empty", Language.English, "❌ News title cannot be empty");
+
+        AddResource("validation.news_title_length", Language.Ukrainian, "❌ Заголовок має бути від {0} до {1} символів");
+        AddResource("validation.news_title_length", Language.English, "❌ Title should be {0}-{1} characters");
+
+        AddResource("validation.news_content_empty", Language.Ukrainian, "❌ Вміст новини не може бути порожнім");
+        AddResource("validation.news_content_empty", Language.English, "❌ News content cannot be empty");
+
+        AddResource("validation.news_content_short", Language.Ukrainian, "❌ Вміст новини занадто короткий. Мінімум {0} символів");
+        AddResource("validation.news_content_short", Language.English, "❌ News content is too short. Minimum {0} characters");
+
+        // Управління подіями (Адміністратори)
+        AddResource("admin.events_management_menu", Language.Ukrainian, "📅 <b>Управління подіями</b>\n\nОберіть дію:");
+        AddResource("admin.events_management_menu", Language.English, "📅 <b>Events Management</b>\n\nSelect an action:");
+
+        AddResource("button.create_event", Language.Ukrainian, "➕ Створити подію");
+        AddResource("button.create_event", Language.English, "➕ Create Event");
+
+        AddResource("button.all_events", Language.Ukrainian, "📋 Всі події");
+        AddResource("button.all_events", Language.English, "📋 All Events");
+
+        AddResource("button.draft_events", Language.Ukrainian, "📝 Чернетки");
+        AddResource("button.draft_events", Language.English, "📝 Drafts");
+
+        AddResource("button.planned_events", Language.Ukrainian, "📅 Заплановані");
+        AddResource("button.planned_events", Language.English, "📅 Planned");
+
+        AddResource("button.completed_events", Language.Ukrainian, "✅ Завершені");
+        AddResource("button.completed_events", Language.English, "✅ Completed");
+
+        AddResource("button.back_to_events_menu", Language.Ukrainian, "🔙 Меню подій");
+        AddResource("button.back_to_events_menu", Language.English, "🔙 Events Menu");
+
+        AddResource("admin.event_create_title_prompt", Language.Ukrainian, "📅 <b>Створення події</b>\n\n📝 Введіть назву події:\n\n<i>Назва має бути від 5 до 100 символів</i>");
+        AddResource("admin.event_create_title_prompt", Language.English, "📅 <b>Creating Event</b>\n\n📝 Enter event title:\n\n<i>Title should be 5-100 characters</i>");
+
+        AddResource("admin.event_create_description_prompt", Language.Ukrainian, "✅ Назву збережено!\n\n📝 Тепер введіть опис події:\n\n<i>Мінімум 20 символів. Опишіть деталі події</i>");
+        AddResource("admin.event_create_description_prompt", Language.English, "✅ Title saved!\n\n📝 Now enter event description:\n\n<i>Minimum 20 characters. Describe event details</i>");
+
+        AddResource("admin.event_create_location_prompt", Language.Ukrainian, "✅ Опис збережено!\n\n📍 Введіть місце проведення події:\n\n<i>Наприклад: Актова зала, Аудиторія 205, Онлайн</i>");
+        AddResource("admin.event_create_location_prompt", Language.English, "✅ Description saved!\n\n📍 Enter event location:\n\n<i>For example: Main Hall, Room 205, Online</i>");
+
+        AddResource("admin.event_create_datetime_prompt", Language.Ukrainian, "✅ Місце збережено!\n\n📅 Введіть дату та час події:\n\n<i>Формат: ДД.ММ.РРРР ГГ:ХХ або РРРР-ММ-ДД ГГ:ХХ</i>\n\n<b>Приклад:</b> 15.12.2024 14:30");
+        AddResource("admin.event_create_datetime_prompt", Language.English, "✅ Location saved!\n\n📅 Enter event date and time:\n\n<i>Format: DD.MM.YYYY HH:MM or YYYY-MM-DD HH:MM</i>\n\n<b>Example:</b> 15.12.2024 14:30");
+
+        AddResource("admin.event_created_success", Language.Ukrainian, "✅ <b>Подію успішно створено!</b>\n\n📅 Назва: {0}\n📅 Дата: {1}\n📝 Статус: Чернетка\n\n<i>Ви можете опублікувати її пізніше через меню управління подіями</i>");
+        AddResource("admin.event_created_success", Language.English, "✅ <b>Event created successfully!</b>\n\n📅 Title: {0}\n📅 Date: {1}\n📝 Status: Draft\n\n<i>You can publish it later through the events management menu</i>");
+
+        AddResource("admin.event_create_error", Language.Ukrainian, "❌ Не вдалося створити подію. Спробуйте пізніше.");
+        AddResource("admin.event_create_error", Language.English, "❌ Failed to create event. Please try again later.");
+
+        AddResource("admin.events_load_error", Language.Ukrainian, "❌ Не вдалося завантажити список подій.");
+        AddResource("admin.events_load_error", Language.English, "❌ Failed to load events list.");
+
+        AddResource("admin.events_list_header", Language.Ukrainian, "📅 <b>Список подій</b>\n\n📊 Знайдено: {0}\n📄 Сторінка: {1} / {2}");
+        AddResource("admin.events_list_header", Language.English, "📅 <b>Events List</b>\n\n📊 Found: {0}\n📄 Page: {1} / {2}");
+
+        AddResource("admin.events_list_empty", Language.Ukrainian, "📭 <i>Подій не знайдено</i>");
+        AddResource("admin.events_list_empty", Language.English, "📭 <i>No events found</i>");
+
+        AddResource("validation.event_title_empty", Language.Ukrainian, "❌ Назва події не може бути порожньою");
+        AddResource("validation.event_title_empty", Language.English, "❌ Event title cannot be empty");
+
+        AddResource("validation.event_title_length", Language.Ukrainian, "❌ Назва має бути від {0} до {1} символів");
+        AddResource("validation.event_title_length", Language.English, "❌ Title should be {0}-{1} characters");
+
+        AddResource("validation.event_description_empty", Language.Ukrainian, "❌ Опис події не може бути порожнім");
+        AddResource("validation.event_description_empty", Language.English, "❌ Event description cannot be empty");
+
+        AddResource("validation.event_description_short", Language.Ukrainian, "❌ Опис події занадто короткий. Мінімум {0} символів");
+        AddResource("validation.event_description_short", Language.English, "❌ Event description is too short. Minimum {0} characters");
+
+        AddResource("validation.event_location_empty", Language.Ukrainian, "❌ Місце події не може бути порожнім");
+        AddResource("validation.event_location_empty", Language.English, "❌ Event location cannot be empty");
+
+        AddResource("validation.event_datetime_empty", Language.Ukrainian, "❌ Дата та час події обов'язкові");
+        AddResource("validation.event_datetime_empty", Language.English, "❌ Event date and time are required");
+
+        AddResource("validation.event_datetime_invalid", Language.Ukrainian, "❌ Неправильний формат дати. Використовуйте: ДД.ММ.РРРР ГГ:ХХ");
+        AddResource("validation.event_datetime_invalid", Language.English, "❌ Invalid date format. Use: DD.MM.YYYY HH:MM");
+
+        AddResource("validation.event_datetime_past", Language.Ukrainian, "❌ Дата події не може бути в минулому");
+        AddResource("validation.event_datetime_past", Language.English, "❌ Event date cannot be in the past");
+
+        AddResource("error.session_expired", Language.Ukrainian, "❌ Сесія завершилася. Почніть спочатку");
+        AddResource("error.session_expired", Language.English, "❌ Session expired. Please start over");
+
+        AddResource("error.unknown_state", Language.Ukrainian, "❌ Невідомий стан. Поверніться в головне меню");
+        AddResource("error.unknown_state", Language.English, "❌ Unknown state. Please return to main menu");
+
+        AddResource("error.technical_error", Language.Ukrainian, "❌ Виникла технічна помилка. Спробуйте пізніше або зверніться до адміністратора");
+        AddResource("error.technical_error", Language.English, "❌ A technical error occurred. Please try again later or contact administrator");
         
         AddResource("button.category.complaint", Language.Ukrainian, "⚠️ Скарга");
         AddResource("button.category.complaint", Language.English, "⚠️ Complaint");

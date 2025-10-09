@@ -1,3 +1,4 @@
+using System.Text;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Serilog;
@@ -9,11 +10,24 @@ using StudentUnionBot.Infrastructure.Data;
 using StudentUnionBot.Infrastructure.Repositories;
 using StudentUnionBot.Infrastructure.Services;
 using StudentUnionBot.Infrastructure.Services.Notifications;
-using StudentUnionBot.Presentation.Bot.Handlers;
+using StudentUnionBot.Presentation.Bot.Interfaces;
+using StudentUnionBot.Presentation.Bot;
 using StudentUnionBot.Presentation.Bot.Services;
+using StudentUnionBot.Presentation.Bot.Handlers.Common;
+using StudentUnionBot.Presentation.Bot.Handlers.Interfaces;
+using StudentUnionBot.Presentation.Bot.Handlers.Commands;
+using StudentUnionBot.Presentation.Bot.Handlers.Appeals;
+using StudentUnionBot.Presentation.Bot.Handlers.User;
+using StudentUnionBot.Presentation.Bot.Handlers.Content;
+using StudentUnionBot.Presentation.Bot.Handlers.Admin;
 using Telegram.Bot;
+using StackExchange.Redis;
 
 // Налаштування Serilog
+// Налаштування кодування для консолі
+Console.OutputEncoding = Encoding.UTF8;
+Console.InputEncoding = Encoding.UTF8;
+
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
@@ -31,27 +45,25 @@ Log.Logger = new LoggerConfiguration()
 try
 {
     Log.Information("Запуск StudentUnionBot");
-
-    var builder = WebApplication.CreateBuilder(args);
-
-    // Використовуємо Serilog
+    
+    var builder = WebApplication.CreateBuilder(args);    // Використовуємо Serilog
     builder.Host.UseSerilog();
 
     // Налаштування DbContext
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection") 
-                          ?? builder.Configuration["BotConfiguration:DatabasePath"];
-    
     builder.Services.AddDbContext<BotDbContext>(options =>
     {
         if (builder.Environment.IsDevelopment())
         {
-            var dbPath = connectionString ?? "Data/studentunion_dev.db";
+            // Використовуємо SQLite для розробки
+            var dbPath = builder.Configuration["BotConfiguration:DatabasePath"] ?? "Data/studentunion_dev.db";
             options.UseSqlite($"Data Source={dbPath}");
             options.EnableSensitiveDataLogging();
             options.EnableDetailedErrors();
         }
         else
         {
+            // Використовуємо PostgreSQL для продакшину
+            var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
             options.UseNpgsql(connectionString);
         }
     });
@@ -91,6 +103,7 @@ try
     var redisConnectionString = builder.Configuration.GetConnectionString("Redis");
     if (!string.IsNullOrEmpty(redisConnectionString))
     {
+        builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConnectionString));
         builder.Services.AddStackExchangeRedisCache(options =>
         {
             options.Configuration = redisConnectionString;
@@ -140,7 +153,10 @@ try
     builder.Services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(botToken));
 
     // HTTP Client для Telegram
-    builder.Services.AddHttpClient("telegram_bot_client")
+    builder.Services.AddHttpClient("telegram_bot_client", client =>
+        {
+            client.DefaultRequestHeaders.Add("Accept-Charset", "utf-8");
+        })
         .AddTypedClient<ITelegramBotClient>((httpClient, sp) =>
         {
             var token = sp.GetRequiredService<IConfiguration>()["BotConfiguration:BotToken"]!;
@@ -148,7 +164,23 @@ try
         });
 
     // Bot Handlers
-    builder.Services.AddSingleton<IBotUpdateHandler, UpdateHandler>();
+    builder.Services.AddScoped<IBotUpdateHandler, UpdateHandler>();
+    builder.Services.AddScoped<CallbackRouter>();
+    
+    // Feature Handlers
+    builder.Services.AddScoped<ICommandHandler, CommandHandler>();
+    builder.Services.AddScoped<IAppealHandler, AppealHandler>();
+    builder.Services.AddScoped<IUserHandler, UserHandler>();
+    builder.Services.AddScoped<IContentHandler, ContentHandler>();
+    
+    // Admin Handlers
+    builder.Services.AddScoped<IAdminHandler, AdminHandler>();
+    builder.Services.AddScoped<IAdminAppealHandler, AdminAppealHandler>();
+    builder.Services.AddScoped<IAdminBackupHandler, AdminBackupHandler>();
+    builder.Services.AddScoped<IAdminBroadcastHandler, AdminBroadcastHandler>();
+    builder.Services.AddScoped<INewsManagementHandler, NewsManagementHandler>();
+    builder.Services.AddScoped<IEventsManagementHandler, EventsManagementHandler>();
+    
     builder.Services.AddHostedService<BotBackgroundService>();
 
     // Background Services

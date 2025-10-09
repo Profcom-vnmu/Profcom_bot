@@ -70,6 +70,7 @@ public class BotDbContext : DbContext
             entity.Property(e => e.Subject).HasMaxLength(200).IsRequired();
             entity.Property(e => e.Message).HasMaxLength(4000).IsRequired();
             entity.Property(e => e.ClosedReason).HasMaxLength(500);
+            entity.Property(e => e.Tags).HasMaxLength(1000); // Add Tags column
 
             entity.HasIndex(e => e.StudentId);
             entity.HasIndex(e => e.Status);
@@ -133,6 +134,7 @@ public class BotDbContext : DbContext
             entity.Property(e => e.OrganizerName).HasMaxLength(200).IsRequired();
             entity.Property(e => e.PhotoFileId).HasMaxLength(200);
 
+            entity.HasIndex(e => e.Category); // Add Category index
             entity.HasIndex(e => e.Type);
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.IsPublished);

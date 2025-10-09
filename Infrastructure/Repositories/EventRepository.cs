@@ -80,4 +80,79 @@ public class EventRepository : BaseRepository<Event>, IEventRepository
             .Include(e => e.RegisteredParticipants)
             .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
     }
+
+    public async Task<List<Event>> GetAllEventsAsync(
+        EventCategory? category = null,
+        EventType? type = null,
+        EventStatus? status = null,
+        bool sortByDateAsc = true,
+        int pageNumber = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default)
+    {
+        var query = Context.Set<Event>().AsNoTracking();
+
+        // Фільтрування за категорією
+        if (category.HasValue)
+        {
+            query = query.Where(e => e.Category == category.Value);
+        }
+
+        // Фільтрування за типом
+        if (type.HasValue)
+        {
+            query = query.Where(e => e.Type == type.Value);
+        }
+
+        // Фільтрування за статусом
+        if (status.HasValue)
+        {
+            query = query.Where(e => e.Status == status.Value);
+        }
+
+        // Сортування
+        if (sortByDateAsc)
+        {
+            query = query.OrderBy(e => e.StartDate);
+        }
+        else
+        {
+            query = query.OrderByDescending(e => e.StartDate);
+        }
+
+        // Пагінація
+        return await query
+            .Skip((pageNumber - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<int> GetAllEventsCountAsync(
+        EventCategory? category = null,
+        EventType? type = null,
+        EventStatus? status = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = Context.Set<Event>().AsNoTracking();
+
+        // Фільтрування за категорією
+        if (category.HasValue)
+        {
+            query = query.Where(e => e.Category == category.Value);
+        }
+
+        // Фільтрування за типом
+        if (type.HasValue)
+        {
+            query = query.Where(e => e.Type == type.Value);
+        }
+
+        // Фільтрування за статусом
+        if (status.HasValue)
+        {
+            query = query.Where(e => e.Status == status.Value);
+        }
+
+        return await query.CountAsync(cancellationToken);
+    }
 }

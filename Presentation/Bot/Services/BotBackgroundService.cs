@@ -1,8 +1,9 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Telegram.Bot;
 using Telegram.Bot.Polling;
-using StudentUnionBot.Presentation.Bot.Handlers;
+using StudentUnionBot.Presentation.Bot.Interfaces;
 
 namespace StudentUnionBot.Presentation.Bot.Services;
 
@@ -12,16 +13,16 @@ namespace StudentUnionBot.Presentation.Bot.Services;
 public class BotBackgroundService : BackgroundService
 {
     private readonly ITelegramBotClient _botClient;
-    private readonly IBotUpdateHandler _updateHandler;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
     private readonly ILogger<BotBackgroundService> _logger;
 
     public BotBackgroundService(
         ITelegramBotClient botClient,
-        IBotUpdateHandler updateHandler,
+        IServiceScopeFactory serviceScopeFactory,
         ILogger<BotBackgroundService> logger)
     {
         _botClient = botClient;
-        _updateHandler = updateHandler;
+        _serviceScopeFactory = serviceScopeFactory;
         _logger = logger;
     }
 
@@ -38,8 +39,18 @@ public class BotBackgroundService : BackgroundService
         };
 
         await _botClient.ReceiveAsync(
-            updateHandler: _updateHandler.HandleUpdateAsync,
-            pollingErrorHandler: _updateHandler.HandleErrorAsync,
+            updateHandler: async (botClient, update, cancellationToken) =>
+            {
+                using var scope = _serviceScopeFactory.CreateScope();
+                var updateHandler = scope.ServiceProvider.GetRequiredService<IBotUpdateHandler>();
+                await updateHandler.HandleUpdateAsync(update, cancellationToken);
+            },
+            pollingErrorHandler: async (botClient, exception, cancellationToken) =>
+            {
+                using var scope = _serviceScopeFactory.CreateScope();
+                var updateHandler = scope.ServiceProvider.GetRequiredService<IBotUpdateHandler>();
+                await updateHandler.HandleErrorAsync(exception, cancellationToken);
+            },
             receiverOptions: receiverOptions,
             cancellationToken: stoppingToken);
     }

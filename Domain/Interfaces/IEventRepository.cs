@@ -35,4 +35,25 @@ public interface IEventRepository : IRepository<Event>
     /// Отримати подію з учасниками
     /// </summary>
     Task<Event?> GetByIdWithParticipantsAsync(int id, CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Отримати всі події для адміністраторів
+    /// </summary>
+    Task<List<Event>> GetAllEventsAsync(
+        EventCategory? category = null,
+        EventType? type = null,
+        EventStatus? status = null,
+        bool sortByDateAsc = true,
+        int pageNumber = 1,
+        int pageSize = 10,
+        CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Отримати кількість всіх подій для адміністраторів
+    /// </summary>
+    Task<int> GetAllEventsCountAsync(
+        EventCategory? category = null,
+        EventType? type = null,
+        EventStatus? status = null,
+        CancellationToken cancellationToken = default);
 }

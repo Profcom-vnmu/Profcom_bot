@@ -98,6 +98,11 @@ public class UploadFileCommandHandler : IRequestHandler<UploadFileCommand, Resul
 
             var storedFile = storeResult.Value;
 
+            if (storedFile == null)
+            {
+                return Result<FileAttachmentDto>.Fail("Помилка збереження файла: збережений файл є null.");
+            }
+
             // Створюємо запис у базі даних
             var fileAttachment = FileAttachment.Create(
                 storedFile.FileName,

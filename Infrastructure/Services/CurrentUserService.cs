@@ -7,7 +7,7 @@ namespace StudentUnionBot.Infrastructure.Services;
 /// </summary>
 public class CurrentUserService : ICurrentUserService
 {
-    private static readonly AsyncLocal<UserContext> _userContext = new();
+    private static readonly AsyncLocal<UserContext?> _userContext = new();
 
     public long? UserId => _userContext.Value?.UserId;
     public string? Username => _userContext.Value?.Username;
