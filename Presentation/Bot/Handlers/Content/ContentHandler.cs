@@ -16,11 +16,16 @@ using StudentUnionBot.Application.Contacts.Queries.GetAllContacts;
 using StudentUnionBot.Domain.Enums;
 using StudentUnionBot.Presentation.Bot.Handlers.Common;
 using StudentUnionBot.Presentation.Bot.Handlers.Interfaces;
+using StudentUnionBot.Presentation.Bot.Helpers;
 
 namespace StudentUnionBot.Presentation.Bot.Handlers.Content;
 
 public class ContentHandler : BaseHandler, IContentHandler
 {
+    // In-memory storage для фільтрів користувачів
+    private static readonly Dictionary<long, NewsCategory?> _newsFilters = new();
+    private static readonly Dictionary<long, EventType?> _eventTypeFilters = new();
+
     public ContentHandler(IServiceScopeFactory scopeFactory, ILogger<ContentHandler> logger, IMediator mediator)
         : base(scopeFactory, logger, mediator)
     {
@@ -45,11 +50,21 @@ public class ContentHandler : BaseHandler, IContentHandler
     {
         try
         {
+            var userId = callbackQuery.From.Id;
+            
+            // Парсимо номер сторінки з callback
+            var pageNumber = PaginationHelper.ParsePageNumber(callbackQuery.Data!, "news_page") ?? 1;
+            const int pageSize = 5;
+            
+            // Отримуємо активний фільтр користувача (якщо є)
+            _newsFilters.TryGetValue(userId, out var selectedCategory);
+            
             // Отримуємо новини через MediatR
             var query = new GetPublishedNewsQuery
             {
-                PageNumber = 1,
-                PageSize = 5
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                Category = selectedCategory  // Застосовуємо фільтр
             };
 
             var result = await _mediator.Send(query, cancellationToken);
@@ -61,7 +76,7 @@ public class ContentHandler : BaseHandler, IContentHandler
                     messageId: callbackQuery.Message.MessageId,
                     text: "📰 <b>Новини</b>\n\n❌ Не вдалося завантажити новини. Спробуйте пізніше.",
                     parseMode: ParseMode.Html,
-                    replyMarkup: GetBackToMainMenu(),
+                    replyMarkup: await GetBackToMainMenuAsync(userId, cancellationToken),
                     cancellationToken: cancellationToken);
                 return;
             }
@@ -74,15 +89,26 @@ public class ContentHandler : BaseHandler, IContentHandler
                     messageId: callbackQuery.Message.MessageId,
                     text: "📰 <b>Новини</b>\n\n📝 Поки що немає опублікованих новин.",
                     parseMode: ParseMode.Html,
-                    replyMarkup: GetBackToMainMenu(),
+                    replyMarkup: await GetBackToMainMenuAsync(userId, cancellationToken),
                     cancellationToken: cancellationToken);
                 return;
             }
 
-            // Формуємо текст з новинами
-            var newsText = "📰 <b>Останні новини</b>\n\n";
+            var totalPages = PaginationHelper.CalculateTotalPages(newsList.TotalCount, pageSize);
+            var validPage = PaginationHelper.ValidatePageNumber(pageNumber, totalPages);
+
+            // Формуємо заголовок з пагінацією
+            var filterInfo = selectedCategory.HasValue 
+                ? $" (📂 {selectedCategory.Value.GetDisplayName()})" 
+                : "";
+            var newsText = PaginationHelper.FormatListHeader(
+                $"Останні новини{filterInfo}",
+                newsList.TotalCount,
+                validPage,
+                totalPages,
+                pageSize);
             
-            foreach (var news in newsList.Items.Take(5))
+            foreach (var news in newsList.Items)
             {
                 var pinnedMark = news.IsPinned ? "📌 " : "";
                 newsText += $"{pinnedMark}{news.CategoryEmoji} <b>{news.Title}</b>\n";
@@ -102,17 +128,49 @@ public class ContentHandler : BaseHandler, IContentHandler
                 newsText += $"📅 {news.CreatedAt:dd.MM.yyyy HH:mm}\n\n";
             }
 
-            if (newsList.TotalCount > 5)
+            // Створюємо кнопки для кожної новини
+            var itemButtons = PaginationHelper.CreateItemButtons(
+                newsList.Items,
+                buttonsPerRow: 1,
+                itemButtonFactory: n => InlineKeyboardButton.WithCallbackData(
+                    $"📖 {n.Title.Substring(0, Math.Min(40, n.Title.Length))}...",
+                    $"news_view_{n.Id}"));
+
+            // Створюємо список кнопок для клавіатури
+            var buttons = itemButtons.ToList();
+            
+            // Додаємо кнопку фільтрів на початок
+            FilterHelper.AddFilterButton(
+                buttons, 
+                "news_filters_menu", 
+                hasActiveFilters: selectedCategory.HasValue);
+
+            // Додаємо навігаційні кнопки
+            var navButtons = PaginationHelper.GetNavigationButtons(validPage, totalPages, "news_page");
+            if (navButtons.Count > 0)
             {
-                newsText += $"<i>Показано {newsList.Items.Count} з {newsList.TotalCount} новин</i>";
+                buttons.Add(navButtons);
             }
+
+            // Кнопка "Назад до головного меню"
+            buttons.Add(new List<InlineKeyboardButton>
+            {
+                InlineKeyboardButton.WithCallbackData("🔙 Головне меню", "back_to_main")
+            });
+
+            var keyboard = new InlineKeyboardMarkup(buttons);
 
             await botClient.EditMessageTextAsync(
                 chatId: callbackQuery.Message!.Chat.Id,
                 messageId: callbackQuery.Message.MessageId,
                 text: newsText,
                 parseMode: ParseMode.Html,
-                replyMarkup: GetBackToMainMenu(),
+                replyMarkup: keyboard,
+                cancellationToken: cancellationToken);
+
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQueryId: callbackQuery.Id,
+                text: $"Сторінка {validPage} з {totalPages}",
                 cancellationToken: cancellationToken);
         }
         catch (Exception ex)
@@ -130,6 +188,99 @@ public class ContentHandler : BaseHandler, IContentHandler
     }
 
     /// <summary>
+    /// Відображає меню вибору фільтрів для новин
+    /// </summary>
+    public async Task HandleNewsFiltersMenuCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = callbackQuery.From.Id;
+            _newsFilters.TryGetValue(userId, out var selectedCategory);
+
+            var keyboard = FilterHelper.CreateNewsCategoryFilterKeyboard(
+                selectedCategory,
+                backCallbackData: "news_list");
+
+            await botClient.EditMessageTextAsync(
+                chatId: callbackQuery.Message!.Chat.Id,
+                messageId: callbackQuery.Message.MessageId,
+                text: "🔍 <b>Фільтри новин</b>\n\nОберіть категорію для фільтрації новин:",
+                parseMode: ParseMode.Html,
+                replyMarkup: keyboard,
+                cancellationToken: cancellationToken);
+
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQueryId: callbackQuery.Id,
+                cancellationToken: cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при відображенні фільтрів новин для користувача {UserId}", callbackQuery.From.Id);
+        }
+    }
+
+    /// <summary>
+    /// Застосовує фільтр категорії новин
+    /// </summary>
+    public async Task HandleNewsFilterCategoryCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = callbackQuery.From.Id;
+            var category = FilterHelper.ParseNewsCategoryFromCallback(callbackQuery.Data!);
+
+            if (category.HasValue)
+            {
+                _newsFilters[userId] = category.Value;
+                await botClient.AnswerCallbackQueryAsync(
+                    callbackQueryId: callbackQuery.Id,
+                    text: $"✅ Фільтр: {category.Value.GetDisplayName()}",
+                    cancellationToken: cancellationToken);
+            }
+
+            // Повертаємось до списку новин з застосованим фільтром
+            await HandleNewsListCallback(botClient, callbackQuery, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при застосуванні фільтру категорії новин для користувача {UserId}", callbackQuery.From.Id);
+        }
+    }
+
+    /// <summary>
+    /// Очищає фільтри новин
+    /// </summary>
+    public async Task HandleNewsClearFilterCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = callbackQuery.From.Id;
+            _newsFilters.Remove(userId);
+
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQueryId: callbackQuery.Id,
+                text: "✅ Фільтри скинуто",
+                cancellationToken: cancellationToken);
+
+            // Повертаємось до списку новин
+            await HandleNewsListCallback(botClient, callbackQuery, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при скиданні фільтрів новин для користувача {UserId}", callbackQuery.From.Id);
+        }
+    }
+
+    /// <summary>
     /// Обробка callback'у для списку подій
     /// </summary>
     public async Task HandleEventsListCallback(
@@ -139,11 +290,21 @@ public class ContentHandler : BaseHandler, IContentHandler
     {
         try
         {
+            var userId = callbackQuery.From.Id;
+            
+            // Парсимо номер сторінки з callback
+            var pageNumber = PaginationHelper.ParsePageNumber(callbackQuery.Data!, "events_page") ?? 1;
+            const int pageSize = 5;
+            
+            // Отримуємо активний фільтр користувача (якщо є)
+            _eventTypeFilters.TryGetValue(userId, out var selectedType);
+            
             // Отримуємо майбутні події через MediatR
             var query = new GetUpcomingEventsQuery
             {
-                PageNumber = 1,
-                PageSize = 5
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                Type = selectedType  // Застосовуємо фільтр
             };
 
             var result = await _mediator.Send(query, cancellationToken);
@@ -155,7 +316,7 @@ public class ContentHandler : BaseHandler, IContentHandler
                     messageId: callbackQuery.Message.MessageId,
                     text: "🎫 <b>Заходи</b>\n\n❌ Не вдалося завантажити заходи. Спробуйте пізніше.",
                     parseMode: ParseMode.Html,
-                    replyMarkup: GetBackToMainMenu(),
+                    replyMarkup: await GetBackToMainMenuAsync(userId, cancellationToken),
                     cancellationToken: cancellationToken);
                 return;
             }
@@ -169,15 +330,26 @@ public class ContentHandler : BaseHandler, IContentHandler
                     text: "🎫 <b>Заходи</b>\n\n📝 Наразі немає запланованих подій.\n\n" +
                           "<i>Слідкуйте за оновленнями!</i>",
                     parseMode: ParseMode.Html,
-                    replyMarkup: GetBackToMainMenu(),
+                    replyMarkup: await GetBackToMainMenuAsync(userId, cancellationToken),
                     cancellationToken: cancellationToken);
                 return;
             }
 
-            // Формуємо текст з подіями
-            var eventsText = "🎫 <b>Майбутні заходи</b>\n\n";
+            var totalPages = PaginationHelper.CalculateTotalPages(eventsList.TotalCount, pageSize);
+            var validPage = PaginationHelper.ValidatePageNumber(pageNumber, totalPages);
+
+            // Формуємо заголовок з пагінацією
+            var filterInfo = selectedType.HasValue 
+                ? $" ({selectedType.Value.GetEmoji()} {selectedType.Value.GetDisplayName()})" 
+                : "";
+            var eventsText = PaginationHelper.FormatListHeader(
+                $"Майбутні заходи{filterInfo}",
+                eventsList.TotalCount,
+                validPage,
+                totalPages,
+                pageSize);
             
-            foreach (var ev in eventsList.Items.Take(5))
+            foreach (var ev in eventsList.Items)
             {
                 var featuredMark = ev.IsFeatured ? "⭐ " : "";
                 eventsText += $"{featuredMark}{ev.TypeEmoji} <b>{ev.Title}</b>\n";
@@ -210,17 +382,49 @@ public class ContentHandler : BaseHandler, IContentHandler
                 eventsText += "\n";
             }
 
-            if (eventsList.TotalCount > 5)
+            // Створюємо кнопки для кожної події
+            var itemButtons = PaginationHelper.CreateItemButtons(
+                eventsList.Items,
+                buttonsPerRow: 1,
+                itemButtonFactory: e => InlineKeyboardButton.WithCallbackData(
+                    $"📅 {e.Title.Substring(0, Math.Min(40, e.Title.Length))}...",
+                    $"event_view_{e.Id}"));
+
+            // Створюємо список кнопок для клавіатури
+            var buttons = itemButtons.ToList();
+            
+            // Додаємо кнопку фільтрів на початок
+            FilterHelper.AddFilterButton(
+                buttons, 
+                "events_filters_menu", 
+                hasActiveFilters: selectedType.HasValue);
+
+            // Додаємо навігаційні кнопки
+            var navButtons = PaginationHelper.GetNavigationButtons(validPage, totalPages, "events_page");
+            if (navButtons.Count > 0)
             {
-                eventsText += $"<i>Показано {eventsList.Items.Count} з {eventsList.TotalCount} подій</i>";
+                buttons.Add(navButtons);
             }
+
+            // Кнопка "Назад до головного меню"
+            buttons.Add(new List<InlineKeyboardButton>
+            {
+                InlineKeyboardButton.WithCallbackData("🔙 Головне меню", "back_to_main")
+            });
+
+            var keyboard = new InlineKeyboardMarkup(buttons);
 
             await botClient.EditMessageTextAsync(
                 chatId: callbackQuery.Message!.Chat.Id,
                 messageId: callbackQuery.Message.MessageId,
                 text: eventsText,
                 parseMode: ParseMode.Html,
-                replyMarkup: GetBackToMainMenu(),
+                replyMarkup: keyboard,
+                cancellationToken: cancellationToken);
+
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQueryId: callbackQuery.Id,
+                text: $"Сторінка {validPage} з {totalPages}",
                 cancellationToken: cancellationToken);
         }
         catch (Exception ex)
@@ -234,6 +438,99 @@ public class ContentHandler : BaseHandler, IContentHandler
                 parseMode: ParseMode.Html,
                 replyMarkup: GetBackToMainMenu(),
                 cancellationToken: cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Відображає меню вибору фільтрів для подій
+    /// </summary>
+    public async Task HandleEventsFiltersMenuCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = callbackQuery.From.Id;
+            _eventTypeFilters.TryGetValue(userId, out var selectedType);
+
+            var keyboard = FilterHelper.CreateEventTypeFilterKeyboard(
+                selectedType,
+                backCallbackData: "events_list");
+
+            await botClient.EditMessageTextAsync(
+                chatId: callbackQuery.Message!.Chat.Id,
+                messageId: callbackQuery.Message.MessageId,
+                text: "🔍 <b>Фільтри подій</b>\n\nОберіть тип події для фільтрації:",
+                parseMode: ParseMode.Html,
+                replyMarkup: keyboard,
+                cancellationToken: cancellationToken);
+
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQueryId: callbackQuery.Id,
+                cancellationToken: cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при відображенні фільтрів подій для користувача {UserId}", callbackQuery.From.Id);
+        }
+    }
+
+    /// <summary>
+    /// Застосовує фільтр типу події
+    /// </summary>
+    public async Task HandleEventsFilterTypeCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = callbackQuery.From.Id;
+            var eventType = FilterHelper.ParseEventTypeFromCallback(callbackQuery.Data!);
+
+            if (eventType.HasValue)
+            {
+                _eventTypeFilters[userId] = eventType.Value;
+                await botClient.AnswerCallbackQueryAsync(
+                    callbackQueryId: callbackQuery.Id,
+                    text: $"✅ Фільтр: {eventType.Value.GetDisplayName()}",
+                    cancellationToken: cancellationToken);
+            }
+
+            // Повертаємось до списку подій з застосованим фільтром
+            await HandleEventsListCallback(botClient, callbackQuery, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при застосуванні фільтру типу події для користувача {UserId}", callbackQuery.From.Id);
+        }
+    }
+
+    /// <summary>
+    /// Очищає фільтри подій
+    /// </summary>
+    public async Task HandleEventsClearFilterCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = callbackQuery.From.Id;
+            _eventTypeFilters.Remove(userId);
+
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQueryId: callbackQuery.Id,
+                text: "✅ Фільтри скинуто",
+                cancellationToken: cancellationToken);
+
+            // Повертаємось до списку подій
+            await HandleEventsListCallback(botClient, callbackQuery, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при скиданні фільтрів подій для користувача {UserId}", callbackQuery.From.Id);
         }
     }
 

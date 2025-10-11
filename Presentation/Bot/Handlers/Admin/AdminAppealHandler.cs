@@ -12,6 +12,7 @@ using StudentUnionBot.Domain.Enums;
 using StudentUnionBot.Domain.Interfaces;
 using StudentUnionBot.Presentation.Bot.Handlers.Common;
 using StudentUnionBot.Presentation.Bot.Handlers.Interfaces;
+using StudentUnionBot.Presentation.Bot.Helpers;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -510,6 +511,62 @@ public class AdminAppealHandler : BaseHandler, IAdminAppealHandler
     }
 
     /// <summary>
+    /// Встановлює статус звернення
+    /// </summary>
+    public async Task HandleAdminSetStatusCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+
+        var user = await userRepo.GetByTelegramIdAsync(callbackQuery.From.Id, cancellationToken);
+        if (user?.Role != UserRole.Admin)
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "⛔ У вас немає прав адміністратора",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        var parts = callbackQuery.Data!.Replace("admin_set_status_", "").Split('_');
+        if (parts.Length != 2 || !int.TryParse(parts[0], out var appealId) || !int.TryParse(parts[1], out var statusValue))
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "❌ Некоректні параметри",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        var newStatus = (AppealStatus)statusValue;
+
+        // TODO: Створити UpdateAppealStatusCommand для зміни статусу
+        // var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        // var result = await mediator.Send(new UpdateAppealStatusCommand(...), cancellationToken);
+
+        await botClient.AnswerCallbackQueryAsync(
+            callbackQuery.Id,
+            $"⚠️ Зміна статусу в розробці. Обраний статус: {newStatus.GetDisplayName()}",
+            showAlert: true,
+            cancellationToken: cancellationToken);
+
+        // Повертаємось до перегляду звернення
+        var newCallbackQuery = new CallbackQuery
+        {
+            Id = callbackQuery.Id,
+            From = callbackQuery.From,
+            Message = callbackQuery.Message,
+            Data = $"admin_view_{appealId}"
+        };
+        await HandleAdminAppealViewCallback(botClient, newCallbackQuery, cancellationToken);
+    }
+
+    /// <summary>
     /// Розпочинає процес відповіді на звернення
     /// </summary>
     public async Task HandleAdminReplyCallback(
@@ -553,13 +610,23 @@ public class AdminAppealHandler : BaseHandler, IAdminAppealHandler
             text: "Введіть відповідь:",
             cancellationToken: cancellationToken);
 
+        // Створюємо keyboard з кнопкою шаблонів
+        var keyboard = new InlineKeyboardMarkup(new[]
+        {
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("📝 Використати шаблон", $"admin_templates_{appealId}"),
+                InlineKeyboardButton.WithCallbackData("🔙 Скасувати", $"admin_view_{appealId}")
+            }
+        });
+
         await botClient.SendTextMessageAsync(
             chatId: callbackQuery.Message!.Chat.Id,
             text: $"✍️ <b>Відповідь на звернення #{appealId}</b>\n\n" +
-                  "Введіть текст вашої відповіді:\n\n" +
+                  "Введіть текст вашої відповіді або оберіть шаблон:\n\n" +
                   "<i>Мінімум 5 символів, максимум 2000 символів</i>",
             parseMode: ParseMode.Html,
-            replyMarkup: GetBackToMainMenu(),
+            replyMarkup: keyboard,
             cancellationToken: cancellationToken);
     }
 
@@ -827,33 +894,54 @@ public class AdminAppealHandler : BaseHandler, IAdminAppealHandler
 
         if (!isClosed)
         {
-            // Перший рядок - призначення
+            // ⚡ QUICK ACTIONS - Перший рядок (найчастіші дії)
             if (isAssignedToMe)
             {
+                // Якщо вже призначено - показуємо Відповісти та Закрити
                 buttons.Add(new List<InlineKeyboardButton>
                 {
-                    InlineKeyboardButton.WithCallbackData("❌ Відмінити призначення", $"admin_unassign_{appealId}")
+                    InlineKeyboardButton.WithCallbackData("💬 Відповісти", $"admin_reply_{appealId}"),
+                    InlineKeyboardButton.WithCallbackData("✅ Закрити", $"admin_close_{appealId}")
                 });
             }
             else
             {
+                // Якщо не призначено - показуємо Прийняти та Відповісти
                 buttons.Add(new List<InlineKeyboardButton>
                 {
-                    InlineKeyboardButton.WithCallbackData("👤 Призначити собі", $"admin_assign_me_{appealId}")
+                    InlineKeyboardButton.WithCallbackData("✅ Прийняти", $"admin_assign_me_{appealId}"),
+                    InlineKeyboardButton.WithCallbackData("💬 Відповісти", $"admin_reply_{appealId}")
                 });
             }
 
-            // Другий рядок - пріоритет та відповідь
-            buttons.Add(new List<InlineKeyboardButton>
+            // Другий рядок - додаткові дії
+            var secondRow = new List<InlineKeyboardButton>();
+            
+            if (isAssignedToMe)
             {
-                InlineKeyboardButton.WithCallbackData("🎯 Змінити пріоритет", $"admin_priority_{appealId}"),
-                InlineKeyboardButton.WithCallbackData("✍️ Відповісти", $"admin_reply_{appealId}")
-            });
+                secondRow.Add(InlineKeyboardButton.WithCallbackData("🔓 Відмінити призначення", $"admin_unassign_{appealId}"));
+            }
+            
+            secondRow.Add(InlineKeyboardButton.WithCallbackData("🔺 Ескалювати", $"admin_escalate_{appealId}"));
+            
+            if (secondRow.Count > 0)
+            {
+                buttons.Add(secondRow);
+            }
 
-            // Третій рядок - закриття
+            // Третій рядок - пріоритет та статус
             buttons.Add(new List<InlineKeyboardButton>
             {
-                InlineKeyboardButton.WithCallbackData("❌ Закрити звернення", $"admin_close_{appealId}")
+                InlineKeyboardButton.WithCallbackData("🎯 Пріоритет", $"admin_priority_{appealId}"),
+                InlineKeyboardButton.WithCallbackData("📊 Статус", $"admin_status_{appealId}")
+            });
+        }
+        else
+        {
+            // Для закритих звернень - тільки можливість переглянути
+            buttons.Add(new List<InlineKeyboardButton>
+            {
+                InlineKeyboardButton.WithCallbackData("🔄 Відкрити знову", $"admin_reopen_{appealId}")
             });
         }
 
@@ -883,6 +971,429 @@ public class AdminAppealHandler : BaseHandler, IAdminAppealHandler
             {
                 InlineKeyboardButton.WithCallbackData("🟠 Високий", $"admin_set_priority_{appealId}_{(int)AppealPriority.High}"),
                 InlineKeyboardButton.WithCallbackData("🔴 Терміновий", $"admin_set_priority_{appealId}_{(int)AppealPriority.Urgent}")
+            },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("🔙 Назад", $"admin_view_{appealId}")
+            }
+        });
+    }
+
+    /// <summary>
+    /// Ескалює звернення (підвищує пріоритет та змінює статус)
+    /// </summary>
+    public async Task HandleAdminEscalateCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+
+        var user = await userRepo.GetByTelegramIdAsync(callbackQuery.From.Id, cancellationToken);
+        if (user?.Role != UserRole.Admin)
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "⛔ У вас немає прав адміністратора",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        var appealIdStr = callbackQuery.Data!.Replace("admin_escalate_", "");
+        if (!int.TryParse(appealIdStr, out var appealId))
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "❌ Некоректний ID звернення",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        
+        // Отримуємо звернення
+        var appealResult = await mediator.Send(new GetAppealByIdQuery 
+        { 
+            AppealId = appealId, 
+            RequestUserId = user.TelegramId 
+        }, cancellationToken);
+
+        if (!appealResult.IsSuccess || appealResult.Value == null)
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "❌ Звернення не знайдено",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        var appeal = appealResult.Value;
+
+        // Змінюємо пріоритет на Urgent
+        var priorityResult = await mediator.Send(new UpdatePriorityCommand
+        {
+            AppealId = appealId,
+            AdminId = user.TelegramId,
+            Priority = AppealPriority.Urgent
+        }, cancellationToken);
+
+        if (!priorityResult.IsSuccess)
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                $"❌ Помилка ескалації: {priorityResult.Error}",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        // TODO: Додати зміну статусу на Escalated, коли буде відповідна команда
+        // var statusResult = await mediator.Send(new ChangeAppealStatusCommand(...), cancellationToken);
+
+        await botClient.AnswerCallbackQueryAsync(
+            callbackQuery.Id,
+            "🔺 Звернення ескальовано (пріоритет: ТЕРМІНОВИЙ)",
+            cancellationToken: cancellationToken);
+
+        // Оновлюємо відображення звернення
+        var newCallbackQuery = new CallbackQuery
+        {
+            Id = callbackQuery.Id,
+            From = callbackQuery.From,
+            Message = callbackQuery.Message,
+            Data = $"admin_view_{appealId}"
+        };
+
+        await HandleAdminAppealViewCallback(botClient, newCallbackQuery, cancellationToken);
+    }
+
+    /// <summary>
+    /// Показує меню зміни статусу звернення
+    /// </summary>
+    public async Task HandleAdminStatusMenuCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        var appealIdStr = callbackQuery.Data!.Replace("admin_status_", "");
+        if (!int.TryParse(appealIdStr, out var appealId))
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "❌ Некоректний ID звернення",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        var keyboard = GetStatusSelectionKeyboard(appealId);
+
+        await botClient.EditMessageReplyMarkupAsync(
+            chatId: callbackQuery.Message!.Chat.Id,
+            messageId: callbackQuery.Message.MessageId,
+            replyMarkup: keyboard,
+            cancellationToken: cancellationToken);
+
+        await botClient.AnswerCallbackQueryAsync(
+            callbackQueryId: callbackQuery.Id,
+            text: "Оберіть новий статус",
+            cancellationToken: cancellationToken);
+    }
+
+    /// <summary>
+    /// Повторно відкриває закрите звернення
+    /// </summary>
+    public async Task HandleAdminReopenCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        using var scope = _scopeFactory.CreateScope();
+        var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+
+        var user = await userRepo.GetByTelegramIdAsync(callbackQuery.From.Id, cancellationToken);
+        if (user?.Role != UserRole.Admin)
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "⛔ У вас немає прав адміністратора",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        var appealIdStr = callbackQuery.Data!.Replace("admin_reopen_", "");
+        if (!int.TryParse(appealIdStr, out var appealId))
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "❌ Некоректний ID звернення",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        // TODO: Створити ReopenAppealCommand
+        // var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        // var result = await mediator.Send(new ReopenAppealCommand(appealId, user.TelegramId), cancellationToken);
+
+        await botClient.AnswerCallbackQueryAsync(
+            callbackQuery.Id,
+            "⚠️ Функція повторного відкриття в розробці",
+            showAlert: true,
+            cancellationToken: cancellationToken);
+    }
+
+    /// <summary>
+    /// Показує меню вибору шаблонів відповідей
+    /// </summary>
+    public async Task HandleAdminTemplatesMenuCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        var appealIdStr = callbackQuery.Data!.Replace("admin_templates_", "");
+        if (!int.TryParse(appealIdStr, out var appealId))
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "❌ Некоректний ID звернення",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        // Отримуємо інформацію про звернення для визначення категорії
+        using var scope = _scopeFactory.CreateScope();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        var appealResult = await mediator.Send(new GetAppealByIdQuery 
+        { 
+            AppealId = appealId, 
+            RequestUserId = callbackQuery.From.Id 
+        }, cancellationToken);
+
+        AppealCategory? appealCategory = null;
+        if (appealResult.IsSuccess && appealResult.Value != null)
+        {
+            appealCategory = appealResult.Value.Category;
+        }
+
+        var keyboard = AdminReplyTemplatesHelper.CreateTemplatesKeyboard(appealId, appealCategory);
+
+        await botClient.EditMessageTextAsync(
+            chatId: callbackQuery.Message!.Chat.Id,
+            messageId: callbackQuery.Message.MessageId,
+            text: "📝 <b>Шаблони відповідей</b>\n\nОберіть категорію шаблону:",
+            parseMode: ParseMode.Html,
+            replyMarkup: keyboard,
+            cancellationToken: cancellationToken);
+
+        await botClient.AnswerCallbackQueryAsync(
+            callbackQueryId: callbackQuery.Id,
+            cancellationToken: cancellationToken);
+    }
+
+    /// <summary>
+    /// Показує список шаблонів обраної категорії
+    /// </summary>
+    public async Task HandleAdminTemplateCategoryCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        // admin_template_ack_123, admin_template_progress_123, etc.
+        var parts = callbackQuery.Data!.Split('_');
+        if (parts.Length < 4 || !int.TryParse(parts[3], out var appealId))
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "❌ Некоректні параметри",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        var categoryStr = parts[2]; // ack, progress, needinfo, resolved, special
+        
+        if (categoryStr == "special")
+        {
+            // Обробка спеціальних шаблонів
+            using var scope = _scopeFactory.CreateScope();
+            var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+            var appealResult = await mediator.Send(new GetAppealByIdQuery 
+            { 
+                AppealId = appealId, 
+                RequestUserId = callbackQuery.From.Id 
+            }, cancellationToken);
+
+            if (appealResult.IsSuccess && appealResult.Value != null)
+            {
+                var keyboard = AdminReplyTemplatesHelper.CreateSpecialTemplatesKeyboard(appealId, appealResult.Value.Category);
+                
+                await botClient.EditMessageTextAsync(
+                    chatId: callbackQuery.Message!.Chat.Id,
+                    messageId: callbackQuery.Message.MessageId,
+                    text: $"⭐ <b>Спеціальні шаблони для {appealResult.Value.Category.GetDisplayName()}</b>\n\nОберіть шаблон:",
+                    parseMode: ParseMode.Html,
+                    replyMarkup: keyboard,
+                    cancellationToken: cancellationToken);
+            }
+        }
+        else
+        {
+            var category = categoryStr switch
+            {
+                "ack" => AdminReplyTemplatesHelper.TemplateCategory.Acknowledgment,
+                "progress" => AdminReplyTemplatesHelper.TemplateCategory.InProgress,
+                "needinfo" => AdminReplyTemplatesHelper.TemplateCategory.NeedInfo,
+                "resolved" => AdminReplyTemplatesHelper.TemplateCategory.Resolved,
+                _ => AdminReplyTemplatesHelper.TemplateCategory.Acknowledgment
+            };
+
+            var keyboard = AdminReplyTemplatesHelper.CreateCategoryTemplatesKeyboard(appealId, category);
+            var categoryName = AdminReplyTemplatesHelper.TemplateCategory.Acknowledgment.ToString(); // TODO: Add method to get name
+
+            await botClient.EditMessageTextAsync(
+                chatId: callbackQuery.Message!.Chat.Id,
+                messageId: callbackQuery.Message.MessageId,
+                text: $"📝 <b>Шаблони категорії</b>\n\nОберіть шаблон:",
+                parseMode: ParseMode.Html,
+                replyMarkup: keyboard,
+                cancellationToken: cancellationToken);
+        }
+
+        await botClient.AnswerCallbackQueryAsync(
+            callbackQueryId: callbackQuery.Id,
+            cancellationToken: cancellationToken);
+    }
+
+    /// <summary>
+    /// Використовує обраний шаблон для відповіді
+    /// </summary>
+    public async Task HandleAdminUseTemplateCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        // admin_use_template_123_1_2 (appealId_categoryId_templateIndex)
+        // admin_use_special_template_123_1_0 (appealId_appealCategoryId_templateIndex)
+        var isSpecial = callbackQuery.Data!.Contains("special");
+        var parts = callbackQuery.Data!.Split('_');
+        
+        int appealIdIndex = isSpecial ? 4 : 3;
+        int categoryIndex = isSpecial ? 5 : 4;
+        int templateIndex_idx = isSpecial ? 6 : 5;
+
+        if (parts.Length <= templateIndex_idx || 
+            !int.TryParse(parts[appealIdIndex], out var appealId) ||
+            !int.TryParse(parts[categoryIndex], out var categoryId) ||
+            !int.TryParse(parts[templateIndex_idx], out var templateIndex))
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "❌ Некоректні параметри",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        string? templateText = null;
+        
+        if (isSpecial)
+        {
+            templateText = AdminReplyTemplatesHelper.GetSpecialTemplateText((AppealCategory)categoryId, templateIndex);
+        }
+        else
+        {
+            templateText = AdminReplyTemplatesHelper.GetTemplateText((AdminReplyTemplatesHelper.TemplateCategory)categoryId, templateIndex);
+        }
+
+        if (string.IsNullOrEmpty(templateText))
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "❌ Шаблон не знайдено",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        // Автоматично відправляємо відповідь з використанням шаблону
+        using var scope = _scopeFactory.CreateScope();
+        var userRepo = scope.ServiceProvider.GetRequiredService<IUserRepository>();
+        var user = await userRepo.GetByTelegramIdAsync(callbackQuery.From.Id, cancellationToken);
+
+        if (user?.Role != UserRole.Admin)
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "⛔ У вас немає прав адміністратора",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+        var result = await mediator.Send(new ReplyToAppealCommand
+        {
+            AppealId = appealId,
+            AdminId = user.TelegramId,
+            AdminName = user.FullName ?? user.Username ?? "Адміністратор",
+            Text = templateText
+        }, cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "✅ Відповідь відправлено",
+                cancellationToken: cancellationToken);
+
+            // Повертаємось до перегляду звернення
+            var newCallbackQuery = new CallbackQuery
+            {
+                Id = callbackQuery.Id,
+                From = callbackQuery.From,
+                Message = callbackQuery.Message,
+                Data = $"admin_view_{appealId}"
+            };
+            await HandleAdminAppealViewCallback(botClient, newCallbackQuery, cancellationToken);
+        }
+        else
+        {
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                $"❌ Помилка: {result.Error}",
+                showAlert: true,
+                cancellationToken: cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Створює клавіатуру вибору статусу
+    /// </summary>
+    private InlineKeyboardMarkup GetStatusSelectionKeyboard(int appealId)
+    {
+        return new InlineKeyboardMarkup(new[]
+        {
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("🆕 Нове", $"admin_set_status_{appealId}_{(int)AppealStatus.New}"),
+                InlineKeyboardButton.WithCallbackData("⏳ В роботі", $"admin_set_status_{appealId}_{(int)AppealStatus.InProgress}")
+            },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("⌛ Очікує студента", $"admin_set_status_{appealId}_{(int)AppealStatus.WaitingForStudent}"),
+                InlineKeyboardButton.WithCallbackData("⏰ Очікує адміна", $"admin_set_status_{appealId}_{(int)AppealStatus.WaitingForAdmin}")
+            },
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData("🔺 Ескальовано", $"admin_set_status_{appealId}_{(int)AppealStatus.Escalated}"),
+                InlineKeyboardButton.WithCallbackData("✅ Вирішено", $"admin_set_status_{appealId}_{(int)AppealStatus.Resolved}")
             },
             new[]
             {

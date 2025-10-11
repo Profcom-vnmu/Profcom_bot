@@ -55,6 +55,12 @@ packages/
 
 # Test results
 TestResults/
+**/TestResults/
+*.trx
+*.coverage
+*.coveragexml
+coverage.json
+coverage.opencover.xml
 
 # User-specific files
 *.user

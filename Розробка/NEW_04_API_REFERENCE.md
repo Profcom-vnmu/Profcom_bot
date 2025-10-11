@@ -923,7 +923,245 @@ foreach (var userId in userIds)
 
 ---
 
-**Версія документа:** 2.0  
-**Дата:** 08.10.2025  
+## 🔐 Authorization Service API
+
+### IAuthorizationService Interface
+
+```csharp
+public interface IAuthorizationService
+{
+    /// <summary>
+    /// Перевірити чи має користувач конкретний дозвіл
+    /// </summary>
+    /// <param name="userId">Telegram ID користувача</param>
+    /// <param name="permission">Дозвіл для перевірки</param>
+    /// <param name="cancellationToken">Токен скасування</param>
+    /// <returns>true якщо користувач має дозвіл, false в іншому випадку</returns>
+    Task<bool> HasPermissionAsync(
+        long userId, 
+        Permission permission, 
+        CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Перевірити чи має користувач будь-який з переданих дозволів
+    /// </summary>
+    /// <param name="userId">Telegram ID користувача</param>
+    /// <param name="cancellationToken">Токен скасування</param>
+    /// <param name="permissions">Список дозволів для перевірки</param>
+    /// <returns>true якщо користувач має хоча б один дозвіл</returns>
+    Task<bool> HasAnyPermissionAsync(
+        long userId, 
+        CancellationToken cancellationToken = default, 
+        params Permission[] permissions);
+    
+    /// <summary>
+    /// Перевірити чи має користувач всі передані дозволи
+    /// </summary>
+    /// <param name="userId">Telegram ID користувача</param>
+    /// <param name="cancellationToken">Токен скасування</param>
+    /// <param name="permissions">Список дозволів для перевірки</param>
+    /// <returns>true якщо користувач має всі дозволи</returns>
+    Task<bool> HasAllPermissionsAsync(
+        long userId, 
+        CancellationToken cancellationToken = default, 
+        params Permission[] permissions);
+    
+    /// <summary>
+    /// Отримати всі дозволи користувача
+    /// </summary>
+    /// <param name="userId">Telegram ID користувача</param>
+    /// <param name="cancellationToken">Токен скасування</param>
+    /// <returns>Список всіх дозволів користувача</returns>
+    Task<IReadOnlyList<Permission>> GetUserPermissionsAsync(
+        long userId, 
+        CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Отримати роль користувача
+    /// </summary>
+    /// <param name="userId">Telegram ID користувача</param>
+    /// <param name="cancellationToken">Токен скасування</param>
+    /// <returns>Роль користувача або null якщо користувач не знайдений</returns>
+    Task<UserRole?> GetUserRoleAsync(
+        long userId, 
+        CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Перевірити чи є користувач адміністратором (Admin або SuperAdmin)
+    /// </summary>
+    /// <param name="userId">Telegram ID користувача</param>
+    /// <param name="cancellationToken">Токен скасування</param>
+    /// <returns>true якщо користувач є Admin або SuperAdmin</returns>
+    Task<bool> IsAdminAsync(
+        long userId, 
+        CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Перевірити чи є користувач суперадміністратором
+    /// </summary>
+    /// <param name="userId">Telegram ID користувача</param>
+    /// <param name="cancellationToken">Токен скасування</param>
+    /// <returns>true якщо користувач є SuperAdmin</returns>
+    Task<bool> IsSuperAdminAsync(
+        long userId, 
+        CancellationToken cancellationToken = default);
+}
+```
+
+### Приклади використання
+
+**Перевірка одного дозволу:**
+```csharp
+var canCreateNews = await _authorizationService.HasPermissionAsync(
+    userId, 
+    Permission.CreateNews, 
+    cancellationToken);
+
+if (!canCreateNews)
+{
+    return Result.Fail("Недостатньо прав для створення новин");
+}
+```
+
+**Перевірка будь-якого з дозволів:**
+```csharp
+// Користувач може редагувати AБОВОСТИ створювати
+var canModifyNews = await _authorizationService.HasAnyPermissionAsync(
+    userId,
+    cancellationToken,
+    Permission.EditNews,
+    Permission.CreateNews);
+```
+
+**Перевірка всіх дозволів:**
+```csharp
+// Користувач повинен мати обидва дозволи
+var canDeleteAndManage = await _authorizationService.HasAllPermissionsAsync(
+    userId,
+    cancellationToken,
+    Permission.DeleteNews,
+    Permission.ManageUsers);
+```
+
+**Отримання списку всіх дозволів:**
+```csharp
+var permissions = await _authorizationService.GetUserPermissionsAsync(
+    userId, 
+    cancellationToken);
+
+foreach (var permission in permissions)
+{
+    Console.WriteLine($"- {permission.GetDisplayName()}");
+}
+```
+
+**Перевірка ролі:**
+```csharp
+var role = await _authorizationService.GetUserRoleAsync(userId);
+if (role == UserRole.Admin || role == UserRole.SuperAdmin)
+{
+    // Показати адмін панель
+}
+```
+
+**Перевірка адміністратора:**
+```csharp
+var isAdmin = await _authorizationService.IsAdminAsync(userId);
+if (!isAdmin)
+{
+    await _botClient.SendTextMessageAsync(
+        userId,
+        "❌ Ця команда доступна тільки для адміністраторів");
+    return;
+}
+```
+
+### Authorization Attributes
+
+**RequirePermissionAttribute:**
+```csharp
+// Один дозвіл
+[RequirePermission(Permission.CreateNews)]
+public class CreateNewsCommand : IRequest<Result<NewsDto>> { }
+
+// Основний дозвіл + альтернативи
+[RequirePermission(Permission.EditNews, Permission.CreateNews)]
+public class UpdateNewsCommand : IRequest<Result<NewsDto>> { }
+```
+
+**RequireAllPermissionsAttribute:**
+```csharp
+// Всі дозволи обов'язкові
+[RequireAllPermissions(Permission.DeleteNews, Permission.ManageUsers)]
+public class DeleteAllNewsCommand : IRequest<Result<bool>> { }
+```
+
+**RequireAdminAttribute:**
+```csharp
+// Тільки Admin або SuperAdmin
+[RequireAdmin]
+public class ViewAdminPanelQuery : IRequest<Result<AdminPanelDto>> { }
+```
+
+**RequireSuperAdminAttribute:**
+```csharp
+// Тільки SuperAdmin
+[RequireSuperAdmin]
+public class ManageSystemCommand : IRequest<Result<bool>> { }
+```
+
+### Permission Extensions
+
+**GetPermissions() - отримати дозволи ролі:**
+```csharp
+var adminPermissions = UserRole.Admin.GetPermissions();
+// Повертає список всіх дозволів для ролі Admin
+```
+
+**HasPermission() - перевірка дозволу:**
+```csharp
+var canDelete = UserRole.Moderator.HasPermission(Permission.DeleteNews);
+// false - Moderator не має цього дозволу
+```
+
+**HasAnyPermission() - перевірка будь-якого:**
+```csharp
+var canModify = UserRole.Moderator.HasAnyPermission(
+    Permission.CreateNews,
+    Permission.EditNews);
+// true - Moderator має обидва ці дозволи
+```
+
+**HasAllPermissions() - перевірка всіх:**
+```csharp
+var hasAll = UserRole.Student.HasAllPermissions(
+    Permission.ViewNews,
+    Permission.CreateNews);
+// false - Student не має CreateNews
+```
+
+**GetDisplayName() - українська назва:**
+```csharp
+var displayName = Permission.CreateNews.GetDisplayName();
+// "Створення новин"
+```
+
+### Role Permissions Matrix
+
+| Permission | Student | Moderator | Admin | SuperAdmin |
+|------------|---------|-----------|-------|------------|
+| ViewProfile | ✅ | ✅ | ✅ | ✅ |
+| CreateAppeal | ✅ | ✅ | ✅ | ✅ |
+| ViewNews | ✅ | ✅ | ✅ | ✅ |
+| CreateNews | ❌ | ✅ | ✅ | ✅ |
+| DeleteNews | ❌ | ❌ | ✅ | ✅ |
+| AssignAppeal | ❌ | ❌ | ✅ | ✅ |
+| ManageUsers | ❌ | ❌ | ✅ | ✅ |
+| ManageSystem | ❌ | ❌ | ❌ | ✅ |
+
+---
+
+**Версія документа:** 2.1  
+**Дата:** 11.10.2025  
 **Автор:** AI Assistant  
 **Призначення:** API довідник та швидкий reference guide

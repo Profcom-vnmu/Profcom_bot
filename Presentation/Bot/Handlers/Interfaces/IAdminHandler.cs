@@ -70,6 +70,41 @@ public interface IAdminAppealHandler : IBaseHandler
     Task HandleAdminCloseAppealCallback(ITelegramBotClient botClient, CallbackQuery callbackQuery, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Ескалює звернення (підвищує пріоритет та змінює статус)
+    /// </summary>
+    Task HandleAdminEscalateCallback(ITelegramBotClient botClient, CallbackQuery callbackQuery, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Показує меню зміни статусу звернення
+    /// </summary>
+    Task HandleAdminStatusMenuCallback(ITelegramBotClient botClient, CallbackQuery callbackQuery, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Встановлює статус звернення
+    /// </summary>
+    Task HandleAdminSetStatusCallback(ITelegramBotClient botClient, CallbackQuery callbackQuery, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Повторно відкриває закрите звернення
+    /// </summary>
+    Task HandleAdminReopenCallback(ITelegramBotClient botClient, CallbackQuery callbackQuery, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Показує меню вибору шаблонів відповідей
+    /// </summary>
+    Task HandleAdminTemplatesMenuCallback(ITelegramBotClient botClient, CallbackQuery callbackQuery, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Показує список шаблонів обраної категорії
+    /// </summary>
+    Task HandleAdminTemplateCategoryCallback(ITelegramBotClient botClient, CallbackQuery callbackQuery, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Використовує обраний шаблон для відповіді
+    /// </summary>
+    Task HandleAdminUseTemplateCallback(ITelegramBotClient botClient, CallbackQuery callbackQuery, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Обробляє введення тексту відповіді адміном
     /// </summary>
     Task HandleAdminReplyInputAsync(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken);

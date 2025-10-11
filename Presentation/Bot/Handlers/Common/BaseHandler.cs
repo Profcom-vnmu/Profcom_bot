@@ -172,6 +172,37 @@ public abstract class BaseHandler : IBaseHandler
     }
 
     /// <summary>
+    /// Отримати клавіатуру з кнопкою "Скасувати"
+    /// </summary>
+    protected InlineKeyboardMarkup GetCancelKeyboard()
+    {
+        // Використовуємо просто текст, бо метод синхронний
+        var cancelText = "❌ Скасувати";
+        
+        return new InlineKeyboardMarkup(new[]
+        {
+            InlineKeyboardButton.WithCallbackData(cancelText, "cancel_operation")
+        });
+    }
+
+    /// <summary>
+    /// Отримати клавіатуру з кнопкою "Скасувати" з урахуванням мови користувача
+    /// </summary>
+    protected async Task<InlineKeyboardMarkup> GetCancelKeyboardAsync(long userId, CancellationToken cancellationToken = default)
+    {
+        var language = await GetUserLanguageAsync(userId, cancellationToken);
+        using var scope = _scopeFactory.CreateScope();
+        var localizationService = scope.ServiceProvider.GetRequiredService<ILocalizationService>();
+        
+        var cancelText = await localizationService.GetLocalizedStringAsync("button.cancel", language, cancellationToken);
+        
+        return new InlineKeyboardMarkup(new[]
+        {
+            InlineKeyboardButton.WithCallbackData(cancelText, "cancel_operation")
+        });
+    }
+
+    /// <summary>
     /// Очистити стан користувача
     /// </summary>
     protected async Task ClearUserStateAsync(long userId, CancellationToken cancellationToken)

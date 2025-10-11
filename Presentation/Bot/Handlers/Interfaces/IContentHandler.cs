@@ -14,9 +14,39 @@ public interface IContentHandler : IBaseHandler
     Task HandleNewsListCallback(ITelegramBotClient botClient, CallbackQuery callbackQuery, CancellationToken cancellationToken);
     
     /// <summary>
+    /// Відображає меню вибору фільтрів для новин
+    /// </summary>
+    Task HandleNewsFiltersMenuCallback(ITelegramBotClient botClient, CallbackQuery callbackQuery, CancellationToken cancellationToken);
+    
+    /// <summary>
+    /// Застосовує фільтр категорії новин
+    /// </summary>
+    Task HandleNewsFilterCategoryCallback(ITelegramBotClient botClient, CallbackQuery callbackQuery, CancellationToken cancellationToken);
+    
+    /// <summary>
+    /// Очищає фільтри новин
+    /// </summary>
+    Task HandleNewsClearFilterCallback(ITelegramBotClient botClient, CallbackQuery callbackQuery, CancellationToken cancellationToken);
+    
+    /// <summary>
     /// Обробка callback'у для списку подій
     /// </summary>
     Task HandleEventsListCallback(ITelegramBotClient botClient, CallbackQuery callbackQuery, CancellationToken cancellationToken);
+    
+    /// <summary>
+    /// Відображає меню вибору фільтрів для подій
+    /// </summary>
+    Task HandleEventsFiltersMenuCallback(ITelegramBotClient botClient, CallbackQuery callbackQuery, CancellationToken cancellationToken);
+    
+    /// <summary>
+    /// Застосовує фільтр типу події
+    /// </summary>
+    Task HandleEventsFilterTypeCallback(ITelegramBotClient botClient, CallbackQuery callbackQuery, CancellationToken cancellationToken);
+    
+    /// <summary>
+    /// Очищає фільтри подій
+    /// </summary>
+    Task HandleEventsClearFilterCallback(ITelegramBotClient botClient, CallbackQuery callbackQuery, CancellationToken cancellationToken);
     
     /// <summary>
     /// Обробка callback'у для списку партнерів

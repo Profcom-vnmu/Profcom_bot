@@ -1,5 +1,6 @@
 using MediatR;
 using StudentUnionBot.Application.Appeals.DTOs;
+using StudentUnionBot.Application.Common.Attributes;
 using StudentUnionBot.Core.Results;
 using StudentUnionBot.Domain.Enums;
 
@@ -8,6 +9,7 @@ namespace StudentUnionBot.Application.Appeals.Commands.CreateAppeal;
 /// <summary>
 /// Команда для створення нового звернення від студента
 /// </summary>
+[RateLimit("CreateAppeal")]
 public class CreateAppealCommand : IRequest<Result<AppealDto>>
 {
     /// <summary>

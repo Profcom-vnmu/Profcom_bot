@@ -30,10 +30,12 @@ public class GetUserAppealsQueryHandler : IRequestHandler<GetUserAppealsQuery, R
         try
         {
             _logger.LogInformation(
-                "Отримання звернень користувача {UserId}, сторінка {Page}, тільки активні: {OnlyActive}",
+                "Отримання звернень користувача {UserId}, сторінка {Page}, тільки активні: {OnlyActive}, статус: {Status}, категорія: {Category}",
                 request.UserId,
                 request.PageNumber,
-                request.OnlyActive);
+                request.OnlyActive,
+                request.Status,
+                request.Category);
 
             // Отримуємо звернення користувача
             var appeals = await _appealRepository.GetUserAppealsAsync(request.UserId, cancellationToken);
@@ -42,6 +44,18 @@ public class GetUserAppealsQueryHandler : IRequestHandler<GetUserAppealsQuery, R
             if (request.OnlyActive)
             {
                 appeals = appeals.Where(a => a.Status != AppealStatus.Closed).ToList();
+            }
+
+            // Фільтр за статусом
+            if (request.Status.HasValue)
+            {
+                appeals = appeals.Where(a => a.Status == request.Status.Value).ToList();
+            }
+
+            // Фільтр за категорією
+            if (request.Category.HasValue)
+            {
+                appeals = appeals.Where(a => a.Category == request.Category.Value).ToList();
             }
 
             // Сортування (нові перші)

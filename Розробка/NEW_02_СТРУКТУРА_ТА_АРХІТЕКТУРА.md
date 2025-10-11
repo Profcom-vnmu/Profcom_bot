@@ -125,7 +125,8 @@ StudentUnionBot/
 │   ├── 📂 Behaviors/                      # MediatR Behaviors
 │   │   ├── ValidationBehavior.cs          # Валідація
 │   │   ├── LoggingBehavior.cs             # Логування
-│   │   └── PerformanceBehavior.cs         # Моніторинг продуктивності
+│   │   ├── PerformanceBehavior.cs         # Моніторинг продуктивності
+│   │   └── AuthorizationBehavior.cs       # 🔐 Авторизація та дозволи
 │   │
 │   └── 📂 Interfaces/                     # Інтерфейси сервісів
 │       ├── IEmailService.cs
@@ -614,6 +615,337 @@ public class PerformanceBehavior<TRequest, TResponse>
     }
 }
 ```
+
+### 4. Authorization Behavior 🔐
+```csharp
+public class AuthorizationBehavior<TRequest, TResponse> 
+    : IPipelineBehavior<TRequest, TResponse>
+    where TRequest : IRequest<TResponse>
+    where TResponse : class
+{
+    private readonly IAuthorizationService _authorizationService;
+    private readonly ICurrentUserService _currentUserService;
+    private readonly ILogger<AuthorizationBehavior<TRequest, TResponse>> _logger;
+
+    public async Task<TResponse> Handle(
+        TRequest request,
+        RequestHandlerDelegate<TResponse> next,
+        CancellationToken cancellationToken)
+    {
+        var requestType = typeof(TRequest);
+        
+        // Перевірка атрибутів авторизації
+        var requirePermissionAttr = requestType.GetCustomAttribute<RequirePermissionAttribute>();
+        var requireAllPermissionsAttr = requestType.GetCustomAttribute<RequireAllPermissionsAttribute>();
+        var requireAdminAttr = requestType.GetCustomAttribute<RequireAdminAttribute>();
+        var requireSuperAdminAttr = requestType.GetCustomAttribute<RequireSuperAdminAttribute>();
+
+        // Якщо немає атрибутів авторизації, пропустити перевірку
+        if (requirePermissionAttr == null && requireAllPermissionsAttr == null && 
+            requireAdminAttr == null && requireSuperAdminAttr == null)
+        {
+            return await next();
+        }
+
+        // Отримати поточного користувача
+        var currentUserId = _currentUserService.UserId;
+        if (currentUserId == null)
+        {
+            _logger.LogWarning("Unauthorized access attempt to {RequestName}", requestType.Name);
+            return CreateUnauthorizedResult("Користувач не авторизований");
+        }
+
+        // Перевірка SuperAdmin
+        if (requireSuperAdminAttr != null)
+        {
+            var isSuperAdmin = await _authorizationService.IsSuperAdminAsync(
+                currentUserId.Value, cancellationToken);
+            
+            if (!isSuperAdmin)
+            {
+                _logger.LogWarning(
+                    "User {UserId} attempted SuperAdmin action {RequestName}",
+                    currentUserId, requestType.Name);
+                return CreateUnauthorizedResult("Недостатньо прав доступу");
+            }
+        }
+        // Перевірка Admin
+        else if (requireAdminAttr != null)
+        {
+            var isAdmin = await _authorizationService.IsAdminAsync(
+                currentUserId.Value, cancellationToken);
+            
+            if (!isAdmin)
+            {
+                _logger.LogWarning(
+                    "User {UserId} attempted Admin action {RequestName}",
+                    currentUserId, requestType.Name);
+                return CreateUnauthorizedResult("Недостатньо прав доступу");
+            }
+        }
+        // Перевірка всіх дозволів
+        else if (requireAllPermissionsAttr != null)
+        {
+            var hasAllPermissions = await _authorizationService.HasAllPermissionsAsync(
+                currentUserId.Value, cancellationToken, requireAllPermissionsAttr.Permissions);
+                
+            if (!hasAllPermissions)
+            {
+                _logger.LogWarning(
+                    "User {UserId} lacks required permissions for {RequestName}: {Permissions}",
+                    currentUserId, requestType.Name, 
+                    string.Join(", ", requireAllPermissionsAttr.Permissions));
+                return CreateUnauthorizedResult("Недостатньо прав доступу");
+            }
+        }
+        // Перевірка конкретного дозволу або альтернатив
+        else if (requirePermissionAttr != null)
+        {
+            var hasPermission = await _authorizationService.HasPermissionAsync(
+                currentUserId.Value, requirePermissionAttr.Permission, cancellationToken);
+
+            // Якщо основний дозвіл відсутній, перевіряємо альтернативи
+            if (!hasPermission && requirePermissionAttr.AlternativePermissions != null)
+            {
+                hasPermission = await _authorizationService.HasAnyPermissionAsync(
+                    currentUserId.Value, cancellationToken, 
+                    requirePermissionAttr.AlternativePermissions);
+            }
+
+            if (!hasPermission)
+            {
+                var requiredPermissions = requirePermissionAttr.AlternativePermissions != null
+                    ? $"{requirePermissionAttr.Permission} або {string.Join(", ", requirePermissionAttr.AlternativePermissions)}"
+                    : requirePermissionAttr.Permission.ToString();
+
+                _logger.LogWarning(
+                    "User {UserId} lacks permission for {RequestName}: {Permissions}",
+                    currentUserId, requestType.Name, requiredPermissions);
+                return CreateUnauthorizedResult("Недостатньо прав доступу");
+            }
+        }
+
+        _logger.LogDebug(
+            "Authorization successful for {RequestName} by user {UserId}",
+            requestType.Name, currentUserId);
+
+        return await next();
+    }
+
+    private static TResponse CreateUnauthorizedResult(string message)
+    {
+        // Якщо TResponse є Result<T>, створити Fail result
+        var responseType = typeof(TResponse);
+        
+        if (responseType.IsGenericType && 
+            responseType.GetGenericTypeDefinition() == typeof(Result<>))
+        {
+            var resultType = responseType.GetGenericArguments()[0];
+            var failMethod = typeof(Result)
+                .GetMethod(nameof(Result.Fail), new[] { typeof(string) })
+                ?.MakeGenericMethod(resultType);
+            
+            if (failMethod != null)
+            {
+                var result = failMethod.Invoke(null, new object[] { message });
+                return (TResponse)result!;
+            }
+        }
+        
+        // Якщо TResponse є Result, створити Fail result
+        if (responseType == typeof(Result))
+        {
+            var result = Result.Fail(message);
+            return (TResponse)(object)result;
+        }
+
+        // В іншому випадку кинути виняток
+        throw new UnauthorizedAccessException(message);
+    }
+}
+```
+
+---
+
+## 🔐 Система авторизації та дозволів
+
+### Permission Enum (30+ дозволів)
+
+```csharp
+public enum Permission
+{
+    // User permissions
+    ViewProfile = 1,
+    EditProfile = 2,
+    CreateAppeal = 3,
+    ViewOwnAppeals = 4,
+    
+    // News permissions
+    ViewNews = 10,
+    CreateNews = 11,
+    EditNews = 12,
+    DeleteNews = 13,
+    PublishNews = 14,
+    PinNews = 15,
+    
+    // Events permissions
+    ViewEvents = 20,
+    CreateEvent = 21,
+    EditEvent = 22,
+    DeleteEvent = 23,
+    RegisterForEvent = 25,
+    UnregisterFromEvent = 26,
+    ManageEventRegistrations = 28,
+    
+    // Appeals permissions
+    ViewAppeals = 30,
+    ViewAllAppeals = 31,
+    AssignAppeal = 32,
+    ReplyToAppeal = 33,
+    CloseAppeal = 34,
+    ReopenAppeal = 35,
+    EditAppealPriority = 36,
+    DeleteAppeal = 37,
+    
+    // Admin permissions
+    ViewAdminPanel = 40,
+    ManageUsers = 41,
+    PromoteUsers = 42,
+    BanUsers = 43,
+    ViewUserActivity = 44,
+    ViewStatistics = 45,
+    CreateBackup = 46,
+    RestoreBackup = 47,
+    
+    // File permissions
+    UploadFile = 50,
+    DownloadFile = 51,
+    DeleteFile = 52,
+    
+    // System permissions
+    ViewLogs = 60,
+    ManageSystem = 61,
+    ManageConfiguration = 62,
+    
+    // Notification permissions
+    SendNotifications = 90,
+    ViewNotificationHistory = 91,
+    SendBroadcast = 92
+}
+```
+
+### Role-Based Permissions
+
+| Role | Permissions Count | Key Permissions |
+|------|-------------------|-----------------|
+| **Student** | ~13 | ViewProfile, EditProfile, CreateAppeal, ViewNews, ViewEvents, RegisterForEvent |
+| **Moderator** | ~20 | Student + CreateNews, EditNews, CreateEvent, ViewAppeals, ReplyToAppeal |
+| **Admin** | ~40 | Moderator + DeleteNews, PublishNews, AssignAppeal, CloseAppeal, ManageUsers, BanUsers, CreateBackup |
+| **SuperAdmin** | ALL | Повний доступ до всіх дозволів |
+
+### Permission Hierarchy
+
+```
+Student ⊂ Moderator ⊂ Admin ⊂ SuperAdmin
+  (13)      (20)       (40)      (ALL)
+```
+
+### Використання атрибутів авторизації
+
+```csharp
+// Один дозвіл
+[RequirePermission(Permission.CreateNews)]
+public class CreateNewsCommand : IRequest<Result<NewsDto>> { }
+
+// Основний дозвіл + альтернативи
+[RequirePermission(Permission.EditNews, Permission.CreateNews)]
+public class UpdateNewsCommand : IRequest<Result<NewsDto>> { }
+
+// Всі дозволи обов'язкові
+[RequireAllPermissions(Permission.DeleteNews, Permission.ManageUsers)]
+public class DeleteNewsCommand : IRequest<Result<bool>> { }
+
+// Тільки Admin
+[RequireAdmin]
+public class ViewAdminPanelQuery : IRequest<Result<AdminPanelDto>> { }
+
+// Тільки SuperAdmin
+[RequireSuperAdmin]
+public class RestoreBackupCommand : IRequest<Result<bool>> { }
+```
+
+### IAuthorizationService методи
+
+```csharp
+public interface IAuthorizationService
+{
+    // Перевірка одного дозволу
+    Task<bool> HasPermissionAsync(
+        long userId, 
+        Permission permission, 
+        CancellationToken cancellationToken = default);
+    
+    // Перевірка будь-якого з дозволів
+    Task<bool> HasAnyPermissionAsync(
+        long userId, 
+        CancellationToken cancellationToken = default, 
+        params Permission[] permissions);
+    
+    // Перевірка всіх дозволів
+    Task<bool> HasAllPermissionsAsync(
+        long userId, 
+        CancellationToken cancellationToken = default, 
+        params Permission[] permissions);
+    
+    // Отримати всі дозволи користувача
+    Task<IReadOnlyList<Permission>> GetUserPermissionsAsync(
+        long userId, 
+        CancellationToken cancellationToken = default);
+    
+    // Отримати роль користувача
+    Task<UserRole?> GetUserRoleAsync(
+        long userId, 
+        CancellationToken cancellationToken = default);
+    
+    // Перевірка чи є адміністратором
+    Task<bool> IsAdminAsync(
+        long userId, 
+        CancellationToken cancellationToken = default);
+    
+    // Перевірка чи є суперадміністратором
+    Task<bool> IsSuperAdminAsync(
+        long userId, 
+        CancellationToken cancellationToken = default);
+}
+```
+
+### Приклади захищених команд
+
+**Appeals:**
+- `CreateAppealCommand` - Student+
+- `AssignAppealCommand` - `[RequirePermission(Permission.AssignAppeal)]` (Admin+)
+- `CloseAppealCommand` - `[RequirePermission(Permission.CloseAppeal)]` (Admin+)
+- `ReplyToAppealCommand` - `[RequirePermission(Permission.ReplyToAppeal)]` (Moderator+)
+- `UpdatePriorityCommand` - `[RequirePermission(Permission.EditAppealPriority)]` (Admin+)
+
+**News:**
+- `CreateNewsCommand` - `[RequirePermission(Permission.CreateNews)]` (Moderator+)
+- `UpdateNewsCommand` - `[RequirePermission(Permission.EditNews)]` (Moderator+)
+- `DeleteNewsCommand` - `[RequirePermission(Permission.DeleteNews)]` (Admin+)
+- `PublishNewsCommand` - `[RequirePermission(Permission.PublishNews)]` (Admin+)
+
+**Events:**
+- `CreateEventCommand` - `[RequirePermission(Permission.CreateEvent)]` (Moderator+)
+- `RegisterForEventCommand` - `[RequirePermission(Permission.RegisterForEvent)]` (Student+)
+- `UnregisterFromEventCommand` - `[RequirePermission(Permission.UnregisterFromEvent)]` (Student+)
+
+**Admin:**
+- `CreateBackupCommand` - `[RequirePermission(Permission.CreateBackup)]` (Admin+)
+- `RestoreBackupCommand` - `[RequirePermission(Permission.RestoreBackup)]` (Admin+)
+
+**Notifications:**
+- `SendNotificationCommand` - `[RequirePermission(Permission.SendNotifications)]` (Admin+)
+- `SendBroadcastCommand` - `[RequirePermission(Permission.SendBroadcast)]` (Admin+)
 
 ---
 

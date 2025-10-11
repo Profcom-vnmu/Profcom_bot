@@ -1,4 +1,5 @@
 using MediatR;
+using StudentUnionBot.Application.Common.Attributes;
 using StudentUnionBot.Core.Results;
 using StudentUnionBot.Domain.Enums;
 
@@ -7,6 +8,7 @@ namespace StudentUnionBot.Application.Notifications.Commands.SendNotification;
 /// <summary>
 /// Команда для відправки сповіщення
 /// </summary>
+[RequirePermission(Permission.SendNotifications)]
 public class SendNotificationCommand : IRequest<Result>
 {
     public long UserId { get; set; } // TelegramId користувача

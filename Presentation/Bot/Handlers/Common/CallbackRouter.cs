@@ -36,12 +36,24 @@ public class CallbackRouter
         
         _routes = new Dictionary<string, Func<ITelegramBotClient, CallbackQuery, CancellationToken, Task>>
         {
+            // Common routes
+            ["cancel_operation"] = HandleCancelOperationAsync,
+            
             // Appeal routes
             ["appeal_create"] = appealHandler.HandleAppealCreateCallback,
             ["appeal_cat_"] = appealHandler.HandleAppealCategorySelectionAsync,
             ["appeal_view_"] = appealHandler.HandleAppealViewCallbackAsync,
             ["appeal_list"] = appealHandler.HandleMyAppealsCallbackAsync,
             ["my_appeals"] = appealHandler.HandleMyAppealsCallbackAsync, // Alias
+            ["my_appeals_page_"] = appealHandler.HandleMyAppealsCallbackAsync, // Pagination
+            ["appeals_filters_menu"] = appealHandler.HandleAppealsFiltersMenuCallback,
+            ["appeals_filter_status_menu"] = appealHandler.HandleAppealsFilterStatusMenuCallback,
+            ["appeals_filter_category_menu"] = appealHandler.HandleAppealsFilterCategoryMenuCallback,
+            ["appeals_filter_status_"] = appealHandler.HandleAppealsFilterStatusCallback,
+            ["appeals_filter_category_"] = appealHandler.HandleAppealsFilterCategoryCallback,
+            ["appeals_filter_clear"] = appealHandler.HandleAppealsClearStatusFilterCallback,
+            ["appeals_filter_category_clear"] = appealHandler.HandleAppealsClearCategoryFilterCallback,
+            ["appeals_filter_clear_all"] = appealHandler.HandleAppealsClearAllFiltersCallback,
             
             // User routes  
             ["profile_view"] = userHandler.HandleProfileViewCallback,
@@ -68,6 +80,18 @@ public class CallbackRouter
             ["admin_set_priority_"] = adminAppealHandler.HandleAdminSetPriorityCallback,
             ["admin_reply_"] = adminAppealHandler.HandleAdminReplyCallback,
             ["admin_close_"] = adminAppealHandler.HandleAdminCloseAppealCallback,
+            ["admin_escalate_"] = adminAppealHandler.HandleAdminEscalateCallback,
+            ["admin_status_"] = adminAppealHandler.HandleAdminStatusMenuCallback,
+            ["admin_set_status_"] = adminAppealHandler.HandleAdminSetStatusCallback,
+            ["admin_reopen_"] = adminAppealHandler.HandleAdminReopenCallback,
+            ["admin_templates_"] = adminAppealHandler.HandleAdminTemplatesMenuCallback,
+            ["admin_template_ack_"] = adminAppealHandler.HandleAdminTemplateCategoryCallback,
+            ["admin_template_progress_"] = adminAppealHandler.HandleAdminTemplateCategoryCallback,
+            ["admin_template_needinfo_"] = adminAppealHandler.HandleAdminTemplateCategoryCallback,
+            ["admin_template_resolved_"] = adminAppealHandler.HandleAdminTemplateCategoryCallback,
+            ["admin_template_special_"] = adminAppealHandler.HandleAdminTemplateCategoryCallback,
+            ["admin_use_template_"] = adminAppealHandler.HandleAdminUseTemplateCallback,
+            ["admin_use_special_template_"] = adminAppealHandler.HandleAdminUseTemplateCallback,
 
             // Admin backup routes
             ["admin_backup_create"] = adminBackupHandler.HandleAdminBackupCreateCallback,
@@ -100,7 +124,15 @@ public class CallbackRouter
             
             // Content routes
             ["news_list"] = contentHandler.HandleNewsListCallback,
+            ["news_page_"] = contentHandler.HandleNewsListCallback, // Pagination
+            ["news_filters_menu"] = contentHandler.HandleNewsFiltersMenuCallback,
+            ["news_filter_category_"] = contentHandler.HandleNewsFilterCategoryCallback,
+            ["news_filter_clear"] = contentHandler.HandleNewsClearFilterCallback,
             ["events_list"] = contentHandler.HandleEventsListCallback,
+            ["events_page_"] = contentHandler.HandleEventsListCallback, // Pagination
+            ["events_filters_menu"] = contentHandler.HandleEventsFiltersMenuCallback,
+            ["events_filter_type_"] = contentHandler.HandleEventsFilterTypeCallback,
+            ["events_filter_clear"] = contentHandler.HandleEventsClearFilterCallback,
             ["partners_list"] = contentHandler.HandlePartnersListCallback,
             ["contacts_list"] = contentHandler.HandleContactsListCallback,
             ["event_details_"] = contentHandler.HandleEventDetailsCallback,
@@ -336,6 +368,72 @@ public class CallbackRouter
         if (_routes.Remove(prefix))
         {
             _logger.LogInformation("Видалено маршрут: {Prefix}", prefix);
+        }
+    }
+
+    /// <summary>
+    /// Обробляє скасування поточної операції
+    /// </summary>
+    private async Task HandleCancelOperationAsync(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        var userId = callbackQuery.From.Id;
+        
+        try
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var stateManager = scope.ServiceProvider.GetRequiredService<Application.Common.Interfaces.IUserStateManager>();
+            
+            // Очищаємо стан користувача
+            await stateManager.ClearStateAsync(userId, cancellationToken);
+            await stateManager.ClearAllDataAsync(userId, cancellationToken);
+            
+            _logger.LogInformation("Користувач {UserId} скасував поточну операцію", userId);
+
+            // Повідомляємо про скасування
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "✅ Операцію скасовано",
+                cancellationToken: cancellationToken);
+
+            // Показуємо головне меню (базова версія без перевірки адміна)
+            var keyboard = new InlineKeyboardMarkup(new[]
+            {
+                new[]
+                {
+                    InlineKeyboardButton.WithCallbackData("📝 Створити звернення", "appeal_create"),
+                    InlineKeyboardButton.WithCallbackData("📋 Мої звернення", "my_appeals")
+                },
+                new[]
+                {
+                    InlineKeyboardButton.WithCallbackData("📰 Новини", "news_list"),
+                    InlineKeyboardButton.WithCallbackData("🎉 Події", "events_list")
+                },
+                new[]
+                {
+                    InlineKeyboardButton.WithCallbackData("👤 Профіль", "profile_view")
+                }
+            });
+            
+            await botClient.EditMessageTextAsync(
+                chatId: callbackQuery.Message!.Chat.Id,
+                messageId: callbackQuery.Message.MessageId,
+                text: "❌ <b>Операцію скасовано</b>\n\nОберіть дію з меню:",
+                parseMode: ParseMode.Html,
+                replyMarkup: keyboard,
+                cancellationToken: cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при скасуванні операції для користувача {UserId}", userId);
+            
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQuery.Id,
+                "❌ Виникла помилка при скасуванні",
+                showAlert: true,
+                cancellationToken: cancellationToken);
         }
     }
 

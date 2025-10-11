@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using StudentUnionBot.Application.Common.Interfaces;
 using StudentUnionBot.Application.Users.Queries.GetUserByTelegramId;
+using StudentUnionBot.Core.Constants;
 using StudentUnionBot.Domain.Enums;
 using StudentUnionBot.Presentation.Bot.Handlers.Common;
 using StudentUnionBot.Presentation.Bot.Handlers.Interfaces;
@@ -114,15 +115,60 @@ public class CommandHandler : BaseHandler, ICommandHandler
     }
 
     /// <summary>
+    /// Формує відповідь на команду /start з привітальним повідомленням
+    /// </summary>
+    private async Task<(string responseText, IReplyMarkup? keyboard)> GetStartCommandResponseAsync(
+        long userId, 
+        bool isAdmin, 
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            // Отримуємо дані користувача для визначення мови та статусу
+            var getUserQuery = new GetUserByTelegramIdQuery { TelegramId = userId };
+            var userResult = await _mediator.Send(getUserQuery, cancellationToken);
+
+            Language language = Language.Ukrainian;
+            bool isNewUser = true;
+
+            if (userResult.IsSuccess && userResult.Value != null)
+            {
+                // Парсимо мову з DTO (string → enum)
+                language = userResult.Value.Language?.ToLower() == "en" 
+                    ? Language.English 
+                    : Language.Ukrainian;
+                
+                isNewUser = string.IsNullOrWhiteSpace(userResult.Value.Email);
+            }
+
+            // Отримуємо привітальне повідомлення
+            var welcomeMessage = WelcomeMessages.GetWelcomeMessage(language, isNewUser);
+
+            // Формуємо клавіатуру
+            var keyboard = await GetMainMenuAsync(userId, isAdmin, cancellationToken);
+
+            return (welcomeMessage, keyboard);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при формуванні відповіді на /start для користувача {UserId}", userId);
+            
+            // Fallback - базове привітання українською
+            return (
+                WelcomeMessages.GetWelcomeMessage(Language.Ukrainian, false),
+                await GetMainMenuAsync(userId, isAdmin, cancellationToken)
+            );
+        }
+    }
+
+    /// <summary>
     /// Отримує відповідь на команду
     /// </summary>
     private async Task<(string responseText, IReplyMarkup? keyboard)> GetCommandResponseAsync(string command, bool isAdmin, long userId, CancellationToken cancellationToken)
     {
         return command switch
         {
-            "/start" => (
-                await GetLocalizedTextForUserAsync(userId, "command.start_welcome", cancellationToken),
-                await GetMainMenuAsync(userId, isAdmin, cancellationToken)),
+            "/start" => await GetStartCommandResponseAsync(userId, isAdmin, cancellationToken),
             
             "/help" => (
                 await GetLocalizedTextForUserAsync(userId, "command.help_text", cancellationToken),

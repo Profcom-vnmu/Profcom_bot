@@ -76,6 +76,7 @@ try
         
         // Додаємо Pipeline Behaviors в правильному порядку
         cfg.AddOpenBehavior(typeof(StudentUnionBot.Application.Common.Behaviors.AuthorizationBehavior<,>));
+        cfg.AddOpenBehavior(typeof(StudentUnionBot.Application.Common.Behaviors.RateLimitingBehavior<,>));
         cfg.AddOpenBehavior(typeof(StudentUnionBot.Application.Common.Behaviors.ValidationBehavior<,>));
         cfg.AddOpenBehavior(typeof(StudentUnionBot.Application.Common.Behaviors.LoggingBehavior<,>));
         cfg.AddOpenBehavior(typeof(StudentUnionBot.Application.Common.Behaviors.PerformanceBehavior<,>));

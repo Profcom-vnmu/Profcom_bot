@@ -1,6 +1,7 @@
 using MediatR;
 using StudentUnionBot.Application.Appeals.DTOs;
 using StudentUnionBot.Core.Results;
+using StudentUnionBot.Domain.Enums;
 
 namespace StudentUnionBot.Application.Appeals.Queries.GetUserAppeals;
 
@@ -28,4 +29,14 @@ public class GetUserAppealsQuery : IRequest<Result<List<AppealDto>>>
     /// Чи включати тільки активні звернення (без закритих/відхилених)
     /// </summary>
     public bool OnlyActive { get; set; } = false;
+    
+    /// <summary>
+    /// Фільтр за статусом звернення (null = всі)
+    /// </summary>
+    public AppealStatus? Status { get; set; }
+    
+    /// <summary>
+    /// Фільтр за категорією звернення (null = всі)
+    /// </summary>
+    public AppealCategory? Category { get; set; }
 }

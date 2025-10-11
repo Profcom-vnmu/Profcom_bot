@@ -2,9 +2,7 @@ using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using StudentUnionBot.Application.Common.Interfaces;
-using StudentUnionBot.Domain.Interfaces;
-// using StudentUnionBot.Application.Notifications.Commands.SendBroadcast;
-// using StudentUnionBot.Application.Users.Queries.GetAllActiveUsers;
+using StudentUnionBot.Application.Users.Queries.GetActiveUsers;
 using StudentUnionBot.Domain.Enums;
 using StudentUnionBot.Presentation.Bot.Handlers.Common;
 using StudentUnionBot.Presentation.Bot.Handlers.Interfaces;
@@ -111,10 +109,11 @@ public class AdminBroadcastHandler : BaseHandler, IAdminBroadcastHandler
             // Переходимо до підтвердження
             await stateManager.SetStateAsync(userId, UserConversationState.WaitingBroadcastConfirmation, cancellationToken);
 
-            // Отримуємо кількість активних користувачів
-            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
-            var activeUsers = await unitOfWork.Users.GetActiveUsersAsync(cancellationToken);
-            var usersCount = activeUsers.Count;
+            // Отримуємо кількість активних користувачів через CQRS
+            var query = new GetActiveUsersQuery();
+            var result = await _mediator.Send(query, cancellationToken);
+            
+            var usersCount = result.IsSuccess ? result.Value!.Count : 0;
 
             await botClient.SendTextMessageAsync(
                 chatId: message.Chat.Id,

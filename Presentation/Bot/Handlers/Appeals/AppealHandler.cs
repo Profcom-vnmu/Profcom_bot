@@ -8,9 +8,11 @@ using StudentUnionBot.Application.Common.Interfaces;
 using StudentUnionBot.Domain.Enums;
 using StudentUnionBot.Presentation.Bot.Handlers.Common;
 using StudentUnionBot.Presentation.Bot.Handlers.Interfaces;
+using StudentUnionBot.Presentation.Bot.Helpers;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.ReplyMarkups;
 
 namespace StudentUnionBot.Presentation.Bot.Handlers.Appeals;
 
@@ -19,6 +21,10 @@ namespace StudentUnionBot.Presentation.Bot.Handlers.Appeals;
 /// </summary>
 public class AppealHandler : BaseHandler, IAppealHandler
 {
+    // In-memory storage для фільтрів звернень користувачів
+    private static readonly Dictionary<long, AppealStatus?> _appealStatusFilters = new();
+    private static readonly Dictionary<long, AppealCategory?> _appealCategoryFilters = new();
+
     public AppealHandler(
         IServiceScopeFactory scopeFactory,
         ILogger<AppealHandler> logger,
@@ -98,9 +104,10 @@ public class AppealHandler : BaseHandler, IAppealHandler
                 text: $"📩 <b>Створення звернення</b>\n\n" +
                       $"📁 Категорія: {categoryName}\n\n" +
                       $"Напишіть <b>тему</b> вашого звернення:\n\n" +
-                      $"<i>Мінімум 5 символів, максимум 200 символів</i>",
+                      $"<i>Мінімум 5 символів, максимум 200 символів</i>\n\n" +
+                      $"💡 Для скасування натисніть кнопку нижче",
                 parseMode: ParseMode.Html,
-                replyMarkup: GetBackToMainMenu(),
+                replyMarkup: await GetCancelKeyboardAsync(userId, cancellationToken),
                 cancellationToken: cancellationToken);
 
             await botClient.AnswerCallbackQueryAsync(
@@ -133,11 +140,21 @@ public class AppealHandler : BaseHandler, IAppealHandler
         {
             var userId = callbackQuery.From.Id;
             
+            // Парсимо номер сторінки з callback
+            var pageNumber = PaginationHelper.ParsePageNumber(callbackQuery.Data!, "my_appeals_page") ?? 1;
+            const int pageSize = 5;
+            
+            // Отримуємо активні фільтри користувача (якщо є)
+            _appealStatusFilters.TryGetValue(userId, out var selectedStatus);
+            _appealCategoryFilters.TryGetValue(userId, out var selectedCategory);
+            
             var query = new GetUserAppealsQuery 
             { 
                 UserId = userId,
-                PageNumber = 1,
-                PageSize = 10
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                Status = selectedStatus,      // Застосовуємо фільтр статусу
+                Category = selectedCategory    // Застосовуємо фільтр категорії
             };
 
             var result = await _mediator.Send(query, cancellationToken);
@@ -148,7 +165,7 @@ public class AppealHandler : BaseHandler, IAppealHandler
                     chatId: callbackQuery.Message!.Chat.Id,
                     messageId: callbackQuery.Message.MessageId,
                     text: $"❌ Помилка завантаження звернень: {result.Error}",
-                    replyMarkup: GetBackToMainMenu(),
+                    replyMarkup: await GetBackToMainMenuAsync(userId, cancellationToken),
                     cancellationToken: cancellationToken);
                 return;
             }
@@ -163,13 +180,33 @@ public class AppealHandler : BaseHandler, IAppealHandler
                           "У вас поки немає звернень.\n" +
                           "Створіть перше звернення кнопкою нижче! 👇",
                     parseMode: ParseMode.Html,
-                    replyMarkup: GetBackToMainMenu(),
+                    replyMarkup: await GetBackToMainMenuAsync(userId, cancellationToken),
                     cancellationToken: cancellationToken);
                 return;
             }
 
-            var messageText = "📋 <b>Ваші звернення</b>\n\n";
-            foreach (var appeal in appeals.Take(5))
+            // Підраховуємо загальну кількість (тут використовуємо Count для прикладу, в ідеалі отримувати з query)
+            var totalCount = appeals.Count(); // TODO: отримувати TotalCount з DTO
+            var totalPages = PaginationHelper.CalculateTotalPages(totalCount, pageSize);
+            var validPage = PaginationHelper.ValidatePageNumber(pageNumber, totalPages);
+
+            // Формуємо заголовок зі списком звернень
+            var filterParts = new List<string>();
+            if (selectedStatus.HasValue)
+                filterParts.Add($"{selectedStatus.Value.GetEmoji()} {selectedStatus.Value.GetDisplayName()}");
+            if (selectedCategory.HasValue)
+                filterParts.Add($"{selectedCategory.Value.GetEmoji()} {selectedCategory.Value.GetDisplayName()}");
+            
+            var filterInfo = filterParts.Count > 0 ? $" ({string.Join(", ", filterParts)})" : "";
+            
+            var messageText = PaginationHelper.FormatListHeader(
+                $"Ваші звернення{filterInfo}",
+                totalCount,
+                validPage,
+                totalPages,
+                pageSize);
+
+            foreach (var appeal in appeals)
             {
                 var statusIcon = appeal.Status switch
                 {
@@ -184,17 +221,50 @@ public class AppealHandler : BaseHandler, IAppealHandler
                               $"   📊 {appeal.Status}\n\n";
             }
 
+            // Створюємо кнопки для кожного звернення
+            var itemButtons = PaginationHelper.CreateItemButtons(
+                appeals,
+                buttonsPerRow: 2,
+                itemButtonFactory: a => InlineKeyboardButton.WithCallbackData(
+                    $"#{a.Id} - {a.Subject.Substring(0, Math.Min(20, a.Subject.Length))}...",
+                    $"appeal_view_{a.Id}"));
+
+            // Створюємо список кнопок для клавіатури
+            var buttons = itemButtons.ToList();
+            
+            // Додаємо кнопку фільтрів на початок
+            var hasActiveFilters = selectedStatus.HasValue || selectedCategory.HasValue;
+            FilterHelper.AddFilterButton(
+                buttons, 
+                "appeals_filters_menu", 
+                hasActiveFilters: hasActiveFilters);
+
+            // Додаємо навігаційні кнопки
+            var navButtons = PaginationHelper.GetNavigationButtons(validPage, totalPages, "my_appeals_page");
+            if (navButtons.Count > 0)
+            {
+                buttons.Add(navButtons);
+            }
+
+            // Кнопка "Назад до головного меню"
+            buttons.Add(new List<InlineKeyboardButton>
+            {
+                InlineKeyboardButton.WithCallbackData("🔙 Головне меню", "back_to_main")
+            });
+
+            var keyboard = new InlineKeyboardMarkup(buttons);
+
             await botClient.EditMessageTextAsync(
                 chatId: callbackQuery.Message!.Chat.Id,
                 messageId: callbackQuery.Message.MessageId,
                 text: messageText,
                 parseMode: ParseMode.Html,
-                replyMarkup: GetBackToMainMenu(),
+                replyMarkup: keyboard,
                 cancellationToken: cancellationToken);
 
             await botClient.AnswerCallbackQueryAsync(
                 callbackQueryId: callbackQuery.Id,
-                text: $"Знайдено {appeals.Count()} звернень",
+                text: $"Сторінка {validPage} з {totalPages}",
                 cancellationToken: cancellationToken);
 
             _logger.LogInformation("Користувач {UserId} переглянув свої звернення ({Count})", userId, appeals.Count());
@@ -324,8 +394,10 @@ public class AppealHandler : BaseHandler, IAppealHandler
                 chatId: message.Chat.Id,
                 text: $"📝 Тема збережена: <b>{subject}</b>\n\n" +
                       "📖 Тепер опишіть вашу проблему детально.\n\n" +
-                      "<i>Мінімум 10 символів, максимум 2000 символів.</i>",
+                      "<i>Мінімум 10 символів, максимум 2000 символів.</i>\n\n" +
+                      "💡 Для скасування натисніть кнопку нижче",
                 parseMode: ParseMode.Html,
+                replyMarkup: await GetCancelKeyboardAsync(userId, cancellationToken),
                 cancellationToken: cancellationToken);
 
             _logger.LogInformation("Користувач {UserId} ввів тему звернення: {Subject}", userId, subject);
@@ -492,6 +564,270 @@ public class AppealHandler : BaseHandler, IAppealHandler
                 text: "❌ Виникла помилка. Спробуйте пізніше.",
                 showAlert: true,
                 cancellationToken: cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Відображає меню вибору фільтрів для звернень
+    /// </summary>
+    public async Task HandleAppealsFiltersMenuCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = callbackQuery.From.Id;
+            
+            var buttons = new List<List<InlineKeyboardButton>>
+            {
+                new List<InlineKeyboardButton>
+                {
+                    InlineKeyboardButton.WithCallbackData("📊 Фільтр за статусом", "appeals_filter_status_menu")
+                },
+                new List<InlineKeyboardButton>
+                {
+                    InlineKeyboardButton.WithCallbackData("📂 Фільтр за категорією", "appeals_filter_category_menu")
+                },
+                new List<InlineKeyboardButton>
+                {
+                    InlineKeyboardButton.WithCallbackData("🔄 Скинути всі фільтри", "appeals_filter_clear_all")
+                },
+                new List<InlineKeyboardButton>
+                {
+                    InlineKeyboardButton.WithCallbackData("🔙 Назад до списку", "my_appeals")
+                }
+            };
+
+            await botClient.EditMessageTextAsync(
+                chatId: callbackQuery.Message!.Chat.Id,
+                messageId: callbackQuery.Message.MessageId,
+                text: "🔍 <b>Фільтри звернень</b>\n\nОберіть тип фільтру:",
+                parseMode: ParseMode.Html,
+                replyMarkup: new InlineKeyboardMarkup(buttons),
+                cancellationToken: cancellationToken);
+
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQueryId: callbackQuery.Id,
+                cancellationToken: cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при відображенні меню фільтрів звернень для користувача {UserId}", callbackQuery.From.Id);
+        }
+    }
+
+    /// <summary>
+    /// Відображає меню вибору статусу для фільтрації
+    /// </summary>
+    public async Task HandleAppealsFilterStatusMenuCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = callbackQuery.From.Id;
+            _appealStatusFilters.TryGetValue(userId, out var selectedStatus);
+
+            var keyboard = FilterHelper.CreateAppealStatusFilterKeyboard(
+                selectedStatus,
+                backCallbackData: "appeals_filters_menu");
+
+            await botClient.EditMessageTextAsync(
+                chatId: callbackQuery.Message!.Chat.Id,
+                messageId: callbackQuery.Message.MessageId,
+                text: "🔍 <b>Фільтр за статусом</b>\n\nОберіть статус звернення:",
+                parseMode: ParseMode.Html,
+                replyMarkup: keyboard,
+                cancellationToken: cancellationToken);
+
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQueryId: callbackQuery.Id,
+                cancellationToken: cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при відображенні фільтру статусів для користувача {UserId}", callbackQuery.From.Id);
+        }
+    }
+
+    /// <summary>
+    /// Відображає меню вибору категорії для фільтрації
+    /// </summary>
+    public async Task HandleAppealsFilterCategoryMenuCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = callbackQuery.From.Id;
+            _appealCategoryFilters.TryGetValue(userId, out var selectedCategory);
+
+            var keyboard = FilterHelper.CreateAppealCategoryFilterKeyboard(
+                selectedCategory,
+                backCallbackData: "appeals_filters_menu");
+
+            await botClient.EditMessageTextAsync(
+                chatId: callbackQuery.Message!.Chat.Id,
+                messageId: callbackQuery.Message.MessageId,
+                text: "🔍 <b>Фільтр за категорією</b>\n\nОберіть категорію звернення:",
+                parseMode: ParseMode.Html,
+                replyMarkup: keyboard,
+                cancellationToken: cancellationToken);
+
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQueryId: callbackQuery.Id,
+                cancellationToken: cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при відображенні фільтру категорій для користувача {UserId}", callbackQuery.From.Id);
+        }
+    }
+
+    /// <summary>
+    /// Застосовує фільтр статусу звернення
+    /// </summary>
+    public async Task HandleAppealsFilterStatusCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = callbackQuery.From.Id;
+            var status = FilterHelper.ParseAppealStatusFromCallback(callbackQuery.Data!);
+
+            if (status.HasValue)
+            {
+                _appealStatusFilters[userId] = status.Value;
+                await botClient.AnswerCallbackQueryAsync(
+                    callbackQueryId: callbackQuery.Id,
+                    text: $"✅ Фільтр: {status.Value.GetDisplayName()}",
+                    cancellationToken: cancellationToken);
+            }
+
+            // Повертаємось до списку звернень з застосованим фільтром
+            await HandleMyAppealsCallbackAsync(botClient, callbackQuery, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при застосуванні фільтру статусу для користувача {UserId}", callbackQuery.From.Id);
+        }
+    }
+
+    /// <summary>
+    /// Застосовує фільтр категорії звернення
+    /// </summary>
+    public async Task HandleAppealsFilterCategoryCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = callbackQuery.From.Id;
+            var category = FilterHelper.ParseAppealCategoryFromCallback(callbackQuery.Data!);
+
+            if (category.HasValue)
+            {
+                _appealCategoryFilters[userId] = category.Value;
+                await botClient.AnswerCallbackQueryAsync(
+                    callbackQueryId: callbackQuery.Id,
+                    text: $"✅ Фільтр: {category.Value.GetDisplayName()}",
+                    cancellationToken: cancellationToken);
+            }
+
+            // Повертаємось до списку звернень з застосованим фільтром
+            await HandleMyAppealsCallbackAsync(botClient, callbackQuery, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при застосуванні фільтру категорії для користувача {UserId}", callbackQuery.From.Id);
+        }
+    }
+
+    /// <summary>
+    /// Очищає фільтр статусу звернень
+    /// </summary>
+    public async Task HandleAppealsClearStatusFilterCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = callbackQuery.From.Id;
+            _appealStatusFilters.Remove(userId);
+
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQueryId: callbackQuery.Id,
+                text: "✅ Фільтр статусу скинуто",
+                cancellationToken: cancellationToken);
+
+            // Повертаємось до списку звернень
+            await HandleMyAppealsCallbackAsync(botClient, callbackQuery, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при скиданні фільтру статусу для користувача {UserId}", callbackQuery.From.Id);
+        }
+    }
+
+    /// <summary>
+    /// Очищає фільтр категорії звернень
+    /// </summary>
+    public async Task HandleAppealsClearCategoryFilterCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = callbackQuery.From.Id;
+            _appealCategoryFilters.Remove(userId);
+
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQueryId: callbackQuery.Id,
+                text: "✅ Фільтр категорії скинуто",
+                cancellationToken: cancellationToken);
+
+            // Повертаємось до списку звернень
+            await HandleMyAppealsCallbackAsync(botClient, callbackQuery, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при скиданні фільтру категорії для користувача {UserId}", callbackQuery.From.Id);
+        }
+    }
+
+    /// <summary>
+    /// Очищає всі фільтри звернень
+    /// </summary>
+    public async Task HandleAppealsClearAllFiltersCallback(
+        ITelegramBotClient botClient,
+        CallbackQuery callbackQuery,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var userId = callbackQuery.From.Id;
+            _appealStatusFilters.Remove(userId);
+            _appealCategoryFilters.Remove(userId);
+
+            await botClient.AnswerCallbackQueryAsync(
+                callbackQueryId: callbackQuery.Id,
+                text: "✅ Всі фільтри скинуто",
+                cancellationToken: cancellationToken);
+
+            // Повертаємось до списку звернень
+            await HandleMyAppealsCallbackAsync(botClient, callbackQuery, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Помилка при скиданні всіх фільтрів для користувача {UserId}", callbackQuery.From.Id);
         }
     }
 

@@ -1,11 +1,15 @@
 using MediatR;
+using StudentUnionBot.Application.Common.Attributes;
 using StudentUnionBot.Core.Results;
+using StudentUnionBot.Domain.Enums;
 
 namespace StudentUnionBot.Application.Appeals.Commands.ReplyToAppeal;
 
 /// <summary>
 /// Команда для відповіді адміністратора на звернення
 /// </summary>
+[RequirePermission(Permission.ReplyToAppeal)]
+[RateLimit("SendMessage")]
 public class ReplyToAppealCommand : IRequest<Result<int>>
 {
     /// <summary>

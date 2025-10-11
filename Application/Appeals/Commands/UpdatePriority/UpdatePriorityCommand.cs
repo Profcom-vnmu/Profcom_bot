@@ -1,4 +1,5 @@
 using MediatR;
+using StudentUnionBot.Application.Common.Attributes;
 using StudentUnionBot.Core.Results;
 using StudentUnionBot.Domain.Enums;
 
@@ -7,6 +8,7 @@ namespace StudentUnionBot.Application.Appeals.Commands.UpdatePriority;
 /// <summary>
 /// Команда для зміни пріоритету звернення
 /// </summary>
+[RequirePermission(Permission.EditAppealPriority)]
 public class UpdatePriorityCommand : IRequest<Result<bool>>
 {
     /// <summary>

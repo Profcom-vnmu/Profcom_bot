@@ -1,12 +1,15 @@
 using MediatR;
+using StudentUnionBot.Application.Common.Attributes;
 using StudentUnionBot.Application.Files.DTOs;
 using StudentUnionBot.Core.Results;
+using StudentUnionBot.Domain.Enums;
 
 namespace StudentUnionBot.Application.Files.Commands.UploadFile;
 
 /// <summary>
 /// Команда для завантаження файла
 /// </summary>
+[RequirePermission(Permission.UploadFile)]
 public class UploadFileCommand : IRequest<Result<FileAttachmentDto>>
 {
     /// <summary>

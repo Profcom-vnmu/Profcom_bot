@@ -11,6 +11,7 @@ namespace StudentUnionBot.Application.News.Commands.CreateNews;
 /// Command для створення нової новини
 /// </summary>
 [RequirePermission(Permission.CreateNews)]
+[RateLimit("CreateNews")]
 public class CreateNewsCommand : IRequest<Result<NewsDto>>
 {
     /// <summary>

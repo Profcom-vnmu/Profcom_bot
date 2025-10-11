@@ -563,9 +563,10 @@ public class UserHandler : BaseHandler, IUserHandler
             messageId: callbackQuery.Message.MessageId,
             text: "📧 <b>Зміна Email адреси</b>\n\n" +
                   "Введіть нову email адресу для отримання повідомлень:\n\n" +
-                  "<i>Приклад: student@vnmu.edu.ua</i>",
+                  "<i>Приклад: student@vnmu.edu.ua</i>\n\n" +
+                  "💡 Для скасування натисніть кнопку нижче",
             parseMode: ParseMode.Html,
-            replyMarkup: GetBackToMainMenu(),
+            replyMarkup: await GetCancelKeyboardAsync(userId, cancellationToken),
             cancellationToken: cancellationToken);
 
         await botClient.AnswerCallbackQueryAsync(

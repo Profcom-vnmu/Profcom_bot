@@ -1,11 +1,14 @@
 using MediatR;
+using StudentUnionBot.Application.Common.Attributes;
 using StudentUnionBot.Core.Results;
+using StudentUnionBot.Domain.Enums;
 
 namespace StudentUnionBot.Application.Appeals.Commands.CloseAppeal;
 
 /// <summary>
 /// Команда для закриття звернення адміністратором
 /// </summary>
+[RequirePermission(Permission.CloseAppeal)]
 public class CloseAppealCommand : IRequest<Result<bool>>
 {
     /// <summary>
