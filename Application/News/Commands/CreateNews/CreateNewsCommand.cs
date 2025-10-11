@@ -2,12 +2,15 @@ using MediatR;
 using StudentUnionBot.Core.Results;
 using StudentUnionBot.Application.News.DTOs;
 using StudentUnionBot.Domain.Enums;
+using StudentUnionBot.Application.Common.Attributes;
+using StudentUnionBot.Application.Common.Models;
 
 namespace StudentUnionBot.Application.News.Commands.CreateNews;
 
 /// <summary>
 /// Command для створення нової новини
 /// </summary>
+[RequirePermission(Permission.CreateNews)]
 public class CreateNewsCommand : IRequest<Result<NewsDto>>
 {
     /// <summary>
@@ -61,7 +64,7 @@ public class CreateNewsCommand : IRequest<Result<NewsDto>>
     public bool SendPushNotification { get; set; } = false;
 
     /// <summary>
-    /// Додаткові файли (фото, документи) - масив File IDs з Telegram
+    /// Прикріплені файли (фото, документи, відео)
     /// </summary>
-    public List<string> AttachmentFileIds { get; set; } = new();
+    public List<FileAttachmentDto> Attachments { get; set; } = new();
 }

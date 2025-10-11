@@ -2,12 +2,14 @@ using MediatR;
 using StudentUnionBot.Core.Results;
 using StudentUnionBot.Application.News.DTOs;
 using StudentUnionBot.Domain.Enums;
+using StudentUnionBot.Application.Common.Attributes;
 
 namespace StudentUnionBot.Application.News.Commands.UpdateNews;
 
 /// <summary>
 /// Command для оновлення існуючої новини
 /// </summary>
+[RequirePermission(Permission.EditNews)]
 public class UpdateNewsCommand : IRequest<Result<NewsDto>>
 {
     /// <summary>

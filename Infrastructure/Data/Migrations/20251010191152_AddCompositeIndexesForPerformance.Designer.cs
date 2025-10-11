@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using StudentUnionBot.Infrastructure.Data;
 
@@ -10,9 +11,11 @@ using StudentUnionBot.Infrastructure.Data;
 namespace StudentUnionBot.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(BotDbContext))]
-    partial class BotDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251010191152_AddCompositeIndexesForPerformance")]
+    partial class AddCompositeIndexesForPerformance
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.0");
@@ -574,45 +577,6 @@ namespace StudentUnionBot.Infrastructure.Data.Migrations
                     b.ToTable("Events");
                 });
 
-            modelBuilder.Entity("StudentUnionBot.Domain.Entities.EventAttachment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("EventId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("FileId")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("FileName")
-                        .HasMaxLength(300)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("FileType")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EventId");
-
-                    b.HasIndex("FileType");
-
-                    b.HasIndex("EventId", "DisplayOrder")
-                        .HasDatabaseName("IX_EventAttachments_EventId_DisplayOrder");
-
-                    b.ToTable("EventAttachments");
-                });
-
             modelBuilder.Entity("StudentUnionBot.Domain.Entities.FileAttachment", b =>
                 {
                     b.Property<int>("Id")
@@ -787,45 +751,6 @@ namespace StudentUnionBot.Infrastructure.Data.Migrations
                         .HasDatabaseName("IX_News_IsPublished_IsPinned_CreatedAt");
 
                     b.ToTable("News");
-                });
-
-            modelBuilder.Entity("StudentUnionBot.Domain.Entities.NewsAttachment", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("FileId")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("FileName")
-                        .HasMaxLength(300)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("FileType")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("NewsId")
-                        .HasColumnType("INTEGER");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("FileType");
-
-                    b.HasIndex("NewsId");
-
-                    b.HasIndex("NewsId", "DisplayOrder")
-                        .HasDatabaseName("IX_NewsAttachments_NewsId_DisplayOrder");
-
-                    b.ToTable("NewsAttachments");
                 });
 
             modelBuilder.Entity("StudentUnionBot.Domain.Entities.Notification", b =>
@@ -1204,17 +1129,6 @@ namespace StudentUnionBot.Infrastructure.Data.Migrations
                     b.Navigation("Appeal");
                 });
 
-            modelBuilder.Entity("StudentUnionBot.Domain.Entities.EventAttachment", b =>
-                {
-                    b.HasOne("StudentUnionBot.Domain.Entities.Event", "Event")
-                        .WithMany("EventAttachments")
-                        .HasForeignKey("EventId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Event");
-                });
-
             modelBuilder.Entity("StudentUnionBot.Domain.Entities.FileAttachment", b =>
                 {
                     b.HasOne("StudentUnionBot.Domain.Entities.News", null)
@@ -1228,17 +1142,6 @@ namespace StudentUnionBot.Infrastructure.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("UploadedBy");
-                });
-
-            modelBuilder.Entity("StudentUnionBot.Domain.Entities.NewsAttachment", b =>
-                {
-                    b.HasOne("StudentUnionBot.Domain.Entities.News", "News")
-                        .WithMany("NewsAttachments")
-                        .HasForeignKey("NewsId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("News");
                 });
 
             modelBuilder.Entity("StudentUnionBot.Domain.Entities.Notification", b =>
@@ -1301,11 +1204,6 @@ namespace StudentUnionBot.Infrastructure.Data.Migrations
                     b.Navigation("Appeals");
                 });
 
-            modelBuilder.Entity("StudentUnionBot.Domain.Entities.Event", b =>
-                {
-                    b.Navigation("EventAttachments");
-                });
-
             modelBuilder.Entity("StudentUnionBot.Domain.Entities.FileAttachment", b =>
                 {
                     b.Navigation("AppealAttachments");
@@ -1314,8 +1212,6 @@ namespace StudentUnionBot.Infrastructure.Data.Migrations
             modelBuilder.Entity("StudentUnionBot.Domain.Entities.News", b =>
                 {
                     b.Navigation("Attachments");
-
-                    b.Navigation("NewsAttachments");
                 });
 #pragma warning restore 612, 618
         }

@@ -207,6 +207,115 @@ public class NotificationService : INotificationService
         }
     }
 
+    public async Task<Result<int>> SendNewsPublishedNotificationAsync(
+        int newsId,
+        string title,
+        string summary,
+        NewsCategory category,
+        string? photoFileId = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Sending news published notifications for news {NewsId}", newsId);
+
+            // Отримуємо всіх активних користувачів (не заблокованих)
+            var allUsers = await _unitOfWork.Users.GetAllAsync(cancellationToken);
+            var activeUsers = allUsers.Where(u => !u.IsBanned).ToList();
+
+            var categoryIcon = category.GetEmoji();
+
+            var message = $"{categoryIcon} <b>Нова новина: {title}</b>\n\n{summary}\n\n💬 Читайте більше в розділі \"Новини\"";
+
+            var sentCount = 0;
+
+            foreach (var user in activeUsers)
+            {
+                try
+                {
+                    var result = await _pushProvider.SendPushAsync(user.TelegramId, message, cancellationToken);
+                    if (result.IsSuccess)
+                    {
+                        sentCount++;
+                    }
+                    
+                    // Невелика затримка між повідомленнями
+                    await Task.Delay(50, cancellationToken);
+                }
+                catch (Exception userEx)
+                {
+                    _logger.LogWarning(userEx, "Failed to send news notification to user {UserId}", user.TelegramId);
+                }
+            }
+
+            _logger.LogInformation("Sent news notification to {SentCount}/{TotalCount} users", sentCount, activeUsers.Count);
+
+            return Result<int>.Ok(sentCount);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error sending news published notifications for news {NewsId}", newsId);
+            return Result<int>.Fail("Помилка відправки сповіщень про новину");
+        }
+    }
+
+    public async Task<Result<int>> SendEventCreatedNotificationAsync(
+        int eventId,
+        string title,
+        string summary,
+        DateTime eventDate,
+        string? location = null,
+        string? photoFileId = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            _logger.LogInformation("Sending event created notifications for event {EventId}", eventId);
+
+            // Отримуємо всіх активних користувачів
+            var allUsers = await _unitOfWork.Users.GetAllAsync(cancellationToken);
+            var activeUsers = allUsers.Where(u => !u.IsBanned).ToList();
+
+            var eventDateStr = eventDate.ToString("dd.MM.yyyy HH:mm");
+            var locationStr = !string.IsNullOrEmpty(location) ? $"\n📍 Місце: {location}" : "";
+
+            var message = $"🎉 <b>Нова подія: {title}</b>\n\n" +
+                         $"{summary}\n\n" +
+                         $"📅 Дата: {eventDateStr}{locationStr}\n\n" +
+                         $"🎫 Реєструйтесь в розділі \"Події\"";
+
+            var sentCount = 0;
+
+            foreach (var user in activeUsers)
+            {
+                try
+                {
+                    var result = await _pushProvider.SendPushAsync(user.TelegramId, message, cancellationToken);
+                    if (result.IsSuccess)
+                    {
+                        sentCount++;
+                    }
+                    
+                    // Невелика затримка між повідомленнями
+                    await Task.Delay(50, cancellationToken);
+                }
+                catch (Exception userEx)
+                {
+                    _logger.LogWarning(userEx, "Failed to send event notification to user {UserId}", user.TelegramId);
+                }
+            }
+
+            _logger.LogInformation("Sent event notification to {SentCount}/{TotalCount} users", sentCount, activeUsers.Count);
+
+            return Result<int>.Ok(sentCount);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error sending event created notifications for event {EventId}", eventId);
+            return Result<int>.Fail("Помилка відправки сповіщень про подію");
+        }
+    }
+
     private async Task<Result> SendEmailNotificationAsync(Notification notification, CancellationToken cancellationToken)
     {
         try

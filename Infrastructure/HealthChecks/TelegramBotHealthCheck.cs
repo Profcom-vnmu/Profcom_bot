@@ -26,11 +26,11 @@ public class TelegramBotHealthCheck : IHealthCheck
 
             var data = new Dictionary<string, object>
             {
-                { "bot_username", me.Username ?? "unknown" },
-                { "bot_id", me.Id },
-                { "can_join_groups", me.CanJoinGroups },
-                { "can_read_all_group_messages", me.CanReadAllGroupMessages },
-                { "supports_inline_queries", me.SupportsInlineQueries }
+                { "bot_username", (object)(me.Username ?? "unknown") },
+                { "bot_id", (object)me.Id },
+                { "can_join_groups", (object)(me.CanJoinGroups ?? false) },
+                { "can_read_all_group_messages", (object)(me.CanReadAllGroupMessages ?? false) },
+                { "supports_inline_queries", (object)(me.SupportsInlineQueries ?? false) }
             };
 
             return HealthCheckResult.Healthy(

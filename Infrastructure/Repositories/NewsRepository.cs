@@ -151,4 +151,18 @@ public class NewsRepository : BaseRepository<News>, INewsRepository
 
         return await query.CountAsync(cancellationToken);
     }
+
+    public async Task<IEnumerable<News>> GetScheduledForPublicationAsync(
+        DateTime currentTime,
+        CancellationToken cancellationToken = default)
+    {
+        return await Context.Set<News>()
+            .AsNoTracking()
+            .Where(n => n.PublishAt.HasValue 
+                && n.PublishAt.Value <= currentTime 
+                && !n.IsPublished 
+                && !n.IsArchived)
+            .OrderBy(n => n.PublishAt)
+            .ToListAsync(cancellationToken);
+    }
 }

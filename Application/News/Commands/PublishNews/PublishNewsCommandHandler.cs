@@ -3,26 +3,29 @@ using Microsoft.Extensions.Logging;
 using StudentUnionBot.Application.News.DTOs;
 using StudentUnionBot.Core.Results;
 using StudentUnionBot.Domain.Interfaces;
+using StudentUnionBot.Domain.Enums;
 
 namespace StudentUnionBot.Application.News.Commands.PublishNews;
 
 /// <summary>
-/// Handler для публікації новини з інвалідацією кешу
+/// Handler для публікації новини з інвалідацією кешу та відправкою сповіщень
 /// </summary>
 public class PublishNewsCommandHandler : IRequestHandler<PublishNewsCommand, Result<NewsDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IStudentUnionCacheService _cacheService;
+    private readonly INotificationService _notificationService;
     private readonly ILogger<PublishNewsCommandHandler> _logger;
-    // TODO: Додати INotificationService для відправки повідомлень
 
     public PublishNewsCommandHandler(
         IUnitOfWork unitOfWork,
         IStudentUnionCacheService cacheService,
+        INotificationService notificationService,
         ILogger<PublishNewsCommandHandler> logger)
     {
         _unitOfWork = unitOfWork;
         _cacheService = cacheService;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -58,9 +61,6 @@ public class PublishNewsCommandHandler : IRequestHandler<PublishNewsCommand, Res
                 _logger.LogWarning("Publisher {PublisherId} not found", request.PublisherId);
                 return Result<NewsDto>.Fail("Публікувач не знайдений");
             }
-
-            // TODO: Додати перевірку прав доступу для публікації
-            // if (!publisher.CanPublishNews)
 
             // Якщо є запланована дата публікації
             if (request.ScheduledPublishDate.HasValue)
@@ -107,16 +107,42 @@ public class PublishNewsCommandHandler : IRequestHandler<PublishNewsCommand, Res
                     request.NewsId
                 );
 
-                // TODO: Реалізувати через NotificationService
-                /*
-                await _notificationService.SendNewsNotificationAsync(new NewsNotificationRequest
+                try
                 {
-                    NewsId = news.Id,
-                    Title = news.Title,
-                    Summary = news.Summary ?? news.ContentPreview,
-                    Category = news.Category
-                }, cancellationToken);
-                */
+                    // Створюємо сповіщення для всіх активних користувачів
+                    var notificationResult = await _notificationService.SendNewsPublishedNotificationAsync(
+                        newsId: news.Id,
+                        title: news.Title,
+                        summary: news.Summary ?? (news.Content.Length > 200 ? news.Content.Substring(0, 197) + "..." : news.Content),
+                        category: news.Category,
+                        photoFileId: news.PhotoFileId,
+                        cancellationToken: cancellationToken
+                    );
+
+                    if (notificationResult.IsSuccess)
+                    {
+                        _logger.LogInformation(
+                            "Successfully sent push notification for news {NewsId}",
+                            request.NewsId
+                        );
+                    }
+                    else
+                    {
+                        _logger.LogWarning(
+                            "Failed to send push notification for news {NewsId}: {Error}",
+                            request.NewsId,
+                            notificationResult.Error
+                        );
+                    }
+                }
+                catch (Exception notifEx)
+                {
+                    // Не припиняємо публікацію через помилку сповіщень
+                    _logger.LogError(notifEx,
+                        "Error sending push notification for news {NewsId}",
+                        request.NewsId
+                    );
+                }
             }
 
             // Конвертуємо в DTO

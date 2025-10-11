@@ -34,7 +34,7 @@ public class AppealAssignmentService : IAppealAssignmentService
                 return Result<BotUser>.Fail(bestAdminResult.Error);
             }
 
-            var bestAdmin = bestAdminResult.Value;
+            var bestAdmin = bestAdminResult.Value!;
 
             // Призначаємо апел
             var assignResult = await AssignAppealToAdminAsync(appeal, bestAdmin.TelegramId, cancellationToken);

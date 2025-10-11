@@ -397,17 +397,167 @@ public class NewsManagementHandler : BaseHandler, INewsManagementHandler
         return new InlineKeyboardMarkup(buttons);
     }
 
-    // Заглушки для методів редагування (будуть реалізовані пізніше)
+    // Методи редагування новин
     private async Task HandleEditNewsTitle(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
     {
-        // TODO: Реалізувати редагування заголовку
-        await Task.CompletedTask;
+        var userId = message.From!.Id;
+        var newTitle = message.Text?.Trim();
+
+        if (string.IsNullOrWhiteSpace(newTitle))
+        {
+            await botClient.SendTextMessageAsync(
+                chatId: userId,
+                text: "❌ Заголовок не може бути порожнім. Спробуйте ще раз:",
+                parseMode: ParseMode.Html,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        if (newTitle.Length < 10 || newTitle.Length > 200)
+        {
+            await botClient.SendTextMessageAsync(
+                chatId: userId,
+                text: "❌ Заголовок має бути від 10 до 200 символів. Спробуйте ще раз:",
+                parseMode: ParseMode.Html,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        using var scope = _scopeFactory.CreateScope();
+        var stateManager = scope.ServiceProvider.GetRequiredService<IUserStateManager>();
+
+        // Отримуємо ID новини зі збереженого стану
+        var newsIdStr = await stateManager.GetDataAsync<string>(userId, "editing_news_id", cancellationToken);
+        
+        if (string.IsNullOrEmpty(newsIdStr) || !int.TryParse(newsIdStr, out var newsId))
+        {
+            await botClient.SendTextMessageAsync(
+                chatId: userId,
+                text: "❌ Помилка: новина не знайдена. Спробуйте знову з початку.",
+                parseMode: ParseMode.Html,
+                cancellationToken: cancellationToken);
+            
+            await stateManager.ClearStateAsync(userId, cancellationToken);
+            return;
+        }
+
+        // Оновлюємо заголовок через UpdateNewsCommand
+        var updateCommand = new Application.News.Commands.UpdateNews.UpdateNewsCommand
+        {
+            NewsId = newsId,
+            Title = newTitle,
+            EditorId = userId
+        };
+
+        var result = await _mediator.Send(updateCommand, cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            await botClient.SendTextMessageAsync(
+                chatId: userId,
+                text: $"✅ <b>Заголовок успішно оновлено!</b>\n\n" +
+                      $"Новий заголовок: {newTitle}",
+                parseMode: ParseMode.Html,
+                cancellationToken: cancellationToken);
+
+            _logger.LogInformation(
+                "News {NewsId} title updated by admin {AdminId}",
+                newsId,
+                userId);
+        }
+        else
+        {
+            await botClient.SendTextMessageAsync(
+                chatId: userId,
+                text: $"❌ Помилка при оновленні: {result.Error}",
+                parseMode: ParseMode.Html,
+                cancellationToken: cancellationToken);
+        }
+
+        // Очищуємо стан
+        await stateManager.ClearStateAsync(userId, cancellationToken);
+        await stateManager.ClearAllDataAsync(userId, cancellationToken);
     }
 
     private async Task HandleEditNewsContent(ITelegramBotClient botClient, Message message, CancellationToken cancellationToken)
     {
-        // TODO: Реалізувати редагування вмісту
-        await Task.CompletedTask;
+        var userId = message.From!.Id;
+        var newContent = message.Text?.Trim();
+
+        if (string.IsNullOrWhiteSpace(newContent))
+        {
+            await botClient.SendTextMessageAsync(
+                chatId: userId,
+                text: "❌ Контент не може бути порожнім. Спробуйте ще раз:",
+                parseMode: ParseMode.Html,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        if (newContent.Length < 50)
+        {
+            await botClient.SendTextMessageAsync(
+                chatId: userId,
+                text: "❌ Контент має бути не менше 50 символів. Спробуйте ще раз:",
+                parseMode: ParseMode.Html,
+                cancellationToken: cancellationToken);
+            return;
+        }
+
+        using var scope = _scopeFactory.CreateScope();
+        var stateManager = scope.ServiceProvider.GetRequiredService<IUserStateManager>();
+
+        // Отримуємо ID новини зі збереженого стану
+        var newsIdStr = await stateManager.GetDataAsync<string>(userId, "editing_news_id", cancellationToken);
+        
+        if (string.IsNullOrEmpty(newsIdStr) || !int.TryParse(newsIdStr, out var newsId))
+        {
+            await botClient.SendTextMessageAsync(
+                chatId: userId,
+                text: "❌ Помилка: новина не знайдена. Спробуйте знову з початку.",
+                parseMode: ParseMode.Html,
+                cancellationToken: cancellationToken);
+            
+            await stateManager.ClearStateAsync(userId, cancellationToken);
+            return;
+        }
+
+        // Оновлюємо контент через UpdateNewsCommand
+        var updateCommand = new Application.News.Commands.UpdateNews.UpdateNewsCommand
+        {
+            NewsId = newsId,
+            Content = newContent,
+            EditorId = userId
+        };
+
+        var result = await _mediator.Send(updateCommand, cancellationToken);
+
+        if (result.IsSuccess)
+        {
+            await botClient.SendTextMessageAsync(
+                chatId: userId,
+                text: $"✅ <b>Контент успішно оновлено!</b>\n\n" +
+                      $"Перші 100 символів:\n{newContent.Substring(0, Math.Min(100, newContent.Length))}...",
+                parseMode: ParseMode.Html,
+                cancellationToken: cancellationToken);
+
+            _logger.LogInformation(
+                "News {NewsId} content updated by admin {AdminId}",
+                newsId,
+                userId);
+        }
+        else
+        {
+            await botClient.SendTextMessageAsync(
+                chatId: userId,
+                text: $"❌ Помилка при оновленні: {result.Error}",
+                parseMode: ParseMode.Html,
+                cancellationToken: cancellationToken);
+        }
+
+        // Очищуємо стан
+        await stateManager.ClearStateAsync(userId, cancellationToken);
+        await stateManager.ClearAllDataAsync(userId, cancellationToken);
     }
 
     #endregion

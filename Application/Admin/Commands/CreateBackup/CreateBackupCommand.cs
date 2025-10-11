@@ -1,8 +1,11 @@
 using MediatR;
 using StudentUnionBot.Core.Results;
+using StudentUnionBot.Application.Common.Attributes;
+using StudentUnionBot.Domain.Enums;
 
 namespace StudentUnionBot.Application.Admin.Commands.CreateBackup;
 
+[RequirePermission(Permission.CreateBackup)]
 public class CreateBackupCommand : IRequest<Result<BackupResultDto>>
 {
     public long AdminId { get; set; }

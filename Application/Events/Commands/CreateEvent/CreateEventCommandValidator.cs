@@ -89,11 +89,17 @@ public class CreateEventCommandValidator : AbstractValidator<CreateEventCommand>
             .IsInEnum().WithMessage("Невалідна мова події");
 
         // Валідація файлів
-        RuleForEach(x => x.AttachmentFileIds)
-            .NotEmpty().WithMessage("ID файлу не може бути порожнім")
-            .When(x => x.AttachmentFileIds.Any());
+        RuleForEach(x => x.Attachments)
+            .ChildRules(attachment =>
+            {
+                attachment.RuleFor(a => a.FileId)
+                    .NotEmpty().WithMessage("ID файлу не може бути порожнім");
+                attachment.RuleFor(a => a.FileType)
+                    .IsInEnum().WithMessage("Невалідний тип файлу");
+            })
+            .When(x => x.Attachments.Any());
 
-        RuleFor(x => x.AttachmentFileIds)
+        RuleFor(x => x.Attachments)
             .Must(list => list.Count <= 5)
             .WithMessage("Не можна додавати більше 5 файлів до однієї події");
 

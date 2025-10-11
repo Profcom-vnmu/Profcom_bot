@@ -2,12 +2,15 @@ using MediatR;
 using StudentUnionBot.Core.Results;
 using StudentUnionBot.Application.Events.DTOs;
 using StudentUnionBot.Domain.Enums;
+using StudentUnionBot.Application.Common.Attributes;
+using StudentUnionBot.Application.Common.Models;
 
 namespace StudentUnionBot.Application.Events.Commands.CreateEvent;
 
 /// <summary>
 /// Command для створення нової події
 /// </summary>
+[RequirePermission(Permission.CreateEvent)]
 public class CreateEventCommand : IRequest<Result<EventDto>>
 {
     /// <summary>
@@ -101,9 +104,9 @@ public class CreateEventCommand : IRequest<Result<EventDto>>
     public Language Language { get; set; } = Language.Ukrainian;
 
     /// <summary>
-    /// Додаткові файли (фото, програма заходу тощо)
+    /// Прикріплені файли (фото, програма заходу тощо)
     /// </summary>
-    public List<string> AttachmentFileIds { get; set; } = new();
+    public List<FileAttachmentDto> Attachments { get; set; } = new();
 
     /// <summary>
     /// Чи потрібно опублікувати подію одразу

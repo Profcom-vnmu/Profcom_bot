@@ -155,4 +155,20 @@ public class EventRepository : BaseRepository<Event>, IEventRepository
 
         return await query.CountAsync(cancellationToken);
     }
+
+    public async Task<IEnumerable<Event>> GetScheduledForPublicationAsync(
+        DateTime currentTime,
+        CancellationToken cancellationToken = default)
+    {
+        // Примітка: У Event немає поля PublishAt, використовуємо IsPublished
+        // Для повної функціональності треба додати поле PublishAt до Event entity
+        // Поки що повертаємо порожній список
+        return await Context.Set<Event>()
+            .AsNoTracking()
+            .Where(e => !e.IsPublished 
+                && e.Status == Domain.Enums.EventStatus.Planned
+                && e.StartDate > currentTime)
+            .Take(0) // Поки що не публікуємо автоматично, бо немає PublishAt
+            .ToListAsync(cancellationToken);
+    }
 }

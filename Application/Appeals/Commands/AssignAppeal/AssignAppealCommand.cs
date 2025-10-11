@@ -1,12 +1,15 @@
 using MediatR;
 using StudentUnionBot.Application.Appeals.DTOs;
 using StudentUnionBot.Core.Results;
+using StudentUnionBot.Application.Common.Attributes;
+using StudentUnionBot.Domain.Enums;
 
 namespace StudentUnionBot.Application.Appeals.Commands.AssignAppeal;
 
 /// <summary>
 /// Команда для автоматичного або ручного призначення апела адміністратору
 /// </summary>
+[RequirePermission(Permission.AssignAppeal)]
 public class AssignAppealCommand : IRequest<Result<AppealDto>>
 {
     /// <summary>

@@ -18,7 +18,12 @@ public enum NotificationType
     /// <summary>
     /// Внутрішнє сповіщення (в боті)
     /// </summary>
-    InApp = 4
+    InApp = 4,
+
+    /// <summary>
+    /// Email та Push одночасно
+    /// </summary>
+    Both = 3
 }
 
 /// <summary>

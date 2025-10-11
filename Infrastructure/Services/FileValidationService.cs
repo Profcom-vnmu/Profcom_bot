@@ -120,7 +120,7 @@ public class FileValidationService : IFileValidationService
             result.DetectedFileType = fileType;
 
             // Перевірка розміру файлу
-            var fileSize = fileStream.Length;
+            var fileSize = fileStream!.Length;
             var maxAllowedSize = GetMaxAllowedSize(fileType);
 
             if (fileSize > maxAllowedSize)
@@ -136,13 +136,13 @@ public class FileValidationService : IFileValidationService
 
             // Перевірка імені файлу на небезпечні символи
             var invalidChars = Path.GetInvalidFileNameChars();
-            if (fileName.IndexOfAny(invalidChars) >= 0)
+            if (fileName != null && fileName.IndexOfAny(invalidChars) >= 0)
             {
                 result.Errors.Add("Ім'я файлу містить недопустимі символи");
             }
 
             // Перевірка довжини імені файлу
-            if (fileName.Length > 255)
+            if (fileName != null && fileName.Length > 255)
             {
                 result.Errors.Add("Ім'я файлу занадто довге (максимум 255 символів)");
             }
@@ -156,13 +156,13 @@ public class FileValidationService : IFileValidationService
             // Додаткові перевірки для документів
             if (fileType == FileType.Document)
             {
-                ValidateDocument(fileName, contentType, result);
+                ValidateDocument(fileName!, contentType, result);
             }
 
             result.IsValid = result.Errors.Count == 0;
 
             _logger.LogInformation("Валідація файлу {FileName}: {IsValid}, помилок: {ErrorCount}, попереджень: {WarningCount}",
-                fileName, result.IsValid, result.Errors.Count, result.Warnings.Count);
+                fileName!, result.IsValid, result.Errors.Count, result.Warnings.Count);
 
             return Result<FileValidationResult>.Ok(result);
         }

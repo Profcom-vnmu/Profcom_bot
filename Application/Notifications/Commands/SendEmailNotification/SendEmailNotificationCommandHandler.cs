@@ -121,8 +121,8 @@ public class SendEmailNotificationCommandHandler : IRequestHandler<SendEmailNoti
         {
             // Масова розсилка - використовуємо спеціальний метод
             var subject = $"📰 Нова новина: {newsTitle}";
-            // TODO: Тут потрібно згенерувати HTML з шаблону для масової розсилки
-            return await _emailService.SendBulkEmailAsync(request.ToEmails, subject, "", cancellationToken);
+            var htmlBody = GenerateNewsEmailHtml(newsTitle, newsSummary, newsUrl);
+            return await _emailService.SendBulkEmailAsync(request.ToEmails, subject, htmlBody, cancellationToken);
         }
     }
 
@@ -141,8 +141,8 @@ public class SendEmailNotificationCommandHandler : IRequestHandler<SendEmailNoti
         {
             // Масова розсилка
             var subject = $"🎉 Нова подія: {eventTitle}";
-            // TODO: Тут потрібно згенерувати HTML з шаблону для масової розсилки
-            return await _emailService.SendBulkEmailAsync(request.ToEmails, subject, "", cancellationToken);
+            var htmlBody = GenerateEventEmailHtml(eventTitle, eventDate, eventLocation, eventUrl);
+            return await _emailService.SendBulkEmailAsync(request.ToEmails, subject, htmlBody, cancellationToken);
         }
     }
 
@@ -198,4 +198,98 @@ public class SendEmailNotificationCommandHandler : IRequestHandler<SendEmailNoti
             
         return await _emailService.SendBulkEmailAsync(request.ToEmails, request.CustomSubject, request.CustomHtmlBody, cancellationToken);
     }
+
+    #region HTML Email Templates
+
+    /// <summary>
+    /// Генерує HTML для email про нову новину використовуючи існуючий шаблон
+    /// </summary>
+    private string GenerateNewsEmailHtml(string title, string summary, string url)
+    {
+        // Завантажуємо шаблон з ресурсів
+        var templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "EmailTemplates", "NewsNotification.html");
+        
+        if (!File.Exists(templatePath))
+        {
+            _logger.LogWarning("News email template not found at {Path}, using fallback", templatePath);
+            return GenerateFallbackNewsHtml(title, summary, url);
+        }
+
+        var template = File.ReadAllText(templatePath);
+        
+        // Замінюємо плейсхолдери
+        var html = template
+            .Replace("{{NewsTitle}}", title)
+            .Replace("{{NewsSummary}}", summary)
+            .Replace("{{NewsUrl}}", url ?? "#")
+            .Replace("{{NewsCategory}}", "Загальне")
+            .Replace("{{PublishDate}}", DateTime.Now.ToString("dd MMMM yyyy, HH:mm", new System.Globalization.CultureInfo("uk-UA")))
+            .Replace("{{Year}}", DateTime.Now.Year.ToString());
+
+        return html;
+    }
+
+    /// <summary>
+    /// Генерує HTML для email про нову подію використовуючи існуючий шаблон
+    /// </summary>
+    private string GenerateEventEmailHtml(string title, DateTime eventDate, string location, string url)
+    {
+        // Завантажуємо шаблон з ресурсів
+        var templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Resources", "EmailTemplates", "EventNotification.html");
+        
+        if (!File.Exists(templatePath))
+        {
+            _logger.LogWarning("Event email template not found at {Path}, using fallback", templatePath);
+            return GenerateFallbackEventHtml(title, eventDate, location, url);
+        }
+
+        var template = File.ReadAllText(templatePath);
+        
+        // Замінюємо плейсхолдери (спрощена версія без {{#if}})
+        var html = template
+            .Replace("{{EventTitle}}", title)
+            .Replace("{{EventDate}}", eventDate.ToString("dd MMMM yyyy", new System.Globalization.CultureInfo("uk-UA")))
+            .Replace("{{EventTime}}", eventDate.ToString("HH:mm"))
+            .Replace("{{EventLocation}}", location)
+            .Replace("{{EventCategory}}", "Загальне")
+            .Replace("{{EventUrl}}", url ?? "#")
+            .Replace("{{Year}}", DateTime.Now.Year.ToString());
+
+        // Видаляємо блоки з {{#if}} так як у нас немає Handlebars engine
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"\{\{#if.*?\}\}.*?\{\{/if\}\}", "", 
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+        html = System.Text.RegularExpressions.Regex.Replace(html, @"\{\{#unless.*?\}\}.*?\{\{/unless\}\}", "",
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        return html;
+    }
+
+    /// <summary>
+    /// Fallback HTML шаблон для новин якщо файл не знайдено
+    /// </summary>
+    private string GenerateFallbackNewsHtml(string title, string summary, string url)
+    {
+        return $@"<!DOCTYPE html><html><body style='font-family: Arial; padding: 20px;'>
+            <h2 style='color: #28a745;'>📰 {title}</h2>
+            <p>{summary}</p>
+            {(string.IsNullOrEmpty(url) ? "" : $"<a href='{url}' style='color: #28a745;'>Читати повністю →</a>")}
+            <hr><p style='color: #999; font-size: 12px;'>© {DateTime.Now.Year} Профком ВНМУ</p>
+            </body></html>";
+    }
+
+    /// <summary>
+    /// Fallback HTML шаблон для подій якщо файл не знайдено
+    /// </summary>
+    private string GenerateFallbackEventHtml(string title, DateTime eventDate, string location, string url)
+    {
+        return $@"<!DOCTYPE html><html><body style='font-family: Arial; padding: 20px;'>
+            <h2 style='color: #007bff;'>🎉 {title}</h2>
+            <p><strong>📅 Дата:</strong> {eventDate:dd MMMM yyyy, HH:mm}</p>
+            <p><strong>📍 Місце:</strong> {location}</p>
+            {(string.IsNullOrEmpty(url) ? "" : $"<a href='{url}' style='color: #007bff;'>Детальніше →</a>")}
+            <hr><p style='color: #999; font-size: 12px;'>© {DateTime.Now.Year} Профком ВНМУ</p>
+            </body></html>";
+    }
+
+    #endregion
 }

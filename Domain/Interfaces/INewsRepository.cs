@@ -51,4 +51,11 @@ public interface INewsRepository : IRepository<News>
         bool? isPublished = null,
         bool? isArchived = null,
         CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Отримати новини заплановані для публікації (PublishAt <= now && !IsPublished)
+    /// </summary>
+    Task<IEnumerable<News>> GetScheduledForPublicationAsync(
+        DateTime currentTime,
+        CancellationToken cancellationToken = default);
 }

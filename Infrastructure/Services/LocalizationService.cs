@@ -117,6 +117,26 @@ public class LocalizationService : ILocalizationService
         AddResource("command.start.title", Language.Ukrainian, "🎓 <b>Вітаємо в боті Студентського Профкому ВНМУ!</b>");
         AddResource("command.start.title", Language.English, "🎓 <b>Welcome to VNMU Student Union Bot!</b>");
         
+        AddResource("command.start_welcome", Language.Ukrainian, 
+            "🎓 <b>Вітаємо в боті Студентського Профкому ВНМУ!</b>\n\n" +
+            "Я допоможу вам:\n" +
+            "📝 Створити звернення до профкому\n" +
+            "📋 Відстежувати статус ваших звернень\n" +
+            "📰 Дізнаватися останні новини\n" +
+            "🎉 Бути в курсі майбутніх подій\n" +
+            "🤝 Отримувати знижки від партнерів\n\n" +
+            "Оберіть дію з меню нижче:");
+            
+        AddResource("command.start_welcome", Language.English, 
+            "🎓 <b>Welcome to VNMU Student Union Bot!</b>\n\n" +
+            "I will help you:\n" +
+            "📝 Create appeals to the student union\n" +
+            "📋 Track the status of your appeals\n" +
+            "📰 Get the latest news\n" +
+            "🎉 Stay informed about upcoming events\n" +
+            "🤝 Get discounts from partners\n\n" +
+            "Choose an action from the menu below:");
+        
         AddResource("command.start.description", Language.Ukrainian, 
             "Я допоможу вам:\n" +
             "📝 Створити звернення до профкому\n" +

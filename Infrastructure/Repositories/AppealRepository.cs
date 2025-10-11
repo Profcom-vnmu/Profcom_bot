@@ -75,21 +75,14 @@ public class AppealRepository : BaseRepository<Appeal>, IAppealRepository
         long studentId,
         CancellationToken cancellationToken = default)
     {
-        return await DbSet
-            .Include(a => a.Messages)
-            .FirstOrDefaultAsync(
-                a => a.StudentId == studentId && a.Status != AppealStatus.Closed,
-                cancellationToken);
+        return await CompiledQueries.GetActiveAppealForStudent(Context, studentId, cancellationToken);
     }
 
     public async Task<bool> HasActiveAppealAsync(
         long studentId,
         CancellationToken cancellationToken = default)
     {
-        return await DbSet
-            .AnyAsync(
-                a => a.StudentId == studentId && a.Status != AppealStatus.Closed,
-                cancellationToken);
+        return await CompiledQueries.HasActiveAppeal(Context, studentId, cancellationToken);
     }
 
     public async Task<List<Appeal>> GetAppealsByDateRangeAsync(

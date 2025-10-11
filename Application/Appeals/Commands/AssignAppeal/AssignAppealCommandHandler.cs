@@ -77,7 +77,7 @@ public class AssignAppealCommandHandler : IRequestHandler<AssignAppealCommand, R
                     return Result<AppealDto>.Fail(autoAssignResult.Error);
                 }
 
-                assignedAdmin = autoAssignResult.Value;
+                assignedAdmin = autoAssignResult.Value!;
                 
                 _logger.LogInformation(
                     "Апел {AppealId} автоматично призначено адміністратору {AdminId}",

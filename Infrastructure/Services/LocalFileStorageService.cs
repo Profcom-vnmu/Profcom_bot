@@ -74,7 +74,7 @@ public class LocalFileStorageService : IFileStorageService
             if (fileType == FileType.Image && ShouldCompressImage(fileInfo.Length))
             {
                 var compressedPath = await CompressImageAsync(fullPath, cancellationToken: cancellationToken);
-                if (compressedPath.IsSuccess)
+                if (compressedPath.IsSuccess && compressedPath.Value != null)
                 {
                     // Замінюємо оригінал стисненим
                     File.Delete(fullPath);
@@ -109,7 +109,7 @@ public class LocalFileStorageService : IFileStorageService
         }
     }
 
-    public async Task<Result<FileStreamInfo>> GetFileAsync(string filePath, CancellationToken cancellationToken = default)
+    public Task<Result<FileStreamInfo>> GetFileAsync(string filePath, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -117,7 +117,7 @@ public class LocalFileStorageService : IFileStorageService
             
             if (!File.Exists(fullPath))
             {
-                return Result<FileStreamInfo>.Fail("Файл не знайдено");
+                return Task.FromResult(Result<FileStreamInfo>.Fail("Файл не знайдено"));
             }
 
             var fileInfo = new FileInfo(fullPath);
@@ -134,16 +134,16 @@ public class LocalFileStorageService : IFileStorageService
                 Length = fileInfo.Length
             };
 
-            return Result<FileStreamInfo>.Ok(result);
+            return Task.FromResult(Result<FileStreamInfo>.Ok(result));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Помилка отримання файла {FilePath}", filePath);
-            return Result<FileStreamInfo>.Fail("Не вдалося отримати файл");
+            return Task.FromResult(Result<FileStreamInfo>.Fail("Не вдалося отримати файл"));
         }
     }
 
-    public async Task<Result> DeleteFileAsync(string filePath, CancellationToken cancellationToken = default)
+    public Task<Result> DeleteFileAsync(string filePath, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -155,31 +155,31 @@ public class LocalFileStorageService : IFileStorageService
                 _logger.LogInformation("Файл видалено: {FilePath}", filePath);
             }
 
-            return Result.Ok();
+            return Task.FromResult(Result.Ok());
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Помилка видалення файла {FilePath}", filePath);
-            return Result.Fail("Не вдалося видалити файл");
+            return Task.FromResult(Result.Fail("Не вдалося видалити файл"));
         }
     }
 
-    public async Task<Result<bool>> FileExistsAsync(string filePath, CancellationToken cancellationToken = default)
+    public Task<Result<bool>> FileExistsAsync(string filePath, CancellationToken cancellationToken = default)
     {
         try
         {
             var fullPath = Path.Combine(_basePath, filePath);
             var exists = File.Exists(fullPath);
-            return Result<bool>.Ok(exists);
+            return Task.FromResult(Result<bool>.Ok(exists));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Помилка перевірки існування файла {FilePath}", filePath);
-            return Result<bool>.Fail("Не вдалося перевірити існування файла");
+            return Task.FromResult(Result<bool>.Fail("Не вдалося перевірити існування файла"));
         }
     }
 
-    public async Task<Result<long>> GetFileSizeAsync(string filePath, CancellationToken cancellationToken = default)
+    public Task<Result<long>> GetFileSizeAsync(string filePath, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -187,16 +187,16 @@ public class LocalFileStorageService : IFileStorageService
             
             if (!File.Exists(fullPath))
             {
-                return Result<long>.Fail("Файл не знайдено");
+                return Task.FromResult(Result<long>.Fail("Файл не знайдено"));
             }
 
             var fileInfo = new FileInfo(fullPath);
-            return Result<long>.Ok(fileInfo.Length);
+            return Task.FromResult(Result<long>.Ok(fileInfo.Length));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Помилка отримання розміру файла {FilePath}", filePath);
-            return Result<long>.Fail("Не вдалося отримати розмір файла");
+            return Task.FromResult(Result<long>.Fail("Не вдалося отримати розмір файла"));
         }
     }
 
@@ -281,7 +281,7 @@ public class LocalFileStorageService : IFileStorageService
         }
     }
 
-    public async Task<Result<int>> CleanupTempFilesAsync(TimeSpan olderThan, CancellationToken cancellationToken = default)
+    public Task<Result<int>> CleanupTempFilesAsync(TimeSpan olderThan, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -313,19 +313,19 @@ public class LocalFileStorageService : IFileStorageService
             _logger.LogInformation("Очищено {DeletedCount} тимчасових файлів старше {OlderThan}", 
                 deletedCount, olderThan);
 
-            return Result<int>.Ok(deletedCount);
+            return Task.FromResult(Result<int>.Ok(deletedCount));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Помилка очищення тимчасових файлів");
-            return Result<int>.Fail("Не вдалося очистити тимчасові файли");
+            return Task.FromResult(Result<int>.Fail("Не вдалося очистити тимчасові файли"));
         }
     }
 
-    public async Task<Result<string?>> GetPublicUrlAsync(string filePath, TimeSpan? expiration = null, CancellationToken cancellationToken = default)
+    public Task<Result<string?>> GetPublicUrlAsync(string filePath, TimeSpan? expiration = null, CancellationToken cancellationToken = default)
     {
         // Локальне сховище не підтримує публічні URL
-        return Result<string?>.Ok(null);
+        return Task.FromResult(Result<string?>.Ok(null));
     }
 
     public Task<StorageInfo> GetStorageInfoAsync(CancellationToken cancellationToken = default)

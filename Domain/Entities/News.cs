@@ -85,10 +85,16 @@ public class News
     public bool IsArchived { get; private set; }
     
     /// <summary>
-    /// Multiple file attachments for the news
+    /// Multiple file attachments for the news (legacy - use NewsAttachments instead)
     /// </summary>
     private readonly List<FileAttachment> _attachments = new();
     public IReadOnlyCollection<FileAttachment> Attachments => _attachments.AsReadOnly();
+    
+    /// <summary>
+    /// New multiple file attachments system (photos, documents, videos)
+    /// </summary>
+    private readonly List<NewsAttachment> _newsAttachments = new();
+    public IReadOnlyCollection<NewsAttachment> NewsAttachments => _newsAttachments.AsReadOnly();
     
     // Private constructor for EF Core
     private News() { }
@@ -213,4 +219,82 @@ public class News
         _attachments.Clear();
         UpdatedAt = DateTime.UtcNow;
     }
+
+    #region NewsAttachment Methods
+
+    /// <summary>
+    /// Додати новий attachment до новини
+    /// </summary>
+    public void AddNewsAttachment(string fileId, FileType fileType, string? fileName = null)
+    {
+        var order = _newsAttachments.Count;
+        var attachment = NewsAttachment.Create(Id, fileId, fileType, order, fileName);
+        _newsAttachments.Add(attachment);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Видалити attachment
+    /// </summary>
+    public void RemoveNewsAttachment(NewsAttachment attachment)
+    {
+        if (attachment == null)
+            throw new ArgumentNullException(nameof(attachment));
+
+        _newsAttachments.Remove(attachment);
+        
+        // Переіндексуємо порядок
+        for (int i = 0; i < _newsAttachments.Count; i++)
+        {
+            _newsAttachments[i].UpdateDisplayOrder(i);
+        }
+        
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Очистити всі attachments
+    /// </summary>
+    public void ClearNewsAttachments()
+    {
+        _newsAttachments.Clear();
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Отримати перше фото
+    /// </summary>
+    public string? GetFirstPhotoFileId()
+    {
+        return _newsAttachments
+            .Where(a => a.FileType == FileType.Image)
+            .OrderBy(a => a.DisplayOrder)
+            .FirstOrDefault()?.FileId ?? PhotoFileId; // Fallback to legacy field
+    }
+
+    /// <summary>
+    /// Отримати всі фото
+    /// </summary>
+    public List<string> GetAllPhotoFileIds()
+    {
+        return _newsAttachments
+            .Where(a => a.FileType == FileType.Image)
+            .OrderBy(a => a.DisplayOrder)
+            .Select(a => a.FileId)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Отримати всі документи
+    /// </summary>
+    public List<string> GetAllDocumentFileIds()
+    {
+        return _newsAttachments
+            .Where(a => a.FileType == FileType.Document)
+            .OrderBy(a => a.DisplayOrder)
+            .Select(a => a.FileId)
+            .ToList();
+    }
+
+    #endregion
 }

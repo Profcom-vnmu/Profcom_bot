@@ -72,7 +72,8 @@ public enum Permission
     
     // Notification permissions
     SendNotifications = 90,
-    ViewNotificationHistory = 91
+    ViewNotificationHistory = 91,
+    SendBroadcast = 92
 }
 
 /// <summary>

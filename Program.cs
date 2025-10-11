@@ -75,6 +75,7 @@ try
         cfg.Lifetime = ServiceLifetime.Scoped; // Важливо для роботи зі Scoped сервісами
         
         // Додаємо Pipeline Behaviors в правильному порядку
+        cfg.AddOpenBehavior(typeof(StudentUnionBot.Application.Common.Behaviors.AuthorizationBehavior<,>));
         cfg.AddOpenBehavior(typeof(StudentUnionBot.Application.Common.Behaviors.ValidationBehavior<,>));
         cfg.AddOpenBehavior(typeof(StudentUnionBot.Application.Common.Behaviors.LoggingBehavior<,>));
         cfg.AddOpenBehavior(typeof(StudentUnionBot.Application.Common.Behaviors.PerformanceBehavior<,>));
@@ -133,6 +134,10 @@ try
 
     // Реєстрація Appeal Assignment Service
     builder.Services.AddScoped<IAppealAssignmentService, AppealAssignmentService>();
+    
+    // Реєстрація Authorization Service
+    builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
+    builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 
     // Реєстрація File Management Services
     builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
@@ -186,6 +191,7 @@ try
     // Background Services
     builder.Services.AddHostedService<StudentUnionBot.Infrastructure.BackgroundServices.NotificationReminderService>();
     builder.Services.AddHostedService<StudentUnionBot.Infrastructure.BackgroundServices.DataCleanupService>();
+    builder.Services.AddHostedService<StudentUnionBot.Infrastructure.BackgroundServices.ScheduledPublicationService>();
 
     // Health checks
     builder.Services.AddHealthChecks()

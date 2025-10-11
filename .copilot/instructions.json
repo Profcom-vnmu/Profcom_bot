@@ -1,0 +1,153 @@
+{
+  "version": "1.0.0",
+  "description": "Глобальні інструкції для GitHub Copilot у проєкті StudentUnionBot",
+  
+  "architecture": {
+    "pattern": "Clean Architecture + CQRS with MediatR",
+    "layers": {
+      "Domain": {
+        "description": "Entities, Enums, Interfaces - NO dependencies on other layers",
+        "rules": [
+          "Entities with private setters and factory methods (e.g., Appeal.Create())",
+          "Immutable value objects where applicable",
+          "Domain interfaces (IRepository, IService)",
+          "Business logic validation in entity methods"
+        ]
+      },
+      "Application": {
+        "description": "Use cases via CQRS Commands/Queries",
+        "rules": [
+          "Commands (IRequest<Result<T>>) for state changes",
+          "Queries (IRequest<Result<T>>) for data retrieval with AsNoTracking()",
+          "FluentValidation for all Commands (*CommandValidator.cs)",
+          "DTOs with records or classes with init-only properties",
+          "ALL business logic in Handlers, NOT in Presentation"
+        ]
+      },
+      "Infrastructure": {
+        "description": "EF Core, Repositories, External Services",
+        "rules": [
+          "DbContext in Infrastructure/Data/BotDbContext.cs",
+          "Repositories inherit BaseRepository<T>",
+          "Implement Domain interfaces (I*Repository, I*Service)",
+          "Migrations in Infrastructure/Data/Migrations/"
+        ]
+      },
+      "Presentation": {
+        "description": "Telegram Bot handlers, keyboards, state management",
+        "rules": [
+          "Send MediatR Commands/Queries, NOT direct DB access",
+          "Use InlineKeyboardMarkup for Telegram keyboards",
+          "Handle Result<T> responses from Application layer",
+          "Keep handlers thin - orchestration only"
+        ]
+      }
+    }
+  },
+  
+  "codingStandards": {
+    "language": {
+      "code": "English (variables, classes, methods, code comments)",
+      "userFacing": "Ukrainian (bot messages, validation errors, user documentation)",
+      "documentation": "Ukrainian in .md files, English in XML docs"
+    },
+    "naming": {
+      "classes": "PascalCase (e.g., BotUser, CreateAppealCommand)",
+      "interfaces": "IPascalCase (e.g., IUnitOfWork, IAppealRepository)",
+      "methods": "PascalCase with Async suffix for async methods",
+      "variables": "camelCase (e.g., botUser, appealDto)",
+      "constants": "PascalCase or UPPER_SNAKE_CASE for static readonly",
+      "privateFields": "_camelCase with underscore prefix"
+    },
+    "fileOrganization": {
+      "oneClassPerFile": true,
+      "commands": "Application/{Feature}/Commands/{Action}/{Action}Command.cs, {Action}CommandHandler.cs, {Action}CommandValidator.cs",
+      "queries": "Application/{Feature}/Queries/{Action}/{Action}Query.cs, {Action}QueryHandler.cs",
+      "entities": "Domain/Entities/{EntityName}.cs",
+      "repositories": "Infrastructure/Repositories/{EntityName}Repository.cs"
+    }
+  },
+  
+  "patterns": {
+    "resultPattern": {
+      "use": "Result<T> for ALL business operations instead of exceptions",
+      "success": "return Result<T>.Ok(value);",
+      "failure": "return Result<T>.Fail(\"Error message\");",
+      "exceptions": "Only for infrastructure failures (DB, network, unrecoverable errors)"
+    },
+    "dependencyInjection": {
+      "constructor": "Use constructor injection ONLY",
+      "services": "Register in Program.cs with appropriate lifetime (Scoped, Singleton, Transient)",
+      "avoid": "Service Locator pattern, property injection"
+    },
+    "asyncAwait": {
+      "allDbOperations": "ALWAYS async with CancellationToken parameter",
+      "methodSuffix": "Async (e.g., GetByIdAsync, CreateAsync)",
+      "avoid": "async void (except event handlers), .Result, .Wait()",
+      "configureAwait": "Use ConfigureAwait(false) in library code"
+    }
+  },
+  
+  "efCore": {
+    "queries": {
+      "readOnly": "ALWAYS use .AsNoTracking() for queries",
+      "pagination": "ALWAYS paginate: .Skip((page - 1) * pageSize).Take(pageSize)",
+      "include": "Use .Include() and .ThenInclude() for related entities",
+      "projection": "Prefer .Select() to DTOs over loading full entities"
+    },
+    "commands": {
+      "tracking": "Use tracked entities for updates",
+      "unitOfWork": "ALWAYS use IUnitOfWork for transactions",
+      "saveChanges": "await _unitOfWork.SaveChangesAsync(cancellationToken)"
+    },
+    "migrations": {
+      "command": "dotnet ef migrations add {Name} --output-dir Infrastructure/Data/Migrations",
+      "naming": "Descriptive names (e.g., AddAppealStatusField, CreateEventsTable)"
+    }
+  },
+  
+  "telegram": {
+    "mediaFiles": "Use InputFile.FromFileId(fileId) or InputFile.FromUri(url)",
+    "keyboards": "InlineKeyboardMarkup with InlineKeyboardButton.WithCallbackData()",
+    "parseMode": "ParseMode.Html for formatted text",
+    "avoid": "ReplyKeyboardMarkup (use Inline keyboards instead)"
+  },
+  
+  "logging": {
+    "framework": "Serilog with structured logging",
+    "format": "_logger.LogInformation(\"User {UserId} created appeal {AppealId}\", userId, appealId);",
+    "avoid": "String interpolation in log messages",
+    "levels": "Trace, Debug, Information, Warning, Error, Critical"
+  },
+  
+  "testing": {
+    "framework": "xUnit preferred",
+    "naming": "MethodName_Scenario_ExpectedResult",
+    "mocking": "Moq or NSubstitute for dependencies",
+    "assertions": "FluentAssertions preferred"
+  },
+  
+  "security": {
+    "secrets": "NEVER hardcode, use appsettings.json or environment variables",
+    "validation": "FluentValidation + domain validation",
+    "authorization": "Check IAuthorizationService before sensitive operations"
+  },
+  
+  "modernCSharp": {
+    "features": [
+      "Records for DTOs: public record AppealDto(int Id, string Title);",
+      "Init-only properties: public string Name { get; init; }",
+      "Pattern matching: if (result is { IsSuccess: true } success)",
+      "Null-coalescing: var value = input ?? defaultValue;",
+      "String interpolation: $\"Value: {value}\"",
+      "Collection expressions: int[] numbers = [1, 2, 3];"
+    ],
+    "avoid": [
+      "async void (except event handlers)",
+      "Exceptions for business logic (use Result<T>)",
+      "Magic strings/numbers (use constants or enums)",
+      "Large methods (keep under 20-30 lines)",
+      "God classes (split responsibilities)"
+    ]
+  }
+}

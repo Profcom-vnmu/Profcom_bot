@@ -56,4 +56,11 @@ public interface IEventRepository : IRepository<Event>
         EventType? type = null,
         EventStatus? status = null,
         CancellationToken cancellationToken = default);
+    
+    /// <summary>
+    /// Отримати події заплановані для публікації (PublishAt <= now && !IsPublished)
+    /// </summary>
+    Task<IEnumerable<Event>> GetScheduledForPublicationAsync(
+        DateTime currentTime,
+        CancellationToken cancellationToken = default);
 }

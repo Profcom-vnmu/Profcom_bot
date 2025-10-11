@@ -17,8 +17,7 @@ public class UserRepository : BaseRepository<BotUser>, IUserRepository
 
     public async Task<BotUser?> GetByTelegramIdAsync(long telegramId, CancellationToken cancellationToken = default)
     {
-        var user = await DbSet
-            .FirstOrDefaultAsync(u => u.TelegramId == telegramId, cancellationToken);
+        var user = await CompiledQueries.GetUserByTelegramId(Context, telegramId, cancellationToken);
         
         return user;
     }

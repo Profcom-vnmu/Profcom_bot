@@ -8,18 +8,21 @@ using StudentUnionBot.Domain.Interfaces;
 namespace StudentUnionBot.Application.Events.Commands.CreateEvent;
 
 /// <summary>
-/// Handler для створення нової події
+/// Handler для створення нової події з підтримкою сповіщень
 /// </summary>
 public class CreateEventCommandHandler : IRequestHandler<CreateEventCommand, Result<EventDto>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly INotificationService _notificationService;
     private readonly ILogger<CreateEventCommandHandler> _logger;
 
     public CreateEventCommandHandler(
         IUnitOfWork unitOfWork,
+        INotificationService notificationService,
         ILogger<CreateEventCommandHandler> logger)
     {
         _unitOfWork = unitOfWork;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -41,9 +44,6 @@ public class CreateEventCommandHandler : IRequestHandler<CreateEventCommand, Res
                 return Result<EventDto>.Fail("Організатор не знайдений");
             }
 
-            // TODO: Перевіряємо права на створення подій
-            // if (!organizer.CanCreateEvents)
-
             // Створюємо подію через domain factory
             var eventEntity = Domain.Entities.Event.Create(
                 title: request.Title,
@@ -56,17 +56,21 @@ public class CreateEventCommandHandler : IRequestHandler<CreateEventCommand, Res
                 summary: request.Summary,
                 endDate: request.EndDate,
                 location: request.Location,
-                // TODO: Додати address field в Entity
-                address: null,
+                address: null, // Address можна розширити через додаткове поле в запиті
                 maxParticipants: request.MaxParticipants,
                 requiresRegistration: request.RequiresRegistration,
                 registrationDeadline: request.RegistrationDeadline,
-                // TODO: Розділити ContactInfo на Person та Info
-                contactPerson: null,
+                contactPerson: null, // Contact person можна розширити в майбутньому
                 contactInfo: request.ContactInfo,
-                photoFileId: GetFirstImageFile(request.AttachmentFileIds),
+                photoFileId: request.Attachments.FirstOrDefault(a => a.FileType == Domain.Enums.FileType.Image)?.FileId,
                 publishImmediately: request.PublishImmediately
             );
+
+            // Додаємо всі attachments до події
+            foreach (var attachment in request.Attachments)
+            {
+                eventEntity.AddEventAttachment(attachment.FileId, attachment.FileType, attachment.FileName);
+            }
 
             // Зберігаємо в базі
             await _unitOfWork.Events.AddAsync(eventEntity, cancellationToken);
@@ -77,14 +81,53 @@ public class CreateEventCommandHandler : IRequestHandler<CreateEventCommand, Res
                 eventEntity.Id
             );
 
-            // TODO: Якщо потрібно відправити повідомлення
+            // Відправляємо сповіщення про нову подію, якщо потрібно
             if (request.SendNotification && eventEntity.IsPublished)
             {
                 _logger.LogInformation(
-                    "Scheduling notification for event: {EventId}",
+                    "Sending notification for event: {EventId}",
                     eventEntity.Id
                 );
-                // Тут буде логіка відправки повідомлень через NotificationService
+
+                try
+                {
+                    var notificationResult = await _notificationService.SendEventCreatedNotificationAsync(
+                        eventId: eventEntity.Id,
+                        title: eventEntity.Title,
+                        summary: eventEntity.Summary ?? (eventEntity.Description.Length > 200 
+                            ? eventEntity.Description.Substring(0, 197) + "..." 
+                            : eventEntity.Description),
+                        eventDate: eventEntity.StartDate,
+                        location: eventEntity.Location,
+                        photoFileId: eventEntity.PhotoFileId,
+                        cancellationToken: cancellationToken
+                    );
+
+                    if (notificationResult.IsSuccess)
+                    {
+                        _logger.LogInformation(
+                            "Successfully sent notification for event {EventId} to {UserCount} users",
+                            eventEntity.Id,
+                            notificationResult.Value
+                        );
+                    }
+                    else
+                    {
+                        _logger.LogWarning(
+                            "Failed to send notification for event {EventId}: {Error}",
+                            eventEntity.Id,
+                            notificationResult.Error
+                        );
+                    }
+                }
+                catch (Exception notifEx)
+                {
+                    // Не припиняємо створення події через помилку сповіщень
+                    _logger.LogError(notifEx,
+                        "Error sending notification for event {EventId}",
+                        eventEntity.Id
+                    );
+                }
             }
 
             // Конвертуємо в DTO
@@ -95,7 +138,7 @@ public class CreateEventCommandHandler : IRequestHandler<CreateEventCommand, Res
                 Description = eventEntity.Description,
                 Summary = eventEntity.Summary,
                 Type = eventEntity.Type,
-                Category = request.Category, // TODO: Додати в Entity
+                Category = eventEntity.Category,
                 StartDate = eventEntity.StartDate,
                 EndDate = eventEntity.EndDate,
                 Location = eventEntity.Location ?? string.Empty,
@@ -115,8 +158,7 @@ public class CreateEventCommandHandler : IRequestHandler<CreateEventCommand, Res
                 Requirements = request.Requirements,
                 ContactInfo = request.ContactInfo,
                 Tags = request.Tags ?? string.Empty,
-                Language = request.Language,
-                AttachmentFileIds = request.AttachmentFileIds
+                Language = request.Language
             };
 
             return Result<EventDto>.Ok(eventDto);
@@ -129,15 +171,5 @@ public class CreateEventCommandHandler : IRequestHandler<CreateEventCommand, Res
             );
             return Result<EventDto>.Fail("Помилка при створенні події");
         }
-    }
-
-    /// <summary>
-    /// Отримує перший файл зображення з прикріплених файлів
-    /// </summary>
-    private string? GetFirstImageFile(List<string> fileIds)
-    {
-        // TODO: Додати логіку визначення типу файлу
-        // Поки що повертаємо перший файл, якщо він є
-        return fileIds.FirstOrDefault();
     }
 }

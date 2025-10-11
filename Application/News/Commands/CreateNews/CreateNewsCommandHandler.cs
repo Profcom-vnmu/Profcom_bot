@@ -14,15 +14,18 @@ public class CreateNewsCommandHandler : IRequestHandler<CreateNewsCommand, Resul
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IStudentUnionCacheService _cacheService;
+    private readonly INotificationService _notificationService;
     private readonly ILogger<CreateNewsCommandHandler> _logger;
 
     public CreateNewsCommandHandler(
         IUnitOfWork unitOfWork,
         IStudentUnionCacheService cacheService,
+        INotificationService notificationService,
         ILogger<CreateNewsCommandHandler> logger)
     {
         _unitOfWork = unitOfWork;
         _cacheService = cacheService;
+        _notificationService = notificationService;
         _logger = logger;
     }
 
@@ -52,12 +55,18 @@ public class CreateNewsCommandHandler : IRequestHandler<CreateNewsCommand, Resul
                 authorId: request.AuthorId,
                 authorName: author.FirstName ?? author.Username ?? "Адміністратор",
                 summary: request.Summary,
-                // TODO: Додати підтримку множинних файлів в домені
-                photoFileId: GetFirstImageFile(request.AttachmentFileIds),
-                documentFileId: GetFirstDocumentFile(request.AttachmentFileIds),
+                // Legacy fields - залишаємо для зворотної сумісності
+                photoFileId: request.Attachments.FirstOrDefault(a => a.FileType == Domain.Enums.FileType.Image)?.FileId,
+                documentFileId: request.Attachments.FirstOrDefault(a => a.FileType == Domain.Enums.FileType.Document)?.FileId,
                 publishImmediately: request.PublishImmediately,
                 publishAt: request.ScheduledPublishDate
             );
+
+            // Додаємо всі attachments до новини
+            foreach (var attachment in request.Attachments)
+            {
+                news.AddNewsAttachment(attachment.FileId, attachment.FileType, attachment.FileName);
+            }
 
             // Зберігаємо в базі
             await _unitOfWork.News.AddAsync(news, cancellationToken);
@@ -71,14 +80,38 @@ public class CreateNewsCommandHandler : IRequestHandler<CreateNewsCommand, Resul
                 news.Id
             );
 
-            // TODO: Якщо потрібно відправити push-повідомлення
+            // Відправляємо push-повідомлення якщо новина опублікована одразу
             if (request.SendPushNotification && news.IsPublished)
             {
-                _logger.LogInformation(
-                    "Scheduling push notification for news: {NewsId}",
-                    news.Id
-                );
-                // Тут буде логіка відправки повідомлень через NotificationService
+                try
+                {
+                    _logger.LogInformation(
+                        "Sending push notification for newly created published news: {NewsId}",
+                        news.Id
+                    );
+                    
+                    await _notificationService.SendNewsPublishedNotificationAsync(
+                        news.Id,
+                        news.Title,
+                        news.Summary ?? news.Content.Substring(0, Math.Min(100, news.Content.Length)),
+                        news.Category,
+                        news.PhotoFileId,
+                        cancellationToken
+                    );
+                    
+                    _logger.LogInformation(
+                        "Push notification sent successfully for news: {NewsId}",
+                        news.Id
+                    );
+                }
+                catch (Exception ex)
+                {
+                    // Не повертаємо помилку, бо новину вже створено - просто логуємо
+                    _logger.LogError(ex,
+                        "Failed to send push notification for news: {NewsId}",
+                        news.Id
+                    );
+                }
             }
 
             // Конвертуємо в DTO
@@ -115,23 +148,4 @@ public class CreateNewsCommandHandler : IRequestHandler<CreateNewsCommand, Resul
         }
     }
 
-    /// <summary>
-    /// Отримує перший файл зображення з прикріплених файлів
-    /// </summary>
-    private string? GetFirstImageFile(List<string> fileIds)
-    {
-        // TODO: Додати логіку визначення типу файлу
-        // Поки що повертаємо перший файл, якщо він є
-        return fileIds.FirstOrDefault();
-    }
-
-    /// <summary>
-    /// Отримує перший файл документа з прикріплених файлів
-    /// </summary>
-    private string? GetFirstDocumentFile(List<string> fileIds)
-    {
-        // TODO: Додати логіку визначення типу файлу
-        // Поки що повертаємо другий файл, якщо він є
-        return fileIds.Skip(1).FirstOrDefault();
-    }
 }

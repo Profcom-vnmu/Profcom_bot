@@ -48,9 +48,6 @@ public class UpdateNewsCommandHandler : IRequestHandler<UpdateNewsCommand, Resul
                 return Result<NewsDto>.Fail("Редактор не знайдений");
             }
 
-            // TODO: Додати перевірку прав доступу (автор або адміністратор)
-            // if (news.AuthorId != request.EditorId && !editor.IsAdmin)
-
             // Оновлюємо поля, якщо вони вказані
             if (request.Title != null || request.Content != null || 
                 request.Summary != null || request.Category.HasValue)

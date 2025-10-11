@@ -53,6 +53,29 @@ public interface INotificationService
         string message,
         NotificationPriority priority = NotificationPriority.Normal,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Відправити сповіщення про опубліковану новину всім користувачам
+    /// </summary>
+    Task<Result<int>> SendNewsPublishedNotificationAsync(
+        int newsId,
+        string title,
+        string summary,
+        NewsCategory category,
+        string? photoFileId = null,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Відправити сповіщення про нову подію всім користувачам
+    /// </summary>
+    Task<Result<int>> SendEventCreatedNotificationAsync(
+        int eventId,
+        string title,
+        string summary,
+        DateTime eventDate,
+        string? location = null,
+        string? photoFileId = null,
+        CancellationToken cancellationToken = default);
 }
 
 /// <summary>

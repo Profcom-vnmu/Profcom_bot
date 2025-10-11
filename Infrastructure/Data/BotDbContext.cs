@@ -21,6 +21,8 @@ public class BotDbContext : DbContext
     public DbSet<AdminCategoryExpertise> AdminCategoryExpertises => Set<AdminCategoryExpertise>();
     public DbSet<FileAttachment> FileAttachments => Set<FileAttachment>();
     public DbSet<AppealFileAttachment> AppealFileAttachments => Set<AppealFileAttachment>();
+    public DbSet<NewsAttachment> NewsAttachments => Set<NewsAttachment>();
+    public DbSet<EventAttachment> EventAttachments => Set<EventAttachment>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<NotificationPreference> NotificationPreferences => Set<NotificationPreference>();
     public DbSet<NotificationTemplate> NotificationTemplates => Set<NotificationTemplate>();
@@ -76,6 +78,10 @@ public class BotDbContext : DbContext
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.Category);
             entity.HasIndex(e => e.CreatedAt);
+            
+            // Composite indexes for frequently used queries
+            entity.HasIndex(e => new { e.StudentId, e.Status })
+                .HasDatabaseName("IX_Appeals_StudentId_Status");
 
             // Relationships
             entity.HasMany(e => e.Messages)
@@ -117,6 +123,14 @@ public class BotDbContext : DbContext
             entity.HasIndex(e => e.IsPinned);
             entity.HasIndex(e => e.CreatedAt);
             entity.HasIndex(e => e.PublishAt);
+            
+            // Composite indexes for frequently used queries
+            entity.HasIndex(e => new { e.IsPublished, e.IsPinned, e.CreatedAt })
+                .HasDatabaseName("IX_News_IsPublished_IsPinned_CreatedAt");
+            entity.HasIndex(e => new { e.IsPublished, e.Category, e.CreatedAt })
+                .HasDatabaseName("IX_News_IsPublished_Category_CreatedAt");
+            entity.HasIndex(e => new { e.IsArchived, e.IsPublished })
+                .HasDatabaseName("IX_News_IsArchived_IsPublished");
         });
 
         // Event configuration
@@ -142,10 +156,58 @@ public class BotDbContext : DbContext
             entity.HasIndex(e => e.StartDate);
             entity.HasIndex(e => e.CreatedAt);
             
+            // Composite indexes for frequently used queries
+            entity.HasIndex(e => new { e.Status, e.StartDate })
+                .HasDatabaseName("IX_Events_Status_StartDate");
+            entity.HasIndex(e => new { e.IsPublished, e.StartDate })
+                .HasDatabaseName("IX_Events_IsPublished_StartDate");
+            entity.HasIndex(e => new { e.IsFeatured, e.Status, e.StartDate })
+                .HasDatabaseName("IX_Events_IsFeatured_Status_StartDate");
+            
             // Many-to-many relationship with BotUser (event participants)
             entity.HasMany(e => e.RegisteredParticipants)
                 .WithMany()
                 .UsingEntity(j => j.ToTable("EventParticipants"));
+        });
+
+        // NewsAttachment configuration
+        modelBuilder.Entity<NewsAttachment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            
+            entity.Property(e => e.FileId).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.FileName).HasMaxLength(300);
+            
+            entity.HasIndex(e => e.NewsId);
+            entity.HasIndex(e => e.FileType);
+            entity.HasIndex(e => new { e.NewsId, e.DisplayOrder })
+                .HasDatabaseName("IX_NewsAttachments_NewsId_DisplayOrder");
+            
+            // Relationship with News - use navigation property
+            entity.HasOne(e => e.News)
+                .WithMany(n => n.NewsAttachments)
+                .HasForeignKey(e => e.NewsId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // EventAttachment configuration
+        modelBuilder.Entity<EventAttachment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            
+            entity.Property(e => e.FileId).HasMaxLength(200).IsRequired();
+            entity.Property(e => e.FileName).HasMaxLength(300);
+            
+            entity.HasIndex(e => e.EventId);
+            entity.HasIndex(e => e.FileType);
+            entity.HasIndex(e => new { e.EventId, e.DisplayOrder })
+                .HasDatabaseName("IX_EventAttachments_EventId_DisplayOrder");
+            
+            // Relationship with Event - use navigation property
+            entity.HasOne(e => e.Event)
+                .WithMany(ev => ev.EventAttachments)
+                .HasForeignKey(e => e.EventId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // ContactInfo configuration

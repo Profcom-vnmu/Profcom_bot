@@ -131,6 +131,12 @@ public class Event
     private readonly List<BotUser> _registeredParticipants = new();
     public IReadOnlyCollection<BotUser> RegisteredParticipants => _registeredParticipants.AsReadOnly();
     
+    /// <summary>
+    /// Multiple file attachments (photos, documents, etc.) - NEW APPROACH
+    /// </summary>
+    private readonly List<EventAttachment> _eventAttachments = new();
+    public IReadOnlyCollection<EventAttachment> EventAttachments => _eventAttachments.AsReadOnly();
+    
     // Private constructor for EF Core
     private Event() { }
     
@@ -278,10 +284,10 @@ public class Event
     public Result<bool> RegisterParticipant(BotUser user)
     {
         if (!CanRegisterParticipant())
-            return Result<bool>.Fail("Реєстрація на цю подію недоступна");
+            return Result<bool>.Fail("Ð ÐµÑ”ÑÑ‚Ñ€Ð°Ñ†Ñ–Ñ Ð½Ð° Ñ†ÑŽ Ð¿Ð¾Ð´Ñ–ÑŽ Ð½ÐµÐ´Ð¾ÑÑ‚ÑƒÐ¿Ð½Ð°");
         
         if (IsUserRegistered(user.TelegramId))
-            return Result<bool>.Fail("Ви вже зареєстровані на цю подію");
+            return Result<bool>.Fail("Ð’Ð¸ Ð²Ð¶Ðµ Ð·Ð°Ñ€ÐµÑ”ÑÑ‚Ñ€Ð¾Ð²Ð°Ð½Ñ– Ð½Ð° Ñ†ÑŽ Ð¿Ð¾Ð´Ñ–ÑŽ");
             
         _registeredParticipants.Add(user);
         CurrentParticipants++;
@@ -293,7 +299,7 @@ public class Event
     public Result<bool> UnregisterParticipant(BotUser user)
     {
         if (!IsUserRegistered(user.TelegramId))
-            return Result<bool>.Fail("Ви не зареєстровані на цю подію");
+            return Result<bool>.Fail("Ð’Ð¸ Ð½Ðµ Ð·Ð°Ñ€ÐµÑ”ÑÑ‚Ñ€Ð¾Ð²Ð°Ð½Ñ– Ð½Ð° Ñ†ÑŽ Ð¿Ð¾Ð´Ñ–ÑŽ");
         
         var participant = _registeredParticipants.FirstOrDefault(p => p.TelegramId == user.TelegramId);
         if (participant != null)
@@ -313,4 +319,82 @@ public class Event
     {
         return _registeredParticipants.Any(p => p.TelegramId == userId);
     }
+
+    #region EventAttachment Methods
+
+    /// <summary>
+    /// Додати новий attachment до події
+    /// </summary>
+    public void AddEventAttachment(string fileId, FileType fileType, string? fileName = null)
+    {
+        var order = _eventAttachments.Count;
+        var attachment = EventAttachment.Create(Id, fileId, fileType, order, fileName);
+        _eventAttachments.Add(attachment);
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Видалити attachment
+    /// </summary>
+    public void RemoveEventAttachment(EventAttachment attachment)
+    {
+        if (attachment == null)
+            throw new ArgumentNullException(nameof(attachment));
+
+        _eventAttachments.Remove(attachment);
+        
+        // Переіндексуємо порядок
+        for (int i = 0; i < _eventAttachments.Count; i++)
+        {
+            _eventAttachments[i].UpdateDisplayOrder(i);
+        }
+        
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Очистити всі attachments
+    /// </summary>
+    public void ClearEventAttachments()
+    {
+        _eventAttachments.Clear();
+        UpdatedAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Отримати перше фото
+    /// </summary>
+    public string? GetFirstPhotoFileId()
+    {
+        return _eventAttachments
+            .Where(a => a.FileType == FileType.Image)
+            .OrderBy(a => a.DisplayOrder)
+            .FirstOrDefault()?.FileId ?? PhotoFileId; // Fallback to legacy field
+    }
+
+    /// <summary>
+    /// Отримати всі фото
+    /// </summary>
+    public List<string> GetAllPhotoFileIds()
+    {
+        return _eventAttachments
+            .Where(a => a.FileType == FileType.Image)
+            .OrderBy(a => a.DisplayOrder)
+            .Select(a => a.FileId)
+            .ToList();
+    }
+
+    /// <summary>
+    /// Отримати всі документи
+    /// </summary>
+    public List<string> GetAllDocumentFileIds()
+    {
+        return _eventAttachments
+            .Where(a => a.FileType == FileType.Document)
+            .OrderBy(a => a.DisplayOrder)
+            .Select(a => a.FileId)
+            .ToList();
+    }
+
+    #endregion
 }

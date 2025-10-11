@@ -1,11 +1,14 @@
 using MediatR;
 using StudentUnionBot.Core.Results;
+using StudentUnionBot.Application.Common.Attributes;
+using StudentUnionBot.Domain.Enums;
 
 namespace StudentUnionBot.Application.News.Commands.DeleteNews;
 
 /// <summary>
 /// Command для видалення новини
 /// </summary>
+[RequirePermission(Permission.DeleteNews)]
 public class DeleteNewsCommand : IRequest<Result<bool>>
 {
     /// <summary>

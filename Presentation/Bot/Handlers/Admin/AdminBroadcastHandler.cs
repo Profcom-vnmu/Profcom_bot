@@ -2,6 +2,7 @@ using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using StudentUnionBot.Application.Common.Interfaces;
+using StudentUnionBot.Domain.Interfaces;
 // using StudentUnionBot.Application.Notifications.Commands.SendBroadcast;
 // using StudentUnionBot.Application.Users.Queries.GetAllActiveUsers;
 using StudentUnionBot.Domain.Enums;
@@ -110,11 +111,10 @@ public class AdminBroadcastHandler : BaseHandler, IAdminBroadcastHandler
             // Переходимо до підтвердження
             await stateManager.SetStateAsync(userId, UserConversationState.WaitingBroadcastConfirmation, cancellationToken);
 
-            // TODO: Отримуємо кількість активних користувачів
-            // var usersQuery = new GetAllActiveUsersQuery();
-            // var usersResult = await _mediator.Send(usersQuery, cancellationToken);
-            
-            var usersCount = 0; // Тимчасова заглушка
+            // Отримуємо кількість активних користувачів
+            var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+            var activeUsers = await unitOfWork.Users.GetActiveUsersAsync(cancellationToken);
+            var usersCount = activeUsers.Count;
 
             await botClient.SendTextMessageAsync(
                 chatId: message.Chat.Id,
@@ -170,32 +170,60 @@ public class AdminBroadcastHandler : BaseHandler, IAdminBroadcastHandler
             await stateManager.ClearStateAsync(userId, cancellationToken);
             await stateManager.ClearAllDataAsync(userId, cancellationToken);
 
-            // TODO: Відправляємо команду на розсилку
-            // var broadcastCommand = new SendBroadcastCommand
-            // {
-            //     AdminTelegramId = userId,
-            //     Message = broadcastText,
-            //     NotificationType = NotificationType.Push
-            // };
+            // Відправляємо команду на розсилку через MediatR
+            var broadcastCommand = new Application.Notifications.Commands.SendBroadcast.SendBroadcastCommand
+            {
+                AdminTelegramId = userId,
+                Message = broadcastText,
+                NotificationType = NotificationType.Push,
+                SendImmediately = true
+            };
             
-            // var result = await _mediator.Send(broadcastCommand, cancellationToken);
-            
-            // Тимчасова заглушка - симуляція успішної розсилки
-            var sentCount = 100; // Імітуємо що відправили 100 повідомлень
+            var result = await _mediator.Send(broadcastCommand, cancellationToken);
 
-            await botClient.EditMessageTextAsync(
-                chatId: callbackQuery.Message!.Chat.Id,
-                messageId: callbackQuery.Message.MessageId,
-                text: "✅ <b>Розсилка успішно відправлена!</b>\n\n" +
-                      $"📊 Відправлено: {sentCount} повідомлень\n\n" +
-                      $"📝 <b>Текст:</b>\n{broadcastText}",
-                parseMode: ParseMode.Html,
-                replyMarkup: GetBackToAdminPanelKeyboard(),
-                cancellationToken: cancellationToken);
+            // Обробляємо результат
+            if (result.IsSuccess && result.Value != null)
+            {
+                var broadcastResult = result.Value;
+                
+                await botClient.EditMessageTextAsync(
+                    chatId: callbackQuery.Message!.Chat.Id,
+                    messageId: callbackQuery.Message.MessageId,
+                    text: "✅ <b>Розсилка успішно завершена!</b>\n\n" +
+                          $"📊 <b>Статистика:</b>\n" +
+                          $"• Успішно: {broadcastResult.SuccessCount}\n" +
+                          $"• Помилок: {broadcastResult.FailureCount}\n" +
+                          $"• Загалом спроб: {broadcastResult.TotalAttempts}\n\n" +
+                          $"⏱️ Час виконання: {(broadcastResult.CompletedAt - broadcastResult.StartedAt).TotalSeconds:F1}с\n\n" +
+                          $"📝 <b>Текст розсилки:</b>\n{broadcastText}",
+                    parseMode: ParseMode.Html,
+                    replyMarkup: GetBackToAdminPanelKeyboard(),
+                    cancellationToken: cancellationToken);
 
-            _logger.LogInformation(
-                "Адмін {AdminId} успішно відправив розсилку. Доставлено {Count} повідомлень",
-                userId, sentCount);
+                _logger.LogInformation(
+                    "Адмін {AdminId} успішно відправив розсилку. Доставлено {Success}/{Total} повідомлень",
+                    userId, 
+                    broadcastResult.SuccessCount,
+                    broadcastResult.TotalAttempts
+                );
+            }
+            else
+            {
+                await botClient.EditMessageTextAsync(
+                    chatId: callbackQuery.Message!.Chat.Id,
+                    messageId: callbackQuery.Message.MessageId,
+                    text: $"❌ <b>Помилка при відправці розсилки</b>\n\n" +
+                          $"Деталі: {result.Error}",
+                    parseMode: ParseMode.Html,
+                    replyMarkup: GetBackToAdminPanelKeyboard(),
+                    cancellationToken: cancellationToken);
+
+                _logger.LogWarning(
+                    "Помилка при розсилці від адміна {AdminId}: {Error}",
+                    userId,
+                    result.Error
+                );
+            }
 
             await botClient.AnswerCallbackQueryAsync(callbackQuery.Id, cancellationToken: cancellationToken);
         }
