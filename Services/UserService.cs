@@ -26,15 +26,55 @@ public class UserService
     {
         var adminIds = new HashSet<long>();
         
+        // Спочатку перевіряємо Environment Variable (пріоритет для Render.com)
+        var adminIdsEnv = Environment.GetEnvironmentVariable("ADMIN_IDS");
+        if (!string.IsNullOrEmpty(adminIdsEnv))
+        {
+            Console.WriteLine("🔑 Loading admin IDs from Environment Variable ADMIN_IDS");
+            
+            try
+            {
+                // Підтримуємо різні формати: "123,456,789" або "123;456;789" або "123 456 789"
+                var adminIdStrings = adminIdsEnv
+                    .Split(new char[] { ',', ';', ' ', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(x => x.Trim())
+                    .Where(x => !string.IsNullOrEmpty(x));
+                
+                foreach (var adminIdStr in adminIdStrings)
+                {
+                    if (long.TryParse(adminIdStr, out var adminId))
+                    {
+                        adminIds.Add(adminId);
+                        Console.WriteLine($"✅ Added admin: {adminId}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"⚠️ Invalid admin ID format: {adminIdStr}");
+                    }
+                }
+                
+                Console.WriteLine($"🔑 Loaded {adminIds.Count} admin(s) from Environment Variable");
+                return adminIds;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error parsing ADMIN_IDS environment variable: {ex.Message}");
+                Console.WriteLine("Falling back to admins.txt file...");
+            }
+        }
+        
+        // Fallback до файлу admins.txt для локальної розробки
         if (!System.IO.File.Exists(_adminsFilePath))
         {
-            Console.WriteLine($"⚠️ Файл admins.txt не знайдено за шляхом: {_adminsFilePath}");
-            Console.WriteLine("Створіть файл admins.txt і додайте в нього Telegram ID адміністраторів (один на рядок)");
+            Console.WriteLine($"⚠️ Environment Variable ADMIN_IDS not found and admins.txt не знайдено за шляхом: {_adminsFilePath}");
+            Console.WriteLine("Для Render.com: Встановіть Environment Variable ADMIN_IDS (наприклад: '123456789,987654321')");
+            Console.WriteLine("Для локальної розробки: Створіть файл admins.txt і додайте в нього Telegram ID адміністраторів (один на рядок)");
             return adminIds;
         }
 
         try
         {
+            Console.WriteLine("📁 Loading admin IDs from admins.txt file");
             var lines = System.IO.File.ReadAllLines(_adminsFilePath);
             foreach (var line in lines)
             {
@@ -67,15 +107,54 @@ public class UserService
     {
         var bannedIds = new HashSet<long>();
         
+        // Спочатку перевіряємо Environment Variable (пріоритет для Render.com)
+        var bannedIdsEnv = Environment.GetEnvironmentVariable("BANNED_USER_IDS");
+        if (!string.IsNullOrEmpty(bannedIdsEnv))
+        {
+            Console.WriteLine("🚫 Loading banned user IDs from Environment Variable BANNED_USER_IDS");
+            
+            try
+            {
+                // Підтримуємо різні формати: "123,456,789" або "123;456;789" або "123 456 789"
+                var bannedIdStrings = bannedIdsEnv
+                    .Split(new char[] { ',', ';', ' ', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(x => x.Trim())
+                    .Where(x => !string.IsNullOrEmpty(x));
+                
+                foreach (var bannedIdStr in bannedIdStrings)
+                {
+                    if (long.TryParse(bannedIdStr, out var bannedId))
+                    {
+                        bannedIds.Add(bannedId);
+                        Console.WriteLine($"🚫 Added banned user: {bannedId}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"⚠️ Invalid banned user ID format: {bannedIdStr}");
+                    }
+                }
+                
+                Console.WriteLine($"🚫 Loaded {bannedIds.Count} banned user(s) from Environment Variable");
+                return bannedIds;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"❌ Error parsing BANNED_USER_IDS environment variable: {ex.Message}");
+                Console.WriteLine("Falling back to ban.txt file...");
+            }
+        }
+        
+        // Fallback до файлу ban.txt для локальної розробки
         if (!System.IO.File.Exists(_bannedFilePath))
         {
-            Console.WriteLine($"ℹ️ Файл ban.txt не знайдено за шляхом: {_bannedFilePath}");
+            Console.WriteLine($"ℹ️ Environment Variable BANNED_USER_IDS not found and ban.txt не знайдено за шляхом: {_bannedFilePath}");
             Console.WriteLine("Список заблокованих користувачів порожній");
             return bannedIds;
         }
 
         try
         {
+            Console.WriteLine("📁 Loading banned user IDs from ban.txt file");
             var lines = System.IO.File.ReadAllLines(_bannedFilePath);
             foreach (var line in lines)
             {
@@ -272,5 +351,59 @@ public class UserService
         }
 
         return csv.ToString();
+    }
+
+    /// <summary>
+    /// Перезавантажити список адмінів з Environment Variables або файлу
+    /// </summary>
+    public void ReloadAdminIds()
+    {
+        _adminIds.Clear();
+        var newAdminIds = LoadAdminIds();
+        foreach (var adminId in newAdminIds)
+        {
+            _adminIds.Add(adminId);
+        }
+        Console.WriteLine($"🔄 Admin IDs reloaded: {_adminIds.Count} admin(s)");
+    }
+
+    /// <summary>
+    /// Перезавантажити список забанених користувачів з Environment Variables або файлу
+    /// </summary>
+    public void ReloadBannedUserIds()
+    {
+        _bannedUserIds.Clear();
+        var newBannedIds = LoadBannedUserIds();
+        foreach (var bannedId in newBannedIds)
+        {
+            _bannedUserIds.Add(bannedId);
+        }
+        Console.WriteLine($"🔄 Banned user IDs reloaded: {_bannedUserIds.Count} banned user(s)");
+    }
+
+    /// <summary>
+    /// Додати адміна динамічно (тільки в поточній сесії)
+    /// </summary>
+    public bool AddAdminTemporarily(long telegramId)
+    {
+        if (_adminIds.Add(telegramId))
+        {
+            Console.WriteLine($"✅ Temporarily added admin: {telegramId}");
+            return true;
+        }
+        return false; // Вже існує
+    }
+
+    /// <summary>
+    /// Видалити адміна динамічно (тільки в поточній сесії)
+    /// </summary>
+    public bool RemoveAdminTemporarily(long telegramId)
+    {
+        if (_adminIds.Remove(telegramId))
+        {
+            Console.WriteLine($"❌ Temporarily removed admin: {telegramId}");
+            return true;
+        }
+        return false; // Не існує
     }
 }
