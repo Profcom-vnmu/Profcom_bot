@@ -1044,9 +1044,12 @@ public class BotService
             {
                 await _botClient.SendTextMessageAsync(
                     chatId: adminId,
-                    text: $"📩 Нове звернення #{appeal.Id}\n\n від: {userName}\n" +
-                          $"Дата: {appeal.CreatedAt:dd.MM.yyyy HH:mm}\n\n" +
-                          $"\n{appeal.Message}\n\n"
+                    text: $"📩 Нове звернення #{appeal.Id}\n\n" +
+                          $"👤 Від: {userName}\n" +
+                          $"📅 Дата: {appeal.CreatedAt:dd.MM.yyyy HH:mm}\n" +
+                          $"📊 Статус: {GetAppealStatusText(appeal.Status)}\n\n" +
+                          $"💬 Повідомлення:\n{appeal.Message}\n\n" +
+                          $"↩️ Щоб відповісти, натисніть Reply на це повідомлення"
                 );
             }
             catch (Exception ex)
@@ -1065,8 +1068,11 @@ public class BotService
         {
             try
             {
-                string notificationText = $"💬 Нове повідомлення до звернення #{appeal.Id} від: {userName}\n\n" +
-                        $"\n\n{messageText}";
+                string notificationText = $"💬 Нове повідомлення до звернення #{appeal.Id}\n\n" +
+                        $"👤 Від: {userName}\n" +
+                        $"📅 Час: {DateTime.Now:dd.MM.yyyy HH:mm}\n\n" +
+                        $"💬 Повідомлення:\n{messageText}\n\n" +
+                        $"↩️ Щоб відповісти, натисніть Reply на це повідомлення";
 
                 if (photoFileId != null)
                     notificationText += "\n📸 Прикріплено фото";
@@ -1092,18 +1098,44 @@ public class BotService
 
         // Витягуємо ID звернення з тексту повідомлення, на яке відповіли
         var replyText = message.ReplyToMessage.Text;
-        var appealIdMatch = System.Text.RegularExpressions.Regex.Match(replyText, @"звернення #(\d+)");
-        
-        if (!appealIdMatch.Success)
+        // Пробуємо кілька варіантів regex для знаходження номера звернення
+        var appealIdPatterns = new[]
         {
+            @"звернення #(\d+)",           // "звернення #123"
+            @"звернення\s*#(\d+)",         // "звернення #123" з можливими пробілами
+            @"Нове звернення\s*#(\d+)",    // "Нове звернення #123"
+            @"повідомлення до звернення\s*#(\d+)", // "повідомлення до звернення #123"
+            @"#(\d+)",                     // просто "#123"
+        };
+
+        int appealId = -1;
+        bool found = false;
+
+        foreach (var pattern in appealIdPatterns)
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(replyText, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (match.Success)
+            {
+                appealId = int.Parse(match.Groups[1].Value);
+                found = true;
+                Console.WriteLine($"[DEBUG] Знайдено appeal ID {appealId} за допомогою паттерну: {pattern}");
+                break;
+            }
+        }
+        
+        if (!found)
+        {
+            // Додаємо детальну інформацію для дебагу
+            Console.WriteLine($"[DEBUG] Не вдалося знайти номер звернення в тексті: {replyText}");
+
             await _botClient.SendTextMessageAsync(
                 chatId: message.Chat.Id,
-                text: "⚠️ Не вдалося знайти номер звернення в повідомленні, на яке ви відповіли."
+                text: "⚠️ Не вдалося знайти номер звернення в повідомленні, на яке ви відповіли.\n\n" +
+                      "💡 Переконайтеся, що відповідаєте на повідомлення, яке містить номер звернення.\n" +
+                      "Формат: 'звернення #123' або 'Нове звернення #123'"
             );
             return;
         }
-
-        var appealId = int.Parse(appealIdMatch.Groups[1].Value);
         var appeal = _appealService.GetAppealById(appealId);
 
         if (appeal == null)
@@ -1301,8 +1333,7 @@ public class BotService
 
         await _botClient.SendTextMessageAsync(
             chatId: message.Chat.Id,
-            text: "📚 Головне меню\n\n" +
-                  "Виберіть розділ для продовження:",
+            text: "📚 Головне меню\n\n",
             replyMarkup: keyboard
         );
     }
@@ -2304,12 +2335,7 @@ public class BotService
             ResizeKeyboard = true
         };
 
-        await _botClient.SendTextMessageAsync(
-            chatId: message.Chat.Id,
-            text: "📩 Розділ: Звернення\n\n" +
-                  "Оберіть категорію звернень:",
-            replyMarkup: keyboard
-        );
+        
     }
 
     /// <summary>
@@ -2626,11 +2652,7 @@ public class BotService
 
         keyboard.ResizeKeyboard = true;
 
-        await _botClient.SendTextMessageAsync(
-            chatId: message.Chat.Id,
-            text: "Оберіть дію:",
-            replyMarkup: keyboard
-        );
+       
     }
 
     /// <summary>
@@ -2894,20 +2916,27 @@ public class BotService
 
         try
         {
-            var csv = await _userService.ExportUsersToCsvAsync();
+            // Використовуємо новий метод з правильним UTF-8 кодуванням та BOM
+            var csvBytes = await _userService.ExportUsersToCsvBytesAsync();
             var fileName = $"users_export_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
-            
-            // Конвертуємо в байти
-            var bytes = System.Text.Encoding.UTF8.GetBytes(csv);
-            
-            using (var stream = new MemoryStream(bytes))
+
+            using (var stream = new MemoryStream(csvBytes))
             {
+                // Підраховуємо кількість рядків для статистики
+                var csvString = await _userService.ExportUsersToCsvAsync();
+                var recordCount = csvString.Split('\n').Length - 2; // -2 для заголовка та останнього порожнього рядка
+                
                 await _botClient.SendDocumentAsync(
                     chatId: message.Chat.Id,
                     document: InputFile.FromStream(stream, fileName),
-                    caption: $"Експорт користувачів\n\n" +
-                            $"Всього записів: {csv.Split('\n').Length - 2}\n" +
-                            $"Дата: {DateTime.Now:dd.MM.yyyy HH:mm}"
+                    caption: $"📊 Експорт користувачів\n\n" +
+                            $"📈 Всього записів: {recordCount}\n" +
+                            $"📅 Дата: {DateTime.Now:dd.MM.yyyy HH:mm}\n" +
+                            $"🔤 Кодування: UTF-8 з BOM\n\n" +
+                            $"💡 Для правильного відображення:\n" +
+                            $"• Excel: відкрийте через 'Дані → З тексту'\n" +
+                            $"• LibreOffice: оберіть UTF-8 при імпорті\n" +
+                            $"• Google Sheets: завантажте і воно автоматично розпізнає"
                 );
             }
 
@@ -3107,6 +3136,22 @@ public class BotService
             parseMode: ParseMode.Html,
             replyMarkup: keyboard
         );
+    }
+
+    /// <summary>
+    /// Отримати текстову назву статусу звернення
+    /// </summary>
+    private string GetAppealStatusText(AppealStatus status)
+    {
+        return status switch
+        {
+            AppealStatus.New => "🆕 Нове",
+            AppealStatus.AdminReplied => "💬 Є відповідь адміна",
+            AppealStatus.StudentReplied => "📝 Є відповідь студента",
+            AppealStatus.ClosedByAdmin => "🔒 Закрито адміном",
+            AppealStatus.ClosedByStudent => "🔒 Закрито студентом",
+            _ => status.ToString()
+        };
     }
 }
 
