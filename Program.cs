@@ -18,13 +18,25 @@ var botToken = Environment.GetEnvironmentVariable("BotToken")
     ?? configuration["BotToken"]
     ?? throw new ArgumentNullException("BotToken", "Bot token is missing.");
 
-// Використовуємо PostgreSQL базу даних з фіксованим connection string
-var postgresConnectionString = "Host=localhost;Database=studentunion;Username=postgres;Password=password";
+// Налаштування PostgreSQL - автоматичне визначення середовища
+var postgresConnectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
+BotDbContext dbContext;
 
-Console.WriteLine("� Using PostgreSQL database");
-var dbContext = new BotDbContext(postgresConnectionString, isPostgreSQL: true);
-
-Console.WriteLine($"📊 Database: PostgreSQL (localhost)");
+if (!string.IsNullOrEmpty(postgresConnectionString))
+{
+    // Render.com PostgreSQL (DATABASE_URL автоматично створюється при додаванні PostgreSQL Add-on)
+    Console.WriteLine("🐘 Using Render PostgreSQL database");
+    dbContext = new BotDbContext(postgresConnectionString, isPostgreSQL: true);
+    Console.WriteLine($"📊 Database: Render PostgreSQL");
+}
+else
+{
+    // Локальна розробка - PostgreSQL
+    var localConnectionString = "Host=localhost;Database=studentunion;Username=postgres;Password=password";
+    Console.WriteLine("🐘 Using local PostgreSQL database");
+    dbContext = new BotDbContext(localConnectionString, isPostgreSQL: true);
+    Console.WriteLine($"📊 Database: PostgreSQL (localhost)");
+}
 
 Console.WriteLine("🔄 Running database migrations...");
 try
