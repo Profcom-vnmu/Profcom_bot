@@ -26,12 +26,14 @@ public class BotDbContext : DbContext
     {
         if (_isPostgreSQL)
         {
-            options.UseNpgsql(_connectionString);
+            options.UseNpgsql(_connectionString)
+                   .ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         }
         else
         {
             // Для локальної розробки - SQLite
-            options.UseSqlite($"Data Source={_connectionString}");
+            options.UseSqlite($"Data Source={_connectionString}")
+                   .ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning));
         }
     }
 

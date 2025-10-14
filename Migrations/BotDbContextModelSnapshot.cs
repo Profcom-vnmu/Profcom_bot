@@ -51,7 +51,7 @@ namespace StudentUnionBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Appeals");
+                    b.ToTable("Appeals", (string)null);
                 });
 
             modelBuilder.Entity("StudentUnionBot.Models.AppealMessage", b =>
@@ -96,7 +96,7 @@ namespace StudentUnionBot.Migrations
 
                     b.HasIndex("AppealId");
 
-                    b.ToTable("AppealMessages");
+                    b.ToTable("AppealMessages", (string)null);
                 });
 
             modelBuilder.Entity("StudentUnionBot.Models.BotUser", b =>
@@ -140,7 +140,7 @@ namespace StudentUnionBot.Migrations
 
                     b.HasKey("TelegramId");
 
-                    b.ToTable("Users");
+                    b.ToTable("Users", (string)null);
                 });
 
             modelBuilder.Entity("StudentUnionBot.Models.ContactInfo", b =>
@@ -165,7 +165,7 @@ namespace StudentUnionBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ContactInfo");
+                    b.ToTable("ContactInfo", (string)null);
                 });
 
             modelBuilder.Entity("StudentUnionBot.Models.EventsInfo", b =>
@@ -190,7 +190,7 @@ namespace StudentUnionBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("EventsInfo");
+                    b.ToTable("EventsInfo", (string)null);
                 });
 
             modelBuilder.Entity("StudentUnionBot.Models.News", b =>
@@ -224,7 +224,7 @@ namespace StudentUnionBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("News");
+                    b.ToTable("News", (string)null);
                 });
 
             modelBuilder.Entity("StudentUnionBot.Models.PartnersInfo", b =>
@@ -249,7 +249,7 @@ namespace StudentUnionBot.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("PartnersInfo");
+                    b.ToTable("PartnersInfo", (string)null);
                 });
 
             modelBuilder.Entity("StudentUnionBot.Models.AppealMessage", b =>
