@@ -143,8 +143,7 @@ dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=
 StudentUnionBot/
 ├── Data/
 │   ├── BotDbContext.cs          # Контекст бази даних
-│   ├── BotDbContextFactory.cs   # Фабрика для міграцій
-│   └── studentunion.db          # SQLite база даних
+│   └── BotDbContextFactory.cs   # Фабрика для міграцій
 ├── Migrations/                   # EF Core міграції
 ├── Models/
 │   ├── Appeal.cs                # Модель звернення
@@ -187,8 +186,7 @@ StudentUnionBot/
 ```json
 {
   "BotConfiguration": {
-    "BotToken": "YOUR_BOT_TOKEN",
-    "DatabasePath": "Data/studentunion.db"
+    "BotToken": "YOUR_BOT_TOKEN"
   }
 }
 ```
@@ -196,7 +194,6 @@ StudentUnionBot/
 ### Змінні середовища (для хостингу)
 ```bash
 BotToken=your_token_here
-DatabasePath=Data/studentunion.db  # опціонально
 ```
 
 ### admins.txt
@@ -262,8 +259,7 @@ docker run -e BotToken="your_token" studentunionbot
 
 ## 🐛 Відомі обмеження
 
-- База даних SQLite (для продакшену краще PostgreSQL)
-- Файли ban.txt та admins.txt на сервері треба оновлювати вручну
+- База даних PostgreSQL (налаштована локально: localhost)
 - Медіа файли зберігаються тільки як file_id (залежать від Telegram)
 
 ---
