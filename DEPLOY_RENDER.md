@@ -57,11 +57,13 @@
 **Варіант 2: Використання вбудованого connection string**
 - Бот автоматично використає вбудований connection string для Render PostgreSQL
 - Не потрібно додавати DATABASE_URL - все працює автоматично
-- Connection string: `postgresql://render_postgresql_5nyk_user:JYvtkcQIhpAtroaF8LOoT5W1qEdgptnI@dpg-d3n9jjb3fgac73af7550-a/render_postgresql_5nyk`
+- Connection string автоматично конвертується в правильний Npgsql формат
+- Включає SSL Mode=Require для безпечного підключення
 
 2. **Автоматичне налаштування:**
    - ✅ Бот автоматично визначає Render середовище
-   - ✅ Використовує PostgreSQL для Render
+   - ✅ Конвертує PostgreSQL URL в правильний формат
+   - ✅ Використовує SSL підключення для безпеки
    - ✅ Міграції застосовуються при кожному запуску
 
 ### КРОК 5: Запустіть деплой
