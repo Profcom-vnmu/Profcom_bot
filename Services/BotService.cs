@@ -2634,11 +2634,7 @@ public class BotService
 
         keyboard.ResizeKeyboard = true;
 
-        await _botClient.SendTextMessageAsync(
-            chatId: message.Chat.Id,
-            text: "Оберіть дію:",
-            replyMarkup: keyboard
-        );
+       
     }
 
     /// <summary>
@@ -3324,8 +3320,7 @@ public class BotService
                 text: $"� <b>Ваше активне звернення #{activeAppeal.Id}</b>\n\n" +
                       $"📅 Створено: {activeAppeal.CreatedAt:dd.MM.yyyy HH:mm}\n" +
                       $"📊 Статус: {GetAppealStatusText(activeAppeal.Status)}\n\n" +
-                      $"Оберіть дію:",
-                parseMode: ParseMode.Html,
+                      $"💬 Повідомлення:\n{activeAppeal.Message}\n\n",
                 replyMarkup: keyboard
             );
         }
