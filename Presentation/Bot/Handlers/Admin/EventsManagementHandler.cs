@@ -1,4 +1,5 @@
 using MediatR;
+using Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using StudentUnionBot.Application.Common.Interfaces;
@@ -326,7 +327,7 @@ public class EventsManagementHandler : BaseHandler, IEventsManagementHandler
             return;
         }
 
-        if (eventDateTime <= DateTime.Now)
+        if (eventDateTime <= AppTime.KyivNow)
         {
             await SendLocalizedErrorAsync(botClient, userId, "validation.event_datetime_past", cancellationToken);
             return;

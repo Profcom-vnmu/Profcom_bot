@@ -1,4 +1,5 @@
 using MediatR;
+using Core;
 using Microsoft.Extensions.Logging;
 using StudentUnionBot.Core.Results;
 using StudentUnionBot.Domain.Interfaces;
@@ -129,7 +130,7 @@ public class SendEmailNotificationCommandHandler : IRequestHandler<SendEmailNoti
     private async Task<bool> SendEventNotificationEmail(SendEmailNotificationCommand request, CancellationToken cancellationToken)
     {
         var eventTitle = request.TemplateData.GetValueOrDefault("EventTitle")?.ToString() ?? "";
-        var eventDate = Convert.ToDateTime(request.TemplateData.GetValueOrDefault("EventDate", DateTime.Now));
+        var eventDate = Convert.ToDateTime(request.TemplateData.GetValueOrDefault("EventDate", AppTime.KyivNow));
         var eventLocation = request.TemplateData.GetValueOrDefault("EventLocation")?.ToString() ?? "";
         var eventUrl = request.TemplateData.GetValueOrDefault("EventUrl")?.ToString() ?? "";
 
@@ -149,7 +150,7 @@ public class SendEmailNotificationCommandHandler : IRequestHandler<SendEmailNoti
     private async Task<bool> SendEventReminderEmail(SendEmailNotificationCommand request, CancellationToken cancellationToken)
     {
         var eventTitle = request.TemplateData.GetValueOrDefault("EventTitle")?.ToString() ?? "";
-        var eventDate = Convert.ToDateTime(request.TemplateData.GetValueOrDefault("EventDate", DateTime.Now));
+        var eventDate = Convert.ToDateTime(request.TemplateData.GetValueOrDefault("EventDate", AppTime.KyivNow));
         var eventLocation = request.TemplateData.GetValueOrDefault("EventLocation")?.ToString() ?? "";
 
         var success = true;
@@ -170,7 +171,7 @@ public class SendEmailNotificationCommandHandler : IRequestHandler<SendEmailNoti
             return false;
 
         var eventTitle = request.TemplateData.GetValueOrDefault("EventTitle")?.ToString() ?? "";
-        var eventDate = Convert.ToDateTime(request.TemplateData.GetValueOrDefault("EventDate", DateTime.Now));
+        var eventDate = Convert.ToDateTime(request.TemplateData.GetValueOrDefault("EventDate", AppTime.KyivNow));
         var eventLocation = request.TemplateData.GetValueOrDefault("EventLocation")?.ToString() ?? "";
         
         return await _emailService.SendEventRegistrationConfirmationAsync(toEmail, eventTitle, eventDate, eventLocation, cancellationToken);
@@ -223,8 +224,8 @@ public class SendEmailNotificationCommandHandler : IRequestHandler<SendEmailNoti
             .Replace("{{NewsSummary}}", summary)
             .Replace("{{NewsUrl}}", url ?? "#")
             .Replace("{{NewsCategory}}", "Загальне")
-            .Replace("{{PublishDate}}", DateTime.Now.ToString("dd MMMM yyyy, HH:mm", new System.Globalization.CultureInfo("uk-UA")))
-            .Replace("{{Year}}", DateTime.Now.Year.ToString());
+            .Replace("{{PublishDate}}", AppTime.KyivNow.ToString("dd MMMM yyyy, HH:mm", new System.Globalization.CultureInfo("uk-UA")))
+            .Replace("{{Year}}", AppTime.KyivNow.Year.ToString());
 
         return html;
     }
@@ -253,7 +254,7 @@ public class SendEmailNotificationCommandHandler : IRequestHandler<SendEmailNoti
             .Replace("{{EventLocation}}", location)
             .Replace("{{EventCategory}}", "Загальне")
             .Replace("{{EventUrl}}", url ?? "#")
-            .Replace("{{Year}}", DateTime.Now.Year.ToString());
+            .Replace("{{Year}}", AppTime.KyivNow.Year.ToString());
 
         // Видаляємо блоки з {{#if}} так як у нас немає Handlebars engine
         html = System.Text.RegularExpressions.Regex.Replace(html, @"\{\{#if.*?\}\}.*?\{\{/if\}\}", "", 
@@ -273,7 +274,7 @@ public class SendEmailNotificationCommandHandler : IRequestHandler<SendEmailNoti
             <h2 style='color: #28a745;'>📰 {title}</h2>
             <p>{summary}</p>
             {(string.IsNullOrEmpty(url) ? "" : $"<a href='{url}' style='color: #28a745;'>Читати повністю →</a>")}
-            <hr><p style='color: #999; font-size: 12px;'>© {DateTime.Now.Year} Профком ВНМУ</p>
+            <hr><p style='color: #999; font-size: 12px;'>© {AppTime.KyivNow.Year} Профком ВНМУ</p>
             </body></html>";
     }
 
@@ -287,7 +288,7 @@ public class SendEmailNotificationCommandHandler : IRequestHandler<SendEmailNoti
             <p><strong>📅 Дата:</strong> {eventDate:dd MMMM yyyy, HH:mm}</p>
             <p><strong>📍 Місце:</strong> {location}</p>
             {(string.IsNullOrEmpty(url) ? "" : $"<a href='{url}' style='color: #007bff;'>Детальніше →</a>")}
-            <hr><p style='color: #999; font-size: 12px;'>© {DateTime.Now.Year} Профком ВНМУ</p>
+            <hr><p style='color: #999; font-size: 12px;'>© {AppTime.KyivNow.Year} Профком ВНМУ</p>
             </body></html>";
     }
 

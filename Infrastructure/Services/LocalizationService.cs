@@ -112,6 +112,15 @@ public class LocalizationService : ILocalizationService
         
         AddResource("button.back", Language.Ukrainian, "🔙 Назад");
         AddResource("button.back", Language.English, "🔙 Back");
+        
+        AddResource("button.skip", Language.Ukrainian, "⏭️ Пропустити");
+        AddResource("button.skip", Language.English, "⏭️ Skip");
+        
+        AddResource("button.finish", Language.Ukrainian, "✅ Завершити");
+        AddResource("button.finish", Language.English, "✅ Finish");
+        
+        AddResource("button.cancel", Language.Ukrainian, "❌ Скасувати");
+        AddResource("button.cancel", Language.English, "❌ Cancel");
 
         // Команда start
         AddResource("command.start.title", Language.Ukrainian, "🎓 <b>Вітаємо в боті Студентського Профкому ВНМУ!</b>");
@@ -208,6 +217,9 @@ public class LocalizationService : ILocalizationService
 
         AddResource("profile.not_specified", Language.Ukrainian, "<i>не вказано</i>");
         AddResource("profile.not_specified", Language.English, "<i>not specified</i>");
+        
+        AddResource("profile.language_changed", Language.Ukrainian, "✅ <b>Мову змінено!</b>\n\nТепер інтерфейс бота відображатиметься українською мовою.");
+        AddResource("profile.language_changed", Language.English, "✅ <b>Language changed!</b>\n\nThe bot interface will now be displayed in English.");
 
         // Мова
         AddResource("language.select.title", Language.Ukrainian, "🌐 <b>Оберіть мову / Select Language</b>");

@@ -1,5 +1,6 @@
 using StudentUnionBot.Core.Exceptions;
 using StudentUnionBot.Domain.Enums;
+using Core;
 
 namespace StudentUnionBot.Domain.Entities;
 
@@ -33,6 +34,7 @@ public class BotUser
     public DateTime? ProfileUpdatedAt { get; private set; }
     public DateTime? LastActivityAt { get; private set; }
     public UserRole Role { get; private set; }
+    public TutorialStep TutorialStep { get; private set; } = TutorialStep.NotStarted;
 
     // Navigation properties
     public ICollection<Appeal> Appeals { get; private set; } = new List<Appeal>();
@@ -105,7 +107,7 @@ public class BotUser
     {
         var random = new Random();
         VerificationCode = random.Next(100000, 999999).ToString();
-        VerificationCodeExpiry = DateTime.UtcNow.AddMinutes(15);
+        VerificationCodeExpiry = AppTime.Now.AddMinutes(15); // Використовуємо Kyiv timezone
         return VerificationCode;
     }
 
@@ -117,7 +119,7 @@ public class BotUser
         if (string.IsNullOrWhiteSpace(VerificationCode))
             return false;
 
-        if (VerificationCodeExpiry < DateTime.UtcNow)
+        if (VerificationCodeExpiry < AppTime.Now) // Використовуємо Kyiv timezone
             return false;
 
         if (VerificationCode != code)
@@ -246,6 +248,18 @@ public class BotUser
     /// </summary>
     public void UpdateLastActivity()
     {
+        LastActivityAt = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Оновлення прогресу туторіалу
+    /// </summary>
+    public void UpdateTutorialProgress(TutorialStep step)
+    {
+        if (!Enum.IsDefined(typeof(TutorialStep), step))
+            throw new DomainException("Невалідний крок туторіалу");
+        
+        TutorialStep = step;
         LastActivityAt = DateTime.UtcNow;
     }
 

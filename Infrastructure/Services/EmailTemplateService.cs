@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-
+using Core;
 namespace StudentUnionBot.Infrastructure.Services;
 
 /// <summary>
@@ -66,7 +66,7 @@ public class EmailTemplateService
         result = ProcessConditionals(result, variables);
         
         // Додаємо загальні змінні
-        result = result.Replace("{{Year}}", DateTime.Now.Year.ToString());
+        result = result.Replace("{{Year}}", AppTime.KyivNow.Year.ToString());
         
         return result;
     }
@@ -105,7 +105,7 @@ public class EmailTemplateService
     {
         return new Dictionary<string, object>
         {
-            ["Year"] = DateTime.Now.Year,
+            ["Year"] = AppTime.KyivNow.Year,
             ["UserName"] = userName ?? "Шановний студенте",
             ["BotName"] = "StudentUnionBot",
             ["OrganizationName"] = "Профспілковий комітет студентів ВНМУ"
@@ -134,7 +134,7 @@ public class EmailTemplateService
         variables["NewsSummary"] = newsSummary;
         variables["NewsCategory"] = newsCategory;
         variables["NewsUrl"] = newsUrl;
-        variables["PublishDate"] = DateTime.Now.ToString("dd MMMM yyyy, HH:mm");
+        variables["PublishDate"] = AppTime.KyivNow.ToString("dd MMMM yyyy, HH:mm");
         
         return variables;
     }
@@ -194,7 +194,7 @@ public class EmailTemplateService
         variables["EventLocation"] = eventLocation;
         
         // Розраховуємо час до події
-        var timeUntilEvent = eventDate - DateTime.Now;
+        var timeUntilEvent = eventDate - AppTime.KyivNow;
         if (timeUntilEvent.TotalDays >= 1)
         {
             variables["TimeUntilEvent"] = $"{(int)timeUntilEvent.TotalDays} днів";

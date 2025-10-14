@@ -178,6 +178,7 @@ try
     builder.Services.AddScoped<IAppealHandler, AppealHandler>();
     builder.Services.AddScoped<IUserHandler, UserHandler>();
     builder.Services.AddScoped<IContentHandler, ContentHandler>();
+    builder.Services.AddScoped<StudentUnionBot.Presentation.Bot.Handlers.Tutorial.TutorialHandler>();
     
     // Admin Handlers
     builder.Services.AddScoped<IAdminHandler, AdminHandler>();

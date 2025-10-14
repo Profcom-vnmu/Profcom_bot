@@ -7,6 +7,7 @@ namespace StudentUnionBot.Application.Users.DTOs;
 /// </summary>
 public class UserDto
 {
+    public int Id { get; set; }
     public long TelegramId { get; set; }
     public string? Username { get; set; }
     public string? FirstName { get; set; }
@@ -18,6 +19,8 @@ public class UserDto
     public string? Email { get; set; }
     public bool IsEmailVerified { get; set; }
     public string Language { get; set; } = "uk";
+    public string? PhoneNumber { get; set; }
+    public DateTime CreatedAt { get; set; }
     public DateTime JoinedAt { get; set; }
     public bool IsActive { get; set; }
     public string RoleName { get; set; } = string.Empty;

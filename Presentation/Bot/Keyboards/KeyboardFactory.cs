@@ -1,3 +1,4 @@
+using StudentUnionBot.Application.Users.DTOs;
 using StudentUnionBot.Domain.Enums;
 using StudentUnionBot.Domain.Interfaces;
 using Telegram.Bot.Types.ReplyMarkups;
@@ -303,6 +304,171 @@ public static class KeyboardFactory
                 InlineKeyboardButton.WithCallbackData(await localization.GetLocalizedStringAsync("button.admin.panel", userLanguage, cancellationToken), "admin_panel")
             }
         });
+    }
+
+    // ==================== ПЕРСОНАЛІЗОВАНІ КЛАВІАТУРИ ====================
+
+    /// <summary>
+    /// Персоналізоване головне меню з Quick Actions
+    /// </summary>
+    public static async Task<InlineKeyboardMarkup> GetPersonalizedMainMenuKeyboardAsync(
+        ILocalizationService localization,
+        Language userLanguage,
+        UserDashboardDto dashboard,
+        CancellationToken cancellationToken = default)
+    {
+        var buttons = new List<InlineKeyboardButton[]>();
+
+        // Якщо є швидкі дії - додаємо їх першими
+        if (dashboard.QuickActions.Any())
+        {
+            // Групуємо по 2 кнопки в ряд
+            for (int i = 0; i < dashboard.QuickActions.Count; i += 2)
+            {
+                var row = new List<InlineKeyboardButton>();
+                
+                var action1 = dashboard.QuickActions[i];
+                row.Add(InlineKeyboardButton.WithCallbackData(
+                    $"{action1.Emoji} {action1.Title}",
+                    action1.CallbackData));
+
+                if (i + 1 < dashboard.QuickActions.Count)
+                {
+                    var action2 = dashboard.QuickActions[i + 1];
+                    row.Add(InlineKeyboardButton.WithCallbackData(
+                        $"{action2.Emoji} {action2.Title}",
+                        action2.CallbackData));
+                }
+
+                buttons.Add(row.ToArray());
+            }
+        }
+
+        // Додаємо розділювач
+        buttons.Add(new[]
+        {
+            InlineKeyboardButton.WithCallbackData("─────── 📚 ───────", "noop")
+        });
+
+        // Основні розділи (по 2 кнопки для консистентності ширини)
+        buttons.Add(new[]
+        {
+            InlineKeyboardButton.WithCallbackData(
+                await localization.GetLocalizedStringAsync("button.news", userLanguage, cancellationToken),
+                "news_list"),
+            InlineKeyboardButton.WithCallbackData(
+                await localization.GetLocalizedStringAsync("button.events", userLanguage, cancellationToken),
+                "events_list")
+        });
+        
+        buttons.Add(new[]
+        {
+            InlineKeyboardButton.WithCallbackData(
+                await localization.GetLocalizedStringAsync("button.partners", userLanguage, cancellationToken),
+                "partners_list"),
+            InlineKeyboardButton.WithCallbackData(
+                await localization.GetLocalizedStringAsync("button.contacts", userLanguage, cancellationToken),
+                "contacts_list")
+        });
+
+        // Допоміжні розділи (профіль і допомога) - по 2 кнопки
+        buttons.Add(new[]
+        {
+            InlineKeyboardButton.WithCallbackData(
+                await localization.GetLocalizedStringAsync("button.profile", userLanguage, cancellationToken),
+                "profile_view"),
+            InlineKeyboardButton.WithCallbackData(
+                await localization.GetLocalizedStringAsync("button.help", userLanguage, cancellationToken),
+                "help")
+        });
+
+        // Адмін панель якщо потрібно
+        if (dashboard.User.Role == UserRole.Admin || dashboard.User.Role == UserRole.SuperAdmin)
+        {
+            buttons.Add(new[]
+            {
+                InlineKeyboardButton.WithCallbackData(
+                    await localization.GetLocalizedStringAsync("button.admin_panel", userLanguage, cancellationToken),
+                    "admin_panel")
+            });
+        }
+
+        return new InlineKeyboardMarkup(buttons);
+    }
+
+    /// <summary>
+    /// Клавіатура для туторіалу
+    /// </summary>
+    public static async Task<InlineKeyboardMarkup> GetTutorialKeyboardAsync(
+        ILocalizationService localization,
+        Language userLanguage,
+        int currentStep,
+        int totalSteps,
+        CancellationToken cancellationToken = default)
+    {
+        var buttons = new List<InlineKeyboardButton>();
+
+        // Кнопка "Назад" (якщо не перший крок)
+        if (currentStep > 1)
+        {
+            buttons.Add(InlineKeyboardButton.WithCallbackData(
+                "⬅️",
+                $"tutorial_step_{currentStep - 1}"));
+        }
+
+        // Індикатор прогресу
+        buttons.Add(InlineKeyboardButton.WithCallbackData(
+            $"{currentStep}/{totalSteps}",
+            "noop"));
+
+        // Кнопка "Далі" або "Завершити"
+        if (currentStep < totalSteps)
+        {
+            buttons.Add(InlineKeyboardButton.WithCallbackData(
+                "➡️",
+                $"tutorial_step_{currentStep + 1}"));
+        }
+        else
+        {
+            buttons.Add(InlineKeyboardButton.WithCallbackData(
+                await localization.GetLocalizedStringAsync("button.finish", userLanguage, cancellationToken),
+                "tutorial_complete"));
+        }
+
+        var rows = new List<InlineKeyboardButton[]>
+        {
+            buttons.ToArray(),
+            new[]
+            {
+                InlineKeyboardButton.WithCallbackData(
+                    await localization.GetLocalizedStringAsync("button.skip", userLanguage, cancellationToken),
+                    "tutorial_skip")
+            }
+        };
+
+        return new InlineKeyboardMarkup(rows);
+    }
+
+    /// <summary>
+    /// Створює клавіатуру із списку Quick Actions
+    /// </summary>
+    public static InlineKeyboardMarkup CreateQuickActionsKeyboard(List<QuickActionDto> quickActions)
+    {
+        var buttons = new List<InlineKeyboardButton[]>();
+
+        foreach (var action in quickActions)
+        {
+            var buttonText = string.IsNullOrEmpty(action.Emoji) 
+                ? action.Title 
+                : $"{action.Emoji} {action.Title}";
+
+            buttons.Add(new[]
+            {
+                InlineKeyboardButton.WithCallbackData(buttonText, action.CallbackData)
+            });
+        }
+
+        return new InlineKeyboardMarkup(buttons);
     }
 
     // ==================== SYNCHRONOUS WRAPPERS (для сумісності) ====================

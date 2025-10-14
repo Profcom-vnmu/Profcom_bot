@@ -4,6 +4,7 @@ using StudentUnionBot.Application.Admin.Commands.CreateBackup;
 using StudentUnionBot.Core.Results;
 using StudentUnionBot.Domain.Interfaces;
 using System.IO.Compression;
+using Core;
 
 namespace StudentUnionBot.Infrastructure.Services;
 
@@ -36,7 +37,7 @@ public class BackupService : IBackupService
                 return Task.FromResult(Result<BackupResultDto>.Fail("Файл бази даних не знайдено"));
             }
 
-            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            var timestamp = AppTime.KyivNow.ToString("yyyyMMdd_HHmmss");
             var backupFileName = $"backup_{timestamp}.db";
             var backupFilePath = Path.Combine(_backupDirectory, backupFileName);
 
@@ -52,7 +53,7 @@ public class BackupService : IBackupService
                 BackupFileName = backupFileName,
                 BackupFilePath = backupFilePath,
                 FileSizeBytes = backupFileInfo.Length,
-                CreatedAt = DateTime.Now,
+                CreatedAt = AppTime.KyivNow,
                 DatabaseSize = FormatFileSize(originalFileInfo.Length)
             };
 
@@ -81,7 +82,7 @@ public class BackupService : IBackupService
             }
 
             // Створюємо резервну копію поточної БД перед відновленням
-            var currentBackupPath = $"{_databasePath}.backup_{DateTime.Now:yyyyMMdd_HHmmss}";
+            var currentBackupPath = $"{_databasePath}.backup_{AppTime.KyivNow:yyyyMMdd_HHmmss}";
             if (File.Exists(_databasePath))
             {
                 File.Copy(_databasePath, currentBackupPath, true);

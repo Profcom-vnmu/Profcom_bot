@@ -635,18 +635,28 @@ public class UserHandler : BaseHandler, IUserHandler
 
             if (result.IsSuccess)
             {
+                // Отримуємо локалізаційний сервіс для нової мови
+                using var scope = _scopeFactory.CreateScope();
+                var localizationService = scope.ServiceProvider.GetRequiredService<StudentUnionBot.Domain.Interfaces.ILocalizationService>();
+                
+                var successMessage = await localizationService.GetLocalizedStringAsync(
+                    "profile.language_changed", language, cancellationToken);
+                var buttonProfile = await localizationService.GetLocalizedStringAsync(
+                    "button.profile", language, cancellationToken);
+                var buttonMainMenu = await localizationService.GetLocalizedStringAsync(
+                    "button.main_menu", language, cancellationToken);
+
                 await botClient.EditMessageTextAsync(
                     chatId: callbackQuery.Message!.Chat.Id,
                     messageId: callbackQuery.Message.MessageId,
-                    text: $"✅ <b>Мову змінено!</b>\n\n" +
-                          $"Тепер інтерфейс бота відображатиметься {languageName} мовою.",
+                    text: successMessage,
                     parseMode: ParseMode.Html,
                     replyMarkup: new InlineKeyboardMarkup(new[]
                     {
                         new[]
                         {
-                            InlineKeyboardButton.WithCallbackData("👤 Профіль", "profile_view"),
-                            InlineKeyboardButton.WithCallbackData("🏠 Головне меню", "back_to_main")
+                            InlineKeyboardButton.WithCallbackData($"👤 {buttonProfile}", "profile_view"),
+                            InlineKeyboardButton.WithCallbackData($"🏠 {buttonMainMenu}", "back_to_main")
                         }
                     }),
                     cancellationToken: cancellationToken);

@@ -193,18 +193,19 @@ public class RateLimitingBehaviorTests
         result.Error.Should().Contain("Перевищено ліміт запитів");
     }
 
-    // Test commands
-    [RateLimit("TestAction")]
-    public class TestCommand : IRequest<Result<string>>
-    {
-    }
+}
 
-    public class TestCommandWithoutRateLimit : IRequest<Result<string>>
-    {
-    }
+// Test commands - винесені назовні для Moq compatibility
+[RateLimit("TestAction")]
+public class TestCommand : IRequest<Result<string>>
+{
+}
 
-    [RateLimit("TestAction2")]
-    public class TestCommandReturningResult : IRequest<Result>
-    {
-    }
+public class TestCommandWithoutRateLimit : IRequest<Result<string>>
+{
+}
+
+[RateLimit("TestAction2")]
+public class TestCommandReturningResult : IRequest<Result>
+{
 }

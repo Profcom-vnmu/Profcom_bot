@@ -13,12 +13,20 @@ public class RateLimiter : IRateLimiter
     private readonly ILogger<RateLimiter> _logger;
     
     // Конфігурація лімітів для різних дій
+    // Оновлено 2025-10-11: Зроблено більш м'якими для покращення UX
     private readonly Dictionary<string, RateLimitConfig> _limits = new()
     {
-        { "CreateAppeal", new RateLimitConfig { MaxAttempts = 1, WindowMinutes = 10 } },
-        { "SendMessage", new RateLimitConfig { MaxAttempts = 10, WindowMinutes = 1 } },
-        { "CreateNews", new RateLimitConfig { MaxAttempts = 5, WindowMinutes = 60 } },
-        { "RegisterEvent", new RateLimitConfig { MaxAttempts = 3, WindowMinutes = 5 } }
+        // Створення звернення: 5 звернень на 30 хвилин (було 1 на 10 хв - занадто жорстко!)
+        { "CreateAppeal", new RateLimitConfig { MaxAttempts = 5, WindowMinutes = 30 } },
+        
+        // Відправка повідомлень: 20 повідомлень на хвилину (збільшено для зручності навігації)
+        { "SendMessage", new RateLimitConfig { MaxAttempts = 20, WindowMinutes = 1 } },
+        
+        // Створення новини (адмін): 10 новин на годину
+        { "CreateNews", new RateLimitConfig { MaxAttempts = 10, WindowMinutes = 60 } },
+        
+        // Реєстрація на подію: 5 реєстрацій на 10 хвилин (збільшено для багатьох подій)
+        { "RegisterEvent", new RateLimitConfig { MaxAttempts = 5, WindowMinutes = 10 } }
     };
 
     // Зберігання спроб: Key = "userId:action", Value = список timestamps

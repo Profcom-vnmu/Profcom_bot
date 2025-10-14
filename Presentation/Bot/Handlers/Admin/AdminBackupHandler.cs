@@ -1,4 +1,5 @@
 using MediatR;
+using Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using StudentUnionBot.Application.Admin.Commands.CreateBackup;
@@ -151,7 +152,7 @@ public class AdminBackupHandler : BaseHandler, IAdminBackupHandler
             {
                 var successText = "✅ <b>База даних відновлена успішно!</b>\n\n" +
                                 $"📁 <b>З файлу:</b> {backupName}.db\n" +
-                                $"📅 <b>Відновлено:</b> {DateTime.Now:dd.MM.yyyy HH:mm:ss}\n\n" +
+                                $"📅 <b>Відновлено:</b> {AppTime.KyivNow:dd.MM.yyyy HH:mm:ss}\n\n" +
                                 "✅ Поточна БД була збережена як резервна копія\n" +
                                 "✅ Всі дані успішно відновлені\n\n" +
                                 "⚠️ <b>Рекомендується перезапустити бот для повного застосування змін</b>";

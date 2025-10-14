@@ -1,6 +1,7 @@
 using MediatR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using StudentUnionBot.Domain.Enums;
 using StudentUnionBot.Presentation.Bot.Handlers.Interfaces;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -29,7 +30,8 @@ public class CallbackRouter
         IAdminBroadcastHandler adminBroadcastHandler,
         INewsManagementHandler newsManagementHandler,
         IEventsManagementHandler eventsManagementHandler,
-        IContentHandler contentHandler)
+        IContentHandler contentHandler,
+        Tutorial.TutorialHandler tutorialHandler)
     {
         _logger = logger;
         _scopeFactory = scopeFactory;
@@ -38,6 +40,19 @@ public class CallbackRouter
         {
             // Common routes
             ["cancel_operation"] = HandleCancelOperationAsync,
+            
+            // Tutorial routes
+            ["tutorial_start"] = tutorialHandler.HandleTutorialStartAsync,
+            ["tutorial_step_"] = tutorialHandler.HandleTutorialStepAsync,
+            ["tutorial_complete"] = tutorialHandler.HandleTutorialCompleteAsync,
+            ["tutorial_skip"] = tutorialHandler.HandleTutorialSkipAsync,
+            
+            // Quick Actions routes (from personalized dashboard)
+            ["view_my_appeals"] = appealHandler.HandleMyAppealsCallbackAsync,
+            ["create_appeal"] = appealHandler.HandleAppealCreateCallback,
+            ["view_events"] = (botClient, query, ct) => contentHandler.HandleEventsListCallback(botClient, query, ct),
+            ["view_news"] = (botClient, query, ct) => contentHandler.HandleNewsListCallback(botClient, query, ct),
+            ["edit_profile"] = userHandler.HandleProfileViewCallback,
             
             // Appeal routes
             ["appeal_create"] = appealHandler.HandleAppealCreateCallback,
@@ -211,32 +226,91 @@ public class CallbackRouter
     {
         try
         {
-            // Перевіряємо роль користувача через MediatR
-            var isAdmin = false;
-            
             using var scope = _scopeFactory.CreateScope();
             var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
             
-            var getUserQuery = new StudentUnionBot.Application.Users.Queries.GetUserByTelegramId.GetUserByTelegramIdQuery 
-            { 
-                TelegramId = callbackQuery.From.Id 
+            // Отримуємо персоналізований dashboard
+            var getDashboardQuery = new StudentUnionBot.Application.Users.Queries.GetUserDashboard.GetUserDashboardQuery
+            {
+                TelegramId = callbackQuery.From.Id
             };
             
-            var userResult = await mediator.Send(getUserQuery, cancellationToken);
-            if (userResult.IsSuccess && userResult.Value != null)
+            var dashboardResult = await mediator.Send(getDashboardQuery, cancellationToken);
+            
+            if (dashboardResult.IsSuccess && dashboardResult.Value != null)
             {
-                isAdmin = userResult.Value.Role == StudentUnionBot.Domain.Enums.UserRole.Admin;
+                var dashboard = dashboardResult.Value;
+                
+                // Отримуємо мову користувача
+                var localizationService = scope.ServiceProvider.GetRequiredService<StudentUnionBot.Domain.Interfaces.ILocalizationService>();
+                Language userLanguage = Language.Ukrainian;
+                
+                if (Enum.TryParse<Language>(dashboard.User.Language, out var parsedLanguage))
+                {
+                    userLanguage = parsedLanguage;
+                }
+                
+                // Формуємо персоналізоване повідомлення
+                var messageText = $"🏠 <b>Головне меню</b>\n\n" +
+                                $"👋 Вітаю, {dashboard.User.FirstName}!\n\n";
+                
+                // Додаємо статистику
+                if (dashboard.Statistics.ActiveAppeals > 0)
+                {
+                    messageText += $"📊 <b>Статистика:</b>\n" +
+                                 $"• Активних звернень: {dashboard.Statistics.ActiveAppeals}\n";
+                    
+                    if (dashboard.Statistics.NewReplies > 0)
+                    {
+                        messageText += $"• Нових відповідей: {dashboard.Statistics.NewReplies}\n";
+                    }
+                    
+                    messageText += "\n";
+                }
+                
+                messageText += "Оберіть дію:";
+                
+                // Отримуємо клавіатуру з Quick Actions
+                var keyboard = await StudentUnionBot.Presentation.Bot.Keyboards.KeyboardFactory.GetPersonalizedMainMenuKeyboardAsync(
+                    localizationService,
+                    userLanguage,
+                    dashboard,
+                    cancellationToken);
+                
+                await botClient.EditMessageTextAsync(
+                    chatId: callbackQuery.Message!.Chat.Id,
+                    messageId: callbackQuery.Message.MessageId,
+                    text: messageText,
+                    parseMode: ParseMode.Html,
+                    replyMarkup: keyboard,
+                    cancellationToken: cancellationToken);
             }
-            
-            var mainMenu = GetMainMenu(isAdmin);
-            
-            await botClient.EditMessageTextAsync(
-                chatId: callbackQuery.Message!.Chat.Id,
-                messageId: callbackQuery.Message.MessageId,
-                text: "🏠 <b>Головне меню</b>\n\nОберіть дію:",
-                parseMode: ParseMode.Html,
-                replyMarkup: mainMenu,
-                cancellationToken: cancellationToken);
+            else
+            {
+                // Fallback на стару версію якщо не вдалось отримати dashboard
+                var isAdmin = false;
+                
+                var getUserQuery = new StudentUnionBot.Application.Users.Queries.GetUserByTelegramId.GetUserByTelegramIdQuery 
+                { 
+                    TelegramId = callbackQuery.From.Id 
+                };
+                
+                var userResult = await mediator.Send(getUserQuery, cancellationToken);
+                if (userResult.IsSuccess && userResult.Value != null)
+                {
+                    isAdmin = userResult.Value.Role == StudentUnionBot.Domain.Enums.UserRole.Admin;
+                }
+                
+                var mainMenu = GetMainMenu(isAdmin);
+                
+                await botClient.EditMessageTextAsync(
+                    chatId: callbackQuery.Message!.Chat.Id,
+                    messageId: callbackQuery.Message.MessageId,
+                    text: "🏠 <b>Головне меню</b>\n\nОберіть дію:",
+                    parseMode: ParseMode.Html,
+                    replyMarkup: mainMenu,
+                    cancellationToken: cancellationToken);
+            }
 
             await botClient.AnswerCallbackQueryAsync(
                 callbackQueryId: callbackQuery.Id,

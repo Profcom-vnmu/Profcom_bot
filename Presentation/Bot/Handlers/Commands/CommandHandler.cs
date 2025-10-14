@@ -3,10 +3,13 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using StudentUnionBot.Application.Common.Interfaces;
 using StudentUnionBot.Application.Users.Queries.GetUserByTelegramId;
+using StudentUnionBot.Application.Users.Queries.GetUserDashboard;
 using StudentUnionBot.Core.Constants;
 using StudentUnionBot.Domain.Enums;
+using StudentUnionBot.Domain.Interfaces;
 using StudentUnionBot.Presentation.Bot.Handlers.Common;
 using StudentUnionBot.Presentation.Bot.Handlers.Interfaces;
+using StudentUnionBot.Presentation.Bot.Keyboards;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -115,7 +118,7 @@ public class CommandHandler : BaseHandler, ICommandHandler
     }
 
     /// <summary>
-    /// Формує відповідь на команду /start з привітальним повідомленням
+    /// Формує відповідь на команду /start з привітальним повідомленням та персоналізованим dashboard
     /// </summary>
     private async Task<(string responseText, IReplyMarkup? keyboard)> GetStartCommandResponseAsync(
         long userId, 
@@ -124,41 +127,148 @@ public class CommandHandler : BaseHandler, ICommandHandler
     {
         try
         {
-            // Отримуємо дані користувача для визначення мови та статусу
-            var getUserQuery = new GetUserByTelegramIdQuery { TelegramId = userId };
-            var userResult = await _mediator.Send(getUserQuery, cancellationToken);
+            // Отримуємо персоналізований dashboard
+            var dashboardQuery = new GetUserDashboardQuery { TelegramId = userId };
+            var dashboardResult = await _mediator.Send(dashboardQuery, cancellationToken);
 
-            Language language = Language.Ukrainian;
-            bool isNewUser = true;
-
-            if (userResult.IsSuccess && userResult.Value != null)
+            if (!dashboardResult.IsSuccess || dashboardResult.Value == null)
             {
-                // Парсимо мову з DTO (string → enum)
-                language = userResult.Value.Language?.ToLower() == "en" 
-                    ? Language.English 
-                    : Language.Ukrainian;
-                
-                isNewUser = string.IsNullOrWhiteSpace(userResult.Value.Email);
+                // Fallback - стандартне меню
+                return await GetFallbackStartResponseAsync(userId, isAdmin, cancellationToken);
             }
 
-            // Отримуємо привітальне повідомлення
-            var welcomeMessage = WelcomeMessages.GetWelcomeMessage(language, isNewUser);
+            var dashboard = dashboardResult.Value;
+            var language = dashboard.User.Language?.ToLower() == "en" 
+                ? Language.English 
+                : Language.Ukrainian;
 
-            // Формуємо клавіатуру
-            var keyboard = await GetMainMenuAsync(userId, isAdmin, cancellationToken);
+            // Формуємо персоналізоване привітальне повідомлення
+            var welcomeMessage = BuildPersonalizedWelcomeMessage(dashboard, language);
+
+            // Створюємо персоналізовану клавіатуру
+            using var scope = _scopeFactory.CreateScope();
+            var localizationService = scope.ServiceProvider.GetRequiredService<ILocalizationService>();
+            
+            var keyboard = await KeyboardFactory.GetPersonalizedMainMenuKeyboardAsync(
+                localizationService,
+                language,
+                dashboard,
+                cancellationToken);
 
             return (welcomeMessage, keyboard);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Помилка при формуванні відповіді на /start для користувача {UserId}", userId);
-            
-            // Fallback - базове привітання українською
-            return (
-                WelcomeMessages.GetWelcomeMessage(Language.Ukrainian, false),
-                await GetMainMenuAsync(userId, isAdmin, cancellationToken)
-            );
+            _logger.LogError(ex, "Помилка при формуванні персоналізованого dashboard для користувача {UserId}", userId);
+            return await GetFallbackStartResponseAsync(userId, isAdmin, cancellationToken);
         }
+    }
+
+    /// <summary>
+    /// Fallback метод для /start (якщо dashboard не працює)
+    /// </summary>
+    private async Task<(string responseText, IReplyMarkup? keyboard)> GetFallbackStartResponseAsync(
+        long userId,
+        bool isAdmin,
+        CancellationToken cancellationToken)
+    {
+        var getUserQuery = new GetUserByTelegramIdQuery { TelegramId = userId };
+        var userResult = await _mediator.Send(getUserQuery, cancellationToken);
+
+        var language = Language.Ukrainian;
+        var isNewUser = true;
+
+        if (userResult.IsSuccess && userResult.Value != null)
+        {
+            language = userResult.Value.Language?.ToLower() == "en" 
+                ? Language.English 
+                : Language.Ukrainian;
+            isNewUser = string.IsNullOrWhiteSpace(userResult.Value.Email);
+        }
+
+        var welcomeMessage = WelcomeMessages.GetWelcomeMessage(language, isNewUser);
+        var keyboard = await GetMainMenuAsync(userId, isAdmin, cancellationToken);
+
+        return (welcomeMessage, keyboard);
+    }
+
+    /// <summary>
+    /// Будує персоналізоване привітальне повідомлення
+    /// </summary>
+    private string BuildPersonalizedWelcomeMessage(
+        Application.Users.DTOs.UserDashboardDto dashboard, 
+        Language language)
+    {
+        var greeting = language == Language.English ? "Hello" : "Привіт";
+        var userName = !string.IsNullOrWhiteSpace(dashboard.User.FirstName) 
+            ? dashboard.User.FirstName 
+            : "користувач";
+
+        var message = $"🏠 {greeting}, {userName}! 👋\n\n";
+
+        // Якщо новий користувач - спеціальне вітання
+        if (dashboard.IsNewUser)
+        {
+            message += language == Language.English
+                ? "Welcome to VNMU Student Union Bot! 🎓\n\n"
+                : "Вітаємо у боті Профкому ВНМУ! 🎓\n\n";
+            
+            message += language == Language.English
+                ? "I can help you with:\n"
+                : "Я допоможу тобі:\n";
+            
+            message += language == Language.English
+                ? "✅ Submit appeals\n✅ Stay informed with news\n✅ Register for events\n✅ Contact student union\n\n"
+                : "✅ Створювати звернення\n✅ Дізнаватись новини\n✅ Реєструватись на події\n✅ Зв'язатись з профкомом\n\n";
+        }
+        else
+        {
+            // Показуємо сповіщення якщо є
+            if (dashboard.RecentNotifications.Any())
+            {
+                var count = dashboard.RecentNotifications.Count;
+                message += language == Language.English
+                    ? $"🔔 NEW FOR YOU ({count}):\n"
+                    : $"🔔 НОВЕ ДЛЯ ТЕБЕ ({count}):\n";
+
+                foreach (var notification in dashboard.RecentNotifications.Take(3))
+                {
+                    message += $"{notification.Icon} {notification.Message}\n";
+                }
+                message += "\n";
+            }
+        }
+
+        // Додаємо статистику якщо є звернення
+        if (dashboard.Statistics.TotalAppeals > 0)
+        {
+            message += language == Language.English
+                ? "📊 Your activity:\n"
+                : "📊 Твоя активність:\n";
+            
+            message += $"• {dashboard.Statistics.TotalAppeals} " + 
+                      (language == Language.English ? "appeals" : "звернень") + "\n";
+            
+            if (dashboard.Statistics.ActiveAppeals > 0)
+            {
+                message += $"• {dashboard.Statistics.ActiveAppeals} " +
+                          (language == Language.English ? "active" : "активних") + "\n";
+            }
+            
+            if (dashboard.Statistics.UpcomingEvents > 0)
+            {
+                message += $"• {dashboard.Statistics.UpcomingEvents} " +
+                          (language == Language.English ? "upcoming events" : "майбутніх подій") + "\n";
+            }
+            
+            message += "\n";
+        }
+
+        message += language == Language.English
+            ? "Choose an action from the menu:"
+            : "Обери дію з меню:";
+
+        return message;
     }
 
     /// <summary>
