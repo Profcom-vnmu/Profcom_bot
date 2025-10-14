@@ -7,6 +7,15 @@ using Telegram.Bot.Polling;
 using Telegram.Bot.Types.Enums;
 using System.Net;
 
+// Функція для конвертації PostgreSQL URL в connection string
+static string ConvertPostgresUrlToConnectionString(string databaseUrl)
+{
+    var uri = new Uri(databaseUrl);
+    var userInfo = uri.UserInfo.Split(':');
+    
+    return $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.Substring(1)};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
+}
+
 var configuration = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
     .AddJsonFile("appsettings.json", optional: true)
@@ -27,8 +36,20 @@ BotDbContext dbContext;
 
 if (isRenderEnvironment)
 {
-    // Render.com PostgreSQL - використовуємо внутрішній URL
-    var connectionString = renderDatabaseUrl ?? "postgresql://render_postgresql_5nyk_user:JYvtkcQIhpAtroaF8LOoT5W1qEdgptnI@dpg-d3n9jjb3fgac73af7550-a/render_postgresql_5nyk";
+    // Render.com PostgreSQL - конвертуємо URL в connection string
+    string connectionString;
+    
+    if (!string.IsNullOrEmpty(renderDatabaseUrl))
+    {
+        // Використовуємо DATABASE_URL якщо є
+        connectionString = ConvertPostgresUrlToConnectionString(renderDatabaseUrl);
+    }
+    else
+    {
+        // Fallback - вбудований connection string
+        connectionString = "Host=dpg-d3n9jjb3fgac73af7550-a;Port=5432;Database=render_postgresql_5nyk;Username=render_postgresql_5nyk_user;Password=JYvtkcQIhpAtroaF8LOoT5W1qEdgptnI;SSL Mode=Require;Trust Server Certificate=true";
+    }
+    
     Console.WriteLine("🐘 Using Render PostgreSQL database");
     dbContext = new BotDbContext(connectionString, isPostgreSQL: true);
     Console.WriteLine($"📊 Database: Render PostgreSQL");
