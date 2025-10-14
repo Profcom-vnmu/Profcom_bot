@@ -337,20 +337,44 @@ public class UserService
         foreach (var user in users)
         {
             csv.AppendLine($"{user.TelegramId}," +
-                          $"\"{user.Username ?? ""}\"," +
-                          $"\"{user.FirstName ?? ""}\"," +
-                          $"\"{user.LastName ?? ""}\"," +
-                          $"\"{user.FullName ?? ""}\"," +
-                          $"\"{user.Faculty ?? ""}\"," +
+                          $"\"{EscapeCsvField(user.Username ?? "")}\"," +
+                          $"\"{EscapeCsvField(user.FirstName ?? "")}\"," +
+                          $"\"{EscapeCsvField(user.LastName ?? "")}\"," +
+                          $"\"{EscapeCsvField(user.FullName ?? "")}\"," +
+                          $"\"{EscapeCsvField(user.Faculty ?? "")}\"," +
                           $"{user.Course?.ToString() ?? ""}," +
-                          $"\"{user.Group ?? ""}\"," +
-                          $"\"{user.Email ?? ""}\"," +
+                          $"\"{EscapeCsvField(user.Group ?? "")}\"," +
+                          $"\"{EscapeCsvField(user.Email ?? "")}\"," +
                           $"{user.JoinedAt:yyyy-MM-dd HH:mm:ss}," +
                           $"{(user.IsActive ? "Yes" : "No")}," +
                           $"{(user.ProfileUpdatedAt.HasValue ? user.ProfileUpdatedAt.Value.ToString("yyyy-MM-dd HH:mm:ss") : "")}");
         }
 
         return csv.ToString();
+    }
+
+    /// <summary>
+    /// Експортувати користувачів у CSV формат з правильним UTF-8 кодуванням
+    /// </summary>
+    public async Task<byte[]> ExportUsersToCsvBytesAsync()
+    {
+        var csvContent = await ExportUsersToCsvAsync();
+        
+        // Використовуємо UTF-8 з BOM для правильного відображення українських символів
+        var encoding = new System.Text.UTF8Encoding(true); // true = includeByteOrderMark
+        return encoding.GetBytes(csvContent);
+    }
+
+    /// <summary>
+    /// Екранувати поле CSV (замінити лапки на подвійні лапки)
+    /// </summary>
+    private static string EscapeCsvField(string field)
+    {
+        if (string.IsNullOrEmpty(field))
+            return field;
+            
+        // Якщо поле містить лапки, замінюємо їх на подвійні лапки
+        return field.Replace("\"", "\"\"");
     }
 
     /// <summary>

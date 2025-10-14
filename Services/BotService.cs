@@ -2872,20 +2872,27 @@ public class BotService
 
         try
         {
-            var csv = await _userService.ExportUsersToCsvAsync();
+            // Використовуємо новий метод з правильним UTF-8 кодуванням та BOM
+            var csvBytes = await _userService.ExportUsersToCsvBytesAsync();
             var fileName = $"users_export_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
             
-            // Конвертуємо в байти
-            var bytes = System.Text.Encoding.UTF8.GetBytes(csv);
-            
-            using (var stream = new MemoryStream(bytes))
+            using (var stream = new MemoryStream(csvBytes))
             {
+                // Підраховуємо кількість рядків для статистики
+                var csvString = await _userService.ExportUsersToCsvAsync();
+                var recordCount = csvString.Split('\n').Length - 2; // -2 для заголовка та останнього порожнього рядка
+                
                 await _botClient.SendDocumentAsync(
                     chatId: message.Chat.Id,
                     document: InputFile.FromStream(stream, fileName),
-                    caption: $"Експорт користувачів\n\n" +
-                            $"Всього записів: {csv.Split('\n').Length - 2}\n" +
-                            $"Дата: {DateTime.Now:dd.MM.yyyy HH:mm}"
+                    caption: $"📊 Експорт користувачів\n\n" +
+                            $"📈 Всього записів: {recordCount}\n" +
+                            $"📅 Дата: {DateTime.Now:dd.MM.yyyy HH:mm}\n" +
+                            $"🔤 Кодування: UTF-8 з BOM\n\n" +
+                            $"💡 Для правильного відображення:\n" +
+                            $"• Excel: відкрийте через 'Дані → З тексту'\n" +
+                            $"• LibreOffice: оберіть UTF-8 при імпорті\n" +
+                            $"• Google Sheets: завантажте і воно автоматично розпізнає"
                 );
             }
 
