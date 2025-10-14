@@ -18,32 +18,13 @@ var botToken = Environment.GetEnvironmentVariable("BotToken")
     ?? configuration["BotToken"]
     ?? throw new ArgumentNullException("BotToken", "Bot token is missing.");
 
-// Перевіряємо наявність PostgreSQL connection string
-var postgresConnectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
-bool usePostgreSQL = !string.IsNullOrEmpty(postgresConnectionString);
+// Використовуємо PostgreSQL базу даних з фіксованим connection string
+var postgresConnectionString = "Host=localhost;Database=studentunion;Username=postgres;Password=password";
 
-BotDbContext dbContext;
-string dbInfo;
+Console.WriteLine("� Using PostgreSQL database");
+var dbContext = new BotDbContext(postgresConnectionString, isPostgreSQL: true);
 
-if (usePostgreSQL)
-{
-    Console.WriteLine("🐘 Using PostgreSQL database");
-    dbInfo = "PostgreSQL (Render)";
-    dbContext = new BotDbContext(postgresConnectionString!, isPostgreSQL: true);
-}
-else
-{
-    // Локальна розробка - SQLite
-    var dbPath = Environment.GetEnvironmentVariable("DatabasePath")
-        ?? configuration["BotConfiguration:DatabasePath"] 
-        ?? "Data/studentunion.db";
-    
-    Console.WriteLine($"📁 Using SQLite database: {dbPath}");
-    dbInfo = $"SQLite ({dbPath})";
-    dbContext = new BotDbContext(dbPath, isPostgreSQL: false);
-}
-
-Console.WriteLine($"📊 Database: {dbInfo}");
+Console.WriteLine($"📊 Database: PostgreSQL (localhost)");
 
 Console.WriteLine("🔄 Running database migrations...");
 try

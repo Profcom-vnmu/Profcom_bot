@@ -48,16 +48,16 @@
 
 ---
 
-## � Налаштування Environment Variables
+## 🔧 Налаштування Environment Variables
 
 ### 🔑 Для Render.com / Railway.app
 
-Замість файлів `admins.txt` та `ban.txt` можна використовувати Environment Variables:
+Замість файлів `admins.txt` та `ban.txt` можна використовувати Environment Variables.
+База даних: використовується PostgreSQL.
 
 #### Обов'язкові змінні:
 ```bash
 BotToken=YOUR_BOT_TOKEN_HERE
-DATABASE_URL=postgresql://...   # Для production
 ```
 
 #### Опціональні змінні:
@@ -68,8 +68,8 @@ ADMIN_IDS=123456789,987654321,555666777
 # Забанені користувачі (розділені комами)
 BANNED_USER_IDS=111222333,444555666
 
-# Локальна БД (для розробки)
-DatabasePath=Data/studentunion.db
+# Шлях до бази даних PostgreSQL (за замовчуванням: PostgreSQL localhost)
+# DatabasePath більше не використовується
 ```
 
 #### Формати ADMIN_IDS:
@@ -176,7 +176,7 @@ StudentUnionBot/
 - **.NET 8.0** - фреймворк
 - **Telegram.Bot 19.0.0** - Telegram Bot API
 - **Entity Framework Core 8.0** - ORM
-- **SQLite** - база даних
+- **PostgreSQL** - база даних
 - **Docker** - контейнеризація
 
 ---
