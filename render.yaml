@@ -13,7 +13,6 @@ services:
     name: studentunionbot
     env: docker
     plan: free
-    branch: production  # Деплоїмо тільки з гілки production
     healthCheckPath: /
     envVars:
       - key: BotToken
@@ -22,6 +21,4 @@ services:
         fromDatabase:
           name: studentunionbot-db
           property: connectionString
-      - key: ASPNETCORE_ENVIRONMENT
-        value: Production
     dockerfilePath: ./Dockerfile

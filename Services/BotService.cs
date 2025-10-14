@@ -29,13 +29,6 @@ public class BotService
 
     public async Task HandleUpdateAsync(Update update)
     {
-        // Обробка Callback Query (inline-кнопки)
-        if (update.CallbackQuery is { } callbackQuery)
-        {
-            await HandleCallbackQueryAsync(callbackQuery);
-            return;
-        }
-
         if (update.Message is not { } message)
             return;
 
@@ -1054,7 +1047,7 @@ public class BotService
                     text: $"📩 Нове звернення #{appeal.Id}\n\n" +
                           $"👤 Від: {userName}\n" +
                           $"📅 Дата: {appeal.CreatedAt:dd.MM.yyyy HH:mm}\n" +
-                          $"� Статус: {GetAppealStatusText(appeal.Status)}\n\n" +
+                          $"📊 Статус: {GetAppealStatusText(appeal.Status)}\n\n" +
                           $"💬 Повідомлення:\n{appeal.Message}\n\n" +
                           $"↩️ Щоб відповісти, натисніть Reply на це повідомлення"
                 );
@@ -1105,7 +1098,6 @@ public class BotService
 
         // Витягуємо ID звернення з тексту повідомлення, на яке відповіли
         var replyText = message.ReplyToMessage.Text;
-        
         // Пробуємо кілька варіантів regex для знаходження номера звернення
         var appealIdPatterns = new[]
         {
@@ -1135,7 +1127,7 @@ public class BotService
         {
             // Додаємо детальну інформацію для дебагу
             Console.WriteLine($"[DEBUG] Не вдалося знайти номер звернення в тексті: {replyText}");
-            
+
             await _botClient.SendTextMessageAsync(
                 chatId: message.Chat.Id,
                 text: "⚠️ Не вдалося знайти номер звернення в повідомленні, на яке ви відповіли.\n\n" +
@@ -1302,7 +1294,48 @@ public class BotService
         userState.CurrentMenu = MenuState.Main;
         userState.DialogState = DialogState.None;
 
-        await ShowMainMenuInline(message.Chat.Id, message.From.Id);
+        // Перевіряємо чи це адміністратор
+        if (await _userService.IsAdminAsync(message.From.Id))
+        {
+            // Меню адміністратора
+            var adminKeyboard = new ReplyKeyboardMarkup(new[]
+            {
+                new[] { new KeyboardButton("📩 Звернення") },
+                new[] { new KeyboardButton("📢 Опублікувати оголошення") },
+                new[] { new KeyboardButton("📊 Статистика"), new KeyboardButton("📝 Редагувати контакти") },
+                new[] { new KeyboardButton("🤝 Редагувати партнерів"), new KeyboardButton("🎉 Редагувати заходи") }
+            })
+            {
+                ResizeKeyboard = true
+            };
+
+            await _botClient.SendTextMessageAsync(
+                chatId: message.Chat.Id,
+                text: "👤 Адміністративна панель\n\n" +
+                      "Виберіть розділ для продовження:",
+                replyMarkup: adminKeyboard
+            );
+            return;
+        }
+
+        // Меню студента
+        var keyboard = new ReplyKeyboardMarkup(new[]
+        {
+            new[] { new KeyboardButton("📩 Звернення") },
+            new[] { new KeyboardButton("🏠 Гуртожиток") },
+            new[] { new KeyboardButton("🌟 Можливості") },
+            new[] { new KeyboardButton("❓ Допомога") },
+            new[] { new KeyboardButton("ℹ️ Інформація") }
+        })
+        {
+            ResizeKeyboard = true
+        };
+
+        await _botClient.SendTextMessageAsync(
+            chatId: message.Chat.Id,
+            text: "📚 Головне меню\n\n",
+            replyMarkup: keyboard
+        );
     }
 
     private async Task HandleAppealsMenuCommand(Message message)
@@ -1378,7 +1411,9 @@ public class BotService
             historyText += $"{sender} ({timeStamp}):\n{msg.Text}\n\n";
         }
 
-        historyText += "━━━━━━━━━━━━━━━━━━━━\n\n" ;
+        historyText += "━━━━━━━━━━━━━━━━━━━━\n\n" +
+                      "💡 Щоб відповісти, зробіть Reply на це повідомлення\n" +
+                      "або натисніть кнопку 'Написати повідомлення'";
 
         // Відправляємо історію одним повідомленням з клавіатурою
         var keyboardWithAppeal = new ReplyKeyboardMarkup(new[]
@@ -2188,19 +2223,6 @@ public class BotService
         return _userStates[userId];
     }
 
-    private string GetAppealStatusText(AppealStatus status)
-    {
-        return status switch
-        {
-            AppealStatus.New => "🆕 Нове",
-            AppealStatus.AdminReplied => "💬 Є відповідь адміністратора",
-            AppealStatus.StudentReplied => "📝 Очікує відповіді",
-            AppealStatus.ClosedByAdmin => "🔒 Закрито адміністратором",
-            AppealStatus.ClosedByStudent => "🔒 Закрито",
-            _ => "❓ Невідомо"
-        };
-    }
-
     private async Task HandleUnknownCommand(Message message)
     {
         if (message.From == null || message.Text == null)
@@ -2313,12 +2335,7 @@ public class BotService
             ResizeKeyboard = true
         };
 
-        await _botClient.SendTextMessageAsync(
-            chatId: message.Chat.Id,
-            text: "📩 Розділ: Звернення\n\n" +
-                  "Оберіть категорію звернень:",
-            replyMarkup: keyboard
-        );
+        
     }
 
     /// <summary>
@@ -2576,7 +2593,8 @@ public class BotService
             historyText += $"{sender} ({timeStamp}):\n{msg.Text}\n\n";
         }
 
-        historyText += "━━━━━━━━━━━━━━━━━━━━\n\n";
+        historyText += "━━━━━━━━━━━━━━━━━━━━\n\n" +
+                      "💡 Щоб відповісти, зробіть Reply на це повідомлення\nабо натисніть кнопку 'Відповісти'";
 
         // Перевіряємо довжину повідомлення (ліміт Telegram - 4096 символів)
         if (historyText.Length > 4096)
@@ -2901,7 +2919,7 @@ public class BotService
             // Використовуємо новий метод з правильним UTF-8 кодуванням та BOM
             var csvBytes = await _userService.ExportUsersToCsvBytesAsync();
             var fileName = $"users_export_{DateTime.Now:yyyyMMdd_HHmmss}.csv";
-            
+
             using (var stream = new MemoryStream(csvBytes))
             {
                 // Підраховуємо кількість рядків для статистики
@@ -3120,911 +3138,21 @@ public class BotService
         );
     }
 
-    // ============================================
-    // ОБРОБКА INLINE-КНОПОК (CALLBACK QUERY)
-    // ============================================
-
-    private async Task HandleCallbackQueryAsync(CallbackQuery callbackQuery)
+    /// <summary>
+    /// Отримати текстову назву статусу звернення
+    /// </summary>
+    private string GetAppealStatusText(AppealStatus status)
     {
-        if (callbackQuery.Message == null || callbackQuery.From == null)
-            return;
-
-        var chatId = callbackQuery.Message.Chat.Id;
-        var userId = callbackQuery.From.Id;
-        var data = callbackQuery.Data ?? string.Empty;
-
-        try
+        return status switch
         {
-            // Відповідаємо на callback query щоб прибрати годинник очікування
-            await _botClient.AnswerCallbackQueryAsync(callbackQuery.Id);
-
-            // Парсимо команду з callback data
-            var parts = data.Split(':');
-            var command = parts[0];
-
-            switch (command)
-            {
-                case "menu_main":
-                    await ShowMainMenuInline(chatId, userId);
-                    break;
-
-                case "menu_appeals":
-                    await HandleAppealsMenuInline(chatId, userId);
-                    break;
-
-                case "menu_help":
-                    await HandleHelpCommandInline(chatId, userId);
-                    break;
-
-                case "menu_info":
-                    await HandleInfoCommandInline(chatId, userId);
-                    break;
-
-                case "menu_dormitory":
-                    await HandleDormitoryCommandInline(chatId, userId);
-                    break;
-
-                case "menu_opportunities":
-                    await HandleOpportunitiesCommandInline(chatId, userId);
-                    break;
-
-                case "menu_partners":
-                    await HandlePartnersCommandInline(chatId, userId);
-                    break;
-
-                case "menu_events":
-                    await HandleEventsCommandInline(chatId, userId);
-                    break;
-
-                case "menu_suggest_event":
-                    await HandleSuggestEventCommandInline(chatId, userId);
-                    break;
-
-                // Адмін меню
-                case "admin_appeals":
-                    await HandleAdminAppealsMenuInline(chatId, userId);
-                    break;
-
-                case "admin_publish_news":
-                    await HandleAdminPublishNewsMenuInline(chatId, userId);
-                    break;
-
-                case "admin_statistics":
-                    await HandleAdminStatisticsInline(chatId, userId);
-                    break;
-
-                case "admin_edit_contacts":
-                    await HandleAdminEditContactsInline(chatId, userId);
-                    break;
-
-                case "admin_edit_partners":
-                    await HandleAdminEditPartnersInline(chatId, userId);
-                    break;
-
-                case "admin_edit_events":
-                    await HandleAdminEditEventsInline(chatId, userId);
-                    break;
-
-                // Обробка звернень (студенти)
-                case var s when s.StartsWith("appeal_view_"):
-                    var viewAppealId = int.Parse(data.Replace("appeal_view_", ""));
-                    await HandleAppealViewInline(chatId, userId, viewAppealId);
-                    break;
-
-                case var s when s.StartsWith("appeal_write_"):
-                    var writeAppealId = int.Parse(data.Replace("appeal_write_", ""));
-                    await HandleAppealWriteInline(chatId, userId, writeAppealId);
-                    break;
-
-                case var s when s.StartsWith("appeal_close_"):
-                    var closeAppealId = int.Parse(data.Replace("appeal_close_", ""));
-                    await HandleAppealCloseInline(chatId, userId, closeAppealId);
-                    break;
-
-                case "appeal_create":
-                    await HandleAppealCreateInline(chatId, userId);
-                    break;
-
-                // Обробка звернень (адміністратори)
-                case "admin_appeals_active":
-                    await HandleAdminActiveAppealsInline(chatId, userId);
-                    break;
-
-                case "admin_appeals_closed":
-                    await HandleAdminClosedAppealsInline(chatId, userId);
-                    break;
-
-                default:
-                    Console.WriteLine($"Unknown callback command: {data}");
-                    break;
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Error handling callback query: {ex}");
-            await _botClient.SendTextMessageAsync(chatId, "❌ Сталася помилка. Спробуйте ще раз або напишіть /start");
-        }
-    }
-
-    private async Task ShowMainMenuInline(long chatId, long userId)
-    {
-        // Перевіряємо чи це адміністратор
-        if (await _userService.IsAdminAsync(userId))
-        {
-            var adminKeyboard = new InlineKeyboardMarkup(new[]
-            {
-                new[] { InlineKeyboardButton.WithCallbackData("📩 Звернення", "admin_appeals") },
-                new[] { InlineKeyboardButton.WithCallbackData("📢 Опублікувати оголошення", "admin_publish_news") },
-                new[]
-                {
-                    InlineKeyboardButton.WithCallbackData("📊 Статистика", "admin_statistics"),
-                    InlineKeyboardButton.WithCallbackData("📝 Контакти", "admin_edit_contacts")
-                },
-                new[]
-                {
-                    InlineKeyboardButton.WithCallbackData("🤝 Партнери", "admin_edit_partners"),
-                    InlineKeyboardButton.WithCallbackData("🎉 Заходи", "admin_edit_events")
-                }
-            });
-
-            await _botClient.SendTextMessageAsync(
-                chatId: chatId,
-                text: "👤 <b>Адміністративна панель</b>\n\n" +
-                      "Виберіть розділ для продовження:",
-                parseMode: ParseMode.Html,
-                replyMarkup: adminKeyboard
-            );
-            return;
-        }
-
-        // Меню студента
-        var keyboard = new InlineKeyboardMarkup(new[]
-        {
-            new[] { InlineKeyboardButton.WithCallbackData("📩 Звернення", "menu_appeals") },
-            new[] { InlineKeyboardButton.WithCallbackData("🏠 Гуртожиток", "menu_dormitory") },
-            new[] { InlineKeyboardButton.WithCallbackData("🌟 Можливості", "menu_opportunities") },
-            new[]
-            {
-                InlineKeyboardButton.WithCallbackData("❓ Допомога", "menu_help"),
-                InlineKeyboardButton.WithCallbackData("ℹ️ Інформація", "menu_info")
-            }
-        });
-
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: "📚 <b>Головне меню</b>\n\n" +
-                  "Виберіть розділ для продовження:",
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
-    }
-
-    // Заглушки для нових методів inline - реалізуємо поступово
-    private async Task HandleAppealsMenuInline(long chatId, long userId)
-    {
-        var activeAppeal = _appealService.GetActiveAppealForStudent(userId);
-        
-        if (activeAppeal != null)
-        {
-            // У користувача є активне звернення
-            var keyboard = new InlineKeyboardMarkup(new[]
-            {
-                new[] { InlineKeyboardButton.WithCallbackData("💬 Переглянути звернення", $"appeal_view_{activeAppeal.Id}") },
-                new[] { InlineKeyboardButton.WithCallbackData("✍️ Написати повідомлення", $"appeal_write_{activeAppeal.Id}") },
-                new[] { InlineKeyboardButton.WithCallbackData("🔒 Закрити звернення", $"appeal_close_{activeAppeal.Id}") },
-                new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад до меню", "menu_main") }
-            });
-
-            await _botClient.SendTextMessageAsync(
-                chatId: chatId,
-                text: $"� <b>Ваше активне звернення #{activeAppeal.Id}</b>\n\n" +
-                      $"📅 Створено: {activeAppeal.CreatedAt:dd.MM.yyyy HH:mm}\n" +
-                      $"📊 Статус: {GetAppealStatusText(activeAppeal.Status)}\n\n" +
-                      $"💬 Повідомлення:\n{activeAppeal.Message}\n\n",
-                replyMarkup: keyboard
-            );
-        }
-        else
-        {
-            // Немає активного звернення
-            var keyboard = new InlineKeyboardMarkup(new[]
-            {
-                new[] { InlineKeyboardButton.WithCallbackData("✍️ Написати адміністратору", "appeal_create") },
-                new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад до меню", "menu_main") }
-            });
-
-            await _botClient.SendTextMessageAsync(
-                chatId: chatId,
-                text: "📩 <b>Розділ: Звернення</b>\n\n" +
-                      "У вас немає активних звернень.\n" +
-                      "Ви можете створити нове звернення до адміністратора.",
-                parseMode: ParseMode.Html,
-                replyMarkup: keyboard
-            );
-        }
-    }
-
-    private async Task HandleHelpCommandInline(long chatId, long userId)
-    {
-        var helpText = "❓ <b>Розділ: Допомога</b>\n\n" +
-                      "🤖 <b>Про бота:</b>\n" +
-                      "Це офіційний бот Профкому студентів, який допомагає студентам звертатися до профкому та отримувати актуальні оголошення.\n\n" +
-                      
-                      "📋 <b>Розділи бота:</b>\n\n" +
-                      
-                      "📩 <b>Звернення</b>\n" +
-                      "Створюйте звернення до профкому, отримуйте відповіді та відстежуйте їх статус.\n\n" +
-                      
-                      "❓ <b>Допомога</b>\n" +
-                      "Інформація про роботу з ботом та його можливості.\n\n" +
-                      
-                      "ℹ️ <b>Інформація</b>\n" +
-                      "Контактна інформація профкому студентів.\n\n" +
-                      
-                      "📖 <b>Як створити звернення:</b>\n" +
-                      "1️⃣ Перейдіть в розділ 'Звернення'\n" +
-                      "2️⃣ Натисніть 'Написати адміністратору'\n" +
-                      "3️⃣ Опишіть ваше питання або проблему\n" +
-                      "4️⃣ Можете додати фото або документ\n" +
-                      "5️⃣ Підтвердіть відправку\n\n" +
-                      
-                      "📬 <b>Як отримати відповідь:</b>\n" +
-                      "Переглянете всю історію спілкування та можете написати додаткове повідомлення\n\n" +
-                      
-                      "✅ <b>Закриття звернення:</b>\n" +
-                      "Коли питання вирішено, натисніть 'Закрити звернення' та вкажіть причину закриття.\n\n" +
-                      
-                      "💡 <b>Корисні команди:</b>\n" +
-                      "• /start - Головне меню\n" +
-                      "• /cancel - Скасувати поточну дію";
-
-        if (await _userService.IsAdminAsync(userId))
-        {
-            helpText += "\n\n� <b>Адміністративні функції:</b>\n\n" +
-                       "📩 <b>Звернення</b>\n" +
-                       "• Перегляд активних та закритих звернень\n" +
-                       "• Відповіді студентам з можливістю медіа\n" +
-                       "• Перегляд даних студента\n" +
-                       "• Закриття звернень з вказанням причини\n\n" +
-                       
-                       "📢 <b>Опублікувати оголошення</b>\n" +
-                       "• Створення оголошень з фото або текстом\n" +
-                       "• Вибіркова розсилка за курсами/факультетами\n" +
-                       "• Передогляд перед публікацією\n\n" +
-                       
-                       "📊 <b>Статистика</b>\n" +
-                       "• Загальна статистика користувачів\n" +
-                       "• Розподіл по курсах та факультетах\n" +
-                       "• Статистика звернень\n" +
-                       "• Експорт користувачів у CSV";
-        }
-
-        var keyboard = new InlineKeyboardMarkup(new[]
-        {
-            new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад до меню", "menu_main") }
-        });
-
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: helpText,
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
-    }
-
-    private async Task HandleInfoCommandInline(long chatId, long userId)
-    {
-        // Отримуємо контактну інформацію з БД
-        var contactInfo = await _context.ContactInfo.FirstOrDefaultAsync();
-        
-        string infoText;
-        if (contactInfo != null && !string.IsNullOrWhiteSpace(contactInfo.Content))
-        {
-            infoText = $"ℹ️ <b>{contactInfo.Title}</b>\n\n{contactInfo.Content}";
-            
-            if (contactInfo.UpdatedAt != default)
-            {
-                infoText += $"\n\n<i>Оновлено: {contactInfo.UpdatedAt:dd.MM.yyyy HH:mm}</i>";
-            }
-        }
-        else
-        {
-            infoText = "ℹ️ <b>Контактна інформація</b>\n\n" +
-                      "🏛️ Профспілка студентів\n\n" +
-                      "Контактна інформація ще не налаштована.\n" +
-                      "Зверніться до адміністратора.";
-        }
-
-        var keyboard = new InlineKeyboardMarkup(new[]
-        {
-            new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад до меню", "menu_main") }
-        });
-
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: infoText,
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
-    }
-
-    private async Task HandleDormitoryCommandInline(long chatId, long userId)
-    {
-        var dormitoryText = "🏠 <b>Розділ: Гуртожиток</b>\n\n" +
-                           "З питань щодо проживання та поселення в гуртожитки ви можете звернутись за допомогою електронної пошти:\n\n" +
-                           "📧 hostel@vnmu.edu.ua";
-
-        var keyboard = new InlineKeyboardMarkup(new[]
-        {
-            new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад до меню", "menu_main") }
-        });
-
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: dormitoryText,
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
-    }
-
-    private async Task HandleOpportunitiesCommandInline(long chatId, long userId)
-    {
-        var keyboard = new InlineKeyboardMarkup(new[]
-        {
-            new[] { InlineKeyboardButton.WithCallbackData("🤝 Партнери", "menu_partners") },
-            new[] { InlineKeyboardButton.WithCallbackData("🎉 Заходи", "menu_events") },
-            new[] { InlineKeyboardButton.WithCallbackData("💡 Запропонувати захід", "menu_suggest_event") },
-            new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад до меню", "menu_main") }
-        });
-
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: "🌟 <b>Розділ: Можливості</b>\n\n" +
-                  "Оберіть підрозділ:",
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
-    }
-
-    private async Task HandlePartnersCommandInline(long chatId, long userId)
-    {
-        // Отримуємо інформацію про партнерів з БД
-        var partnersInfo = await _context.PartnersInfo.FirstOrDefaultAsync();
-        
-        string partnersText;
-        if (partnersInfo != null && !string.IsNullOrWhiteSpace(partnersInfo.Content))
-        {
-            partnersText = $"🤝 <b>{partnersInfo.Title}</b>\n\n{partnersInfo.Content}";
-            
-            if (partnersInfo.UpdatedAt != default)
-            {
-                partnersText += $"\n\n<i>Оновлено: {partnersInfo.UpdatedAt:dd.MM.yyyy HH:mm}</i>";
-            }
-        }
-        else
-        {
-            partnersText = "🤝 <b>Партнери</b>\n\n" +
-                          "Профспілка студентів співпрацює з різними організаціями та компаніями, " +
-                          "які надають знижки та спеціальні пропозиції для студентів.\n\n" +
-                          "📋 Список партнерів та доступних знижок:\n\n" +
-                          "Інформація оновлюється. Слідкуйте за оголошеннями!";
-        }
-
-        var keyboard = new InlineKeyboardMarkup(new[]
-        {
-            new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад", "menu_opportunities") }
-        });
-
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: partnersText,
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
-    }
-
-    private async Task HandleEventsCommandInline(long chatId, long userId)
-    {
-        // Отримуємо інформацію про заходи з БД
-        var eventsInfo = await _context.EventsInfo.FirstOrDefaultAsync();
-        
-        string eventsText;
-        if (eventsInfo != null && !string.IsNullOrWhiteSpace(eventsInfo.Content))
-        {
-            eventsText = $"🎉 <b>{eventsInfo.Title}</b>\n\n{eventsInfo.Content}";
-            
-            if (eventsInfo.UpdatedAt != default)
-            {
-                eventsText += $"\n\n<i>Оновлено: {eventsInfo.UpdatedAt:dd.MM.yyyy HH:mm}</i>";
-            }
-        }
-        else
-        {
-            eventsText = "🎉 <b>Заходи</b>\n\n" +
-                        "Тут ви можете переглянути інформацію про майбутні та поточні заходи, " +
-                        "організовані профспілкою студентів.\n\n" +
-                        "📅 Актуальні заходи:\n\n" +
-                        "Інформація про заходи публікується через оголошення. " +
-                        "Слідкуйте за новинами від бота!";
-        }
-
-        var keyboard = new InlineKeyboardMarkup(new[]
-        {
-            new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад", "menu_opportunities") }
-        });
-
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: eventsText,
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
-    }
-
-    private async Task HandleSuggestEventCommandInline(long chatId, long userId)
-    {
-        var suggestText = "💡 <b>Запропонувати захід</b>\n\n" +
-                         "Маєте ідею для цікавого заходу? Хочете організувати щось разом з профспілкою?\n\n" +
-                         "📝 Заповніть форму для подачі пропозиції заходу:\n" +
-                         "🔗 https://forms.gle/14ZGAxv15zgyhUHg7\n\n" +
-                         "Ми розглянемо вашу пропозицію та зв'яжемося з вами!\n\n" +
-                         "💡 У формі вкажіть:\n" +
-                         "• Назву заходу\n" +
-                         "• Опис ідеї\n" +
-                         "• Бажаний формат та термін проведення\n" +
-                         "• Ваші контактні дані для зв'язку";
-
-        var keyboard = new InlineKeyboardMarkup(new[]
-        {
-            new[] { InlineKeyboardButton.WithUrl("📝 Відкрити форму", "https://forms.gle/14ZGAxv15zgyhUHg7") },
-            new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад", "menu_opportunities") }
-        });
-
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: suggestText,
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
-    }
-
-    private async Task HandleAdminAppealsMenuInline(long chatId, long userId)
-    {
-        var keyboard = new InlineKeyboardMarkup(new[]
-        {
-            new[] { InlineKeyboardButton.WithCallbackData("📬 Активні звернення", "admin_appeals_active") },
-            new[] { InlineKeyboardButton.WithCallbackData("📁 Закриті звернення", "admin_appeals_closed") },
-            new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад до меню", "menu_main") }
-        });
-
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: "� <b>Адміністрування звернень</b>\n\n" +
-                  "Оберіть категорію звернень для перегляду:",
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
-    }
-
-    private async Task HandleAdminPublishNewsMenuInline(long chatId, long userId)
-    {
-        var keyboard = new InlineKeyboardMarkup(new[]
-        {
-            new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад до меню", "menu_main") }
-        });
-
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: "� <b>Опублікувати оголошення</b>\n\n" +
-                  "Для публікації оголошення використовуйте команду:\n\n" +
-                  "<code>/publish Заголовок | Текст оголошення</code>\n\n" +
-                  "<b>Приклад:</b>\n" +
-                  "<code>/publish Нове оголошення | Текст вашого оголошення</code>\n\n" +
-                  "Оголошення буде розіслане всім активним користувачам бота.",
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
-    }
-
-    private async Task HandleAdminStatisticsInline(long chatId, long userId)
-    {
-        // Загальна статистика користувачів
-        var totalUsers = await _context.Users.CountAsync();
-        var totalActiveAppeals = await _context.Appeals.CountAsync(a => a.ClosedAt == null);
-        var totalClosedAppeals = await _context.Appeals.CountAsync(a => a.ClosedAt != null);
-        
-        // Розподіл по курсах
-        var usersByCourse = await _context.Users
-            .Where(u => u.Course.HasValue)
-            .GroupBy(u => u.Course)
-            .Select(g => new { Course = g.Key, Count = g.Count() })
-            .OrderBy(x => x.Course)
-            .ToListAsync();
-
-        // Розподіл по факультетах
-        var usersByFaculty = await _context.Users
-            .Where(u => !string.IsNullOrEmpty(u.Faculty))
-            .GroupBy(u => u.Faculty)
-            .Select(g => new { Faculty = g.Key, Count = g.Count() })
-            .OrderByDescending(x => x.Count)
-            .Take(5)
-            .ToListAsync();
-
-        var statsText = "📊 <b>Статистика бота</b>\n\n" +
-                       $"👥 <b>Користувачі:</b> {totalUsers}\n" +
-                       $"📬 <b>Активні звернення:</b> {totalActiveAppeals}\n" +
-                       $"📁 <b>Закриті звернення:</b> {totalClosedAppeals}\n\n";
-
-        if (usersByCourse.Any())
-        {
-            statsText += "📚 <b>Розподіл по курсах:</b>\n";
-            foreach (var item in usersByCourse)
-            {
-                statsText += $"• {item.Course} курс: {item.Count}\n";
-            }
-            statsText += "\n";
-        }
-
-        if (usersByFaculty.Any())
-        {
-            statsText += "🏛 <b>Топ-5 факультетів:</b>\n";
-            foreach (var item in usersByFaculty)
-            {
-                statsText += $"• {item.Faculty}: {item.Count}\n";
-            }
-        }
-
-        var keyboard = new InlineKeyboardMarkup(new[]
-        {
-            new[] { InlineKeyboardButton.WithCallbackData("🔄 Оновити", "admin_stats") },
-            new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад до меню", "menu_main") }
-        });
-
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: statsText,
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
-    }
-
-    private async Task HandleAdminEditContactsInline(long chatId, long userId)
-    {
-        var contactInfo = await _context.ContactInfo.FirstOrDefaultAsync();
-        
-        var infoText = "ℹ️ <b>Редагування контактної інформації</b>\n\n";
-        
-        if (contactInfo != null)
-        {
-            infoText += $"📝 <b>Поточний заголовок:</b>\n{contactInfo.Title}\n\n";
-            infoText += $"📄 <b>Поточний текст:</b>\n{contactInfo.Content}\n\n";
-            infoText += $"🕐 <b>Оновлено:</b> {contactInfo.UpdatedAt:dd.MM.yyyy HH:mm}\n\n";
-        }
-        else
-        {
-            infoText += "Контактна інформація ще не налаштована.\n\n";
-        }
-
-        infoText += "Для редагування використовуйте команду:\n" +
-                   "<code>/setcontact Заголовок | Текст інформації</code>\n\n" +
-                   "<b>Приклад:</b>\n" +
-                   "<code>/setcontact Контакти | 📧 Email: example@vnmu.edu.ua</code>";
-
-        var keyboard = new InlineKeyboardMarkup(new[]
-        {
-            new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад до меню", "menu_main") }
-        });
-
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: infoText,
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
-    }
-
-    private async Task HandleAdminEditPartnersInline(long chatId, long userId)
-    {
-        var partnersInfo = await _context.PartnersInfo.FirstOrDefaultAsync();
-        
-        var infoText = "🤝 <b>Редагування інформації про партнерів</b>\n\n";
-        
-        if (partnersInfo != null)
-        {
-            infoText += $"📝 <b>Поточний заголовок:</b>\n{partnersInfo.Title}\n\n";
-            infoText += $"📄 <b>Поточний текст:</b>\n{partnersInfo.Content}\n\n";
-            infoText += $"🕐 <b>Оновлено:</b> {partnersInfo.UpdatedAt:dd.MM.yyyy HH:mm}\n\n";
-        }
-        else
-        {
-            infoText += "Інформація про партнерів ще не налаштована.\n\n";
-        }
-
-        infoText += "Для редагування використовуйте команду:\n" +
-                   "<code>/setpartners Заголовок | Текст інформації</code>\n\n" +
-                   "<b>Приклад:</b>\n" +
-                   "<code>/setpartners Наші партнери | 🏪 Магазин XYZ - знижка 10%</code>";
-
-        var keyboard = new InlineKeyboardMarkup(new[]
-        {
-            new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад до меню", "menu_main") }
-        });
-
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: infoText,
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
-    }
-
-    private async Task HandleAdminEditEventsInline(long chatId, long userId)
-    {
-        var eventsInfo = await _context.EventsInfo.FirstOrDefaultAsync();
-        
-        var infoText = "🎉 <b>Редагування інформації про заходи</b>\n\n";
-        
-        if (eventsInfo != null)
-        {
-            infoText += $"📝 <b>Поточний заголовок:</b>\n{eventsInfo.Title}\n\n";
-            infoText += $"📄 <b>Поточний текст:</b>\n{eventsInfo.Content}\n\n";
-            infoText += $"🕐 <b>Оновлено:</b> {eventsInfo.UpdatedAt:dd.MM.yyyy HH:mm}\n\n";
-        }
-        else
-        {
-            infoText += "Інформація про заходи ще не налаштована.\n\n";
-        }
-
-        infoText += "Для редагування використовуйте команду:\n" +
-                   "<code>/setevents Заголовок | Текст інформації</code>\n\n" +
-                   "<b>Приклад:</b>\n" +
-                   "<code>/setevents Майбутні заходи | 🎭 Концерт 15.03 о 18:00</code>";
-
-        var keyboard = new InlineKeyboardMarkup(new[]
-        {
-            new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад до меню", "menu_main") }
-        });
-
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: infoText,
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
-    }
-
-    // Обробники звернень для inline-кнопок
-    private async Task HandleAppealViewInline(long chatId, long userId, int appealId)
-    {
-        var appeal = await _context.Appeals
-            .Include(a => a.Messages)
-            .FirstOrDefaultAsync(a => a.Id == appealId && a.StudentId == userId);
-
-        if (appeal == null)
-        {
-            await _botClient.SendTextMessageAsync(chatId, "❌ Звернення не знайдено або у вас немає до нього доступу.");
-            return;
-        }
-
-        var messageText = $"📩 <b>Звернення #{appeal.Id}</b>\n" +
-                         $"📅 Створено: {appeal.CreatedAt:dd.MM.yyyy HH:mm}\n" +
-                         $"📊 Статус: {GetAppealStatusText(appeal.Status)}\n\n" +
-                         $"💬 <b>Історія спілкування:</b>\n\n";
-
-        foreach (var msg in appeal.Messages.OrderBy(m => m.SentAt))
-        {
-            var senderName = msg.IsFromAdmin ? "Адміністратор" : "Ви";
-            var emoji = msg.IsFromAdmin ? "👨‍�" : "�";
-            messageText += $"{emoji} <b>{senderName}</b> ({msg.SentAt:dd.MM HH:mm}):\n{msg.Text}\n\n";
-        }
-
-        var keyboard = new InlineKeyboardMarkup(new[]
-        {
-            new[] { InlineKeyboardButton.WithCallbackData("✍️ Написати повідомлення", $"appeal_write_{appealId}") },
-            new[] { InlineKeyboardButton.WithCallbackData("🔒 Закрити звернення", $"appeal_close_{appealId}") },
-            new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад", "menu_appeals") }
-        });
-
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: messageText,
-            parseMode: ParseMode.Html,
-            replyMarkup: keyboard
-        );
-    }
-
-    private async Task HandleAppealWriteInline(long chatId, long userId, int appealId)
-    {
-        var appeal = await _context.Appeals.FirstOrDefaultAsync(a => a.Id == appealId && a.StudentId == userId);
-
-        if (appeal == null)
-        {
-            await _botClient.SendTextMessageAsync(chatId, "❌ Звернення не знайдено або у вас немає до нього доступу.");
-            return;
-        }
-
-        // Переводимо користувача в режим написання повідомлення
-        var userState = GetUserState(userId);
-        userState.DialogState = DialogState.WritingToAppeal;
-        userState.Data["AppealId"] = appealId;
-
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: "✍️ <b>Додати повідомлення до звернення</b>\n\n" +
-                  "Напишіть ваше повідомлення або надішліть фото/документ.\n\n" +
-                  "Щоб скасувати, натисніть /cancel",
-            parseMode: ParseMode.Html
-        );
-    }
-
-    private async Task HandleAppealCloseInline(long chatId, long userId, int appealId)
-    {
-        var appeal = await _context.Appeals.FirstOrDefaultAsync(a => a.Id == appealId && a.StudentId == userId);
-
-        if (appeal == null)
-        {
-            await _botClient.SendTextMessageAsync(chatId, "❌ Звернення не знайдено або у вас немає до нього доступу.");
-            return;
-        }
-
-        // Переводимо користувача в режим закриття звернення
-        var userState = GetUserState(userId);
-        userState.DialogState = DialogState.ClosingAppeal;
-        userState.Data["AppealToClose"] = appealId;
-
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: $"🔒 <b>Закриття звернення #{appealId}</b>\n\n" +
-                  "Будь ласка, вкажіть причину закриття звернення:\n" +
-                  "(наприклад: 'Проблему вирішено', 'Знайшов відповідь сам', тощо)\n\n" +
-                  "Щоб скасувати, натисніть /cancel",
-            parseMode: ParseMode.Html
-        );
-    }
-
-    private async Task HandleAppealCreateInline(long chatId, long userId)
-    {
-        // Перевіряємо чи користувач заблокований
-        if (await _userService.IsBannedAsync(userId))
-        {
-            await _botClient.SendTextMessageAsync(
-                chatId: chatId,
-                text: "🚫 <b>Доступ до створення звернень заборонено</b>\n\n" +
-                      "На жаль, вам заборонено створювати звернення через зловживання сервісом.\n\n" +
-                      "Якщо ви вважаєте, що це помилка, зв'яжіться з адміністрацією профспілки іншими способами.",
-                parseMode: ParseMode.Html
-            );
-            return;
-        }
-
-        var activeAppeal = _appealService.GetActiveAppealForStudent(userId);
-        if (activeAppeal != null)
-        {
-            await _botClient.SendTextMessageAsync(
-                chatId: chatId,
-                text: $"❌ У вас вже є активне звернення #{activeAppeal.Id}.\n\n" +
-                      "Спочатку закрийте його або дочекайтеся відповіді адміністратора.",
-                parseMode: ParseMode.Html
-            );
-            return;
-        }
-
-        // Переводимо в режим створення звернення
-        var userState = GetUserState(userId);
-        userState.DialogState = DialogState.CreatingAppeal;
-
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: "✍️ <b>Створення звернення</b>\n\n" +
-                  "Опишіть ваше питання або проблему.\n" +
-                  "Ви також можете надіслати фото або документ.\n\n" +
-                  "Щоб скасувати, натисніть /cancel",
-            parseMode: ParseMode.Html
-        );
-    }
-
-    private async Task HandleAdminActiveAppealsInline(long chatId, long userId)
-    {
-        var activeAppeals = await _context.Appeals
-            .Where(a => a.ClosedAt == null)
-            .OrderByDescending(a => a.CreatedAt)
-            .Take(10)
-            .ToListAsync();
-
-        if (!activeAppeals.Any())
-        {
-            var keyboard = new InlineKeyboardMarkup(new[]
-            {
-                new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад", "admin_appeals") }
-            });
-
-            await _botClient.SendTextMessageAsync(
-                chatId: chatId,
-                text: "📬 <b>Активні звернення</b>\n\n" +
-                      "Немає активних звернень.",
-                parseMode: ParseMode.Html,
-                replyMarkup: keyboard
-            );
-            return;
-        }
-
-        var messageText = "📬 <b>Активні звернення</b>\n\n";
-        var buttons = new List<InlineKeyboardButton[]>();
-
-        foreach (var appeal in activeAppeals)
-        {
-            var statusEmoji = appeal.Status == AppealStatus.New ? "🆕" : "✅";
-            var studentName = appeal.StudentName;
-            messageText += $"{statusEmoji} <b>#{appeal.Id}</b> - {studentName}\n" +
-                          $"📅 {appeal.CreatedAt:dd.MM.yyyy HH:mm}\n\n";
-            
-            buttons.Add(new[] 
-            { 
-                InlineKeyboardButton.WithCallbackData($"#{appeal.Id} - {studentName}", $"admin_appeal_view_{appeal.Id}") 
-            });
-        }
-
-        buttons.Add(new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад", "admin_appeals") });
-
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: messageText,
-            parseMode: ParseMode.Html,
-            replyMarkup: new InlineKeyboardMarkup(buttons)
-        );
-    }
-
-    private async Task HandleAdminClosedAppealsInline(long chatId, long userId)
-    {
-        var closedAppeals = await _context.Appeals
-            .Where(a => a.ClosedAt != null)
-            .OrderByDescending(a => a.ClosedAt)
-            .Take(10)
-            .ToListAsync();
-
-        if (!closedAppeals.Any())
-        {
-            var keyboard = new InlineKeyboardMarkup(new[]
-            {
-                new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад", "admin_appeals") }
-            });
-
-            await _botClient.SendTextMessageAsync(
-                chatId: chatId,
-                text: "📁 <b>Закриті звернення</b>\n\n" +
-                      "Немає закритих звернень.",
-                parseMode: ParseMode.Html,
-                replyMarkup: keyboard
-            );
-            return;
-        }
-
-        var messageText = "📁 <b>Закриті звернення (останні 10)</b>\n\n";
-        var buttons = new List<InlineKeyboardButton[]>();
-
-        foreach (var appeal in closedAppeals)
-        {
-            var studentName = appeal.StudentName;
-            messageText += $"✅ <b>#{appeal.Id}</b> - {studentName}\n" +
-                          $"🔒 {appeal.ClosedAt:dd.MM.yyyy HH:mm}\n\n";
-            
-            buttons.Add(new[] 
-            { 
-                InlineKeyboardButton.WithCallbackData($"#{appeal.Id} - {studentName}", $"admin_appeal_view_{appeal.Id}") 
-            });
-        }
-
-        buttons.Add(new[] { InlineKeyboardButton.WithCallbackData("◀️ Назад", "admin_appeals") });
-
-        await _botClient.SendTextMessageAsync(
-            chatId: chatId,
-            text: messageText,
-            parseMode: ParseMode.Html,
-            replyMarkup: new InlineKeyboardMarkup(buttons)
-        );
+            AppealStatus.New => "🆕 Нове",
+            AppealStatus.AdminReplied => "💬 Є відповідь адміна",
+            AppealStatus.StudentReplied => "📝 Є відповідь студента",
+            AppealStatus.ClosedByAdmin => "🔒 Закрито адміном",
+            AppealStatus.ClosedByStudent => "🔒 Закрито студентом",
+            _ => status.ToString()
+        };
     }
 }
-
-
 
 

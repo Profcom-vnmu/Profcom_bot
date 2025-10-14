@@ -25,13 +25,13 @@ public class UserService
     private HashSet<long> LoadAdminIds()
     {
         var adminIds = new HashSet<long>();
-        
+
         // Спочатку перевіряємо Environment Variable (пріоритет для Render.com)
         var adminIdsEnv = Environment.GetEnvironmentVariable("ADMIN_IDS");
         if (!string.IsNullOrEmpty(adminIdsEnv))
         {
             Console.WriteLine("🔑 Loading admin IDs from Environment Variable ADMIN_IDS");
-            
+
             try
             {
                 // Підтримуємо різні формати: "123,456,789" або "123;456;789" або "123 456 789"
@@ -39,7 +39,7 @@ public class UserService
                     .Split(new char[] { ',', ';', ' ', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
                     .Select(x => x.Trim())
                     .Where(x => !string.IsNullOrEmpty(x));
-                
+
                 foreach (var adminIdStr in adminIdStrings)
                 {
                     if (long.TryParse(adminIdStr, out var adminId))
@@ -52,7 +52,7 @@ public class UserService
                         Console.WriteLine($"⚠️ Invalid admin ID format: {adminIdStr}");
                     }
                 }
-                
+
                 Console.WriteLine($"🔑 Loaded {adminIds.Count} admin(s) from Environment Variable");
                 return adminIds;
             }
@@ -106,13 +106,13 @@ public class UserService
     private HashSet<long> LoadBannedUserIds()
     {
         var bannedIds = new HashSet<long>();
-        
+
         // Спочатку перевіряємо Environment Variable (пріоритет для Render.com)
         var bannedIdsEnv = Environment.GetEnvironmentVariable("BANNED_USER_IDS");
         if (!string.IsNullOrEmpty(bannedIdsEnv))
         {
             Console.WriteLine("🚫 Loading banned user IDs from Environment Variable BANNED_USER_IDS");
-            
+
             try
             {
                 // Підтримуємо різні формати: "123,456,789" або "123;456;789" або "123 456 789"
@@ -120,7 +120,7 @@ public class UserService
                     .Split(new char[] { ',', ';', ' ', '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries)
                     .Select(x => x.Trim())
                     .Where(x => !string.IsNullOrEmpty(x));
-                
+
                 foreach (var bannedIdStr in bannedIdStrings)
                 {
                     if (long.TryParse(bannedIdStr, out var bannedId))
@@ -133,7 +133,7 @@ public class UserService
                         Console.WriteLine($"⚠️ Invalid banned user ID format: {bannedIdStr}");
                     }
                 }
-                
+
                 Console.WriteLine($"🚫 Loaded {bannedIds.Count} banned user(s) from Environment Variable");
                 return bannedIds;
             }
@@ -372,7 +372,7 @@ public class UserService
     {
         if (string.IsNullOrEmpty(field))
             return field;
-            
+
         // Якщо поле містить лапки, замінюємо їх на подвійні лапки
         return field.Replace("\"", "\"\"");
     }
