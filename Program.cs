@@ -19,14 +19,18 @@ var botToken = Environment.GetEnvironmentVariable("BotToken")
     ?? throw new ArgumentNullException("BotToken", "Bot token is missing.");
 
 // Налаштування PostgreSQL - автоматичне визначення середовища
-var postgresConnectionString = Environment.GetEnvironmentVariable("DATABASE_URL");
+var renderDatabaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+var isRenderEnvironment = !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("RENDER")) 
+                         || !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("PORT"));
+
 BotDbContext dbContext;
 
-if (!string.IsNullOrEmpty(postgresConnectionString))
+if (isRenderEnvironment)
 {
-    // Render.com PostgreSQL (DATABASE_URL автоматично створюється при додаванні PostgreSQL Add-on)
+    // Render.com PostgreSQL - використовуємо внутрішній URL
+    var connectionString = renderDatabaseUrl ?? "postgresql://render_postgresql_5nyk_user:JYvtkcQIhpAtroaF8LOoT5W1qEdgptnI@dpg-d3n9jjb3fgac73af7550-a/render_postgresql_5nyk";
     Console.WriteLine("🐘 Using Render PostgreSQL database");
-    dbContext = new BotDbContext(postgresConnectionString, isPostgreSQL: true);
+    dbContext = new BotDbContext(connectionString, isPostgreSQL: true);
     Console.WriteLine($"📊 Database: Render PostgreSQL");
 }
 else

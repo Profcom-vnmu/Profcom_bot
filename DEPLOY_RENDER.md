@@ -41,26 +41,28 @@
 ⚠️ **Важливо:** Токен НЕ додавайте в код! Тільки як змінну середовища!
 
 **PostgreSQL налаштовується автоматично:**
-- DATABASE_URL створюється автоматично при додаванні PostgreSQL Add-on
-- Не потрібно додавати змінні бази даних вручну
+- Бот автоматично визначає Render середовище
+- Використовує вбудований PostgreSQL connection string
+- DATABASE_URL опціональна - працює і без неї
 
 ### КРОК 4: Додайте PostgreSQL Add-on
 
-**Важливо:** Замість Persistent Disk використовуємо PostgreSQL Add-on:
-
+**Варіант 1: Автоматичне використання DATABASE_URL**
 1. **У Dashboard вашого сервісу:**
    - Перейдіть до вкладки **"Environment"**
    - Натисніть **"Add PostgreSQL"** або **"Add Database"**
    - Виберіть **PostgreSQL**
    - Render автоматично створить змінну `DATABASE_URL`
 
-2. **Автоматичне налаштування:**
-   - ✅ Render створює PostgreSQL базу даних
-   - ✅ Автоматично встановлює змінну `DATABASE_URL`
-   - ✅ Бот автоматично використовує цю базу
-   - ✅ Міграції застосовуються при кожному запуску
+**Варіант 2: Використання вбудованого connection string**
+- Бот автоматично використає вбудований connection string для Render PostgreSQL
+- Не потрібно додавати DATABASE_URL - все працює автоматично
+- Connection string: `postgresql://render_postgresql_5nyk_user:JYvtkcQIhpAtroaF8LOoT5W1qEdgptnI@dpg-d3n9jjb3fgac73af7550-a/render_postgresql_5nyk`
 
-⚠️ **Важливо:** Не налаштовуйте Persistent Disk - використовуйте PostgreSQL Add-on!
+2. **Автоматичне налаштування:**
+   - ✅ Бот автоматично визначає Render середовище
+   - ✅ Використовує PostgreSQL для Render
+   - ✅ Міграції застосовуються при кожному запуску
 
 ### КРОК 5: Запустіть деплой
 1. Натисніть **"Create Web Service"**
