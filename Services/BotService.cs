@@ -1051,9 +1051,12 @@ public class BotService
             {
                 await _botClient.SendTextMessageAsync(
                     chatId: adminId,
-                    text: $"📩 Нове звернення #{appeal.Id}\n\n від: {userName}\n" +
-                          $"Дата: {appeal.CreatedAt:dd.MM.yyyy HH:mm}\n\n" +
-                          $"\n{appeal.Message}\n\n"
+                    text: $"📩 Нове звернення #{appeal.Id}\n\n" +
+                          $"👤 Від: {userName}\n" +
+                          $"📅 Дата: {appeal.CreatedAt:dd.MM.yyyy HH:mm}\n" +
+                          $"� Статус: {GetAppealStatusText(appeal.Status)}\n\n" +
+                          $"💬 Повідомлення:\n{appeal.Message}\n\n" +
+                          $"↩️ Щоб відповісти, натисніть Reply на це повідомлення"
                 );
             }
             catch (Exception ex)
@@ -1072,8 +1075,11 @@ public class BotService
         {
             try
             {
-                string notificationText = $"💬 Нове повідомлення до звернення #{appeal.Id} від: {userName}\n\n" +
-                        $"\n\n{messageText}";
+                string notificationText = $"💬 Нове повідомлення до звернення #{appeal.Id}\n\n" +
+                        $"👤 Від: {userName}\n" +
+                        $"📅 Час: {DateTime.Now:dd.MM.yyyy HH:mm}\n\n" +
+                        $"💬 Повідомлення:\n{messageText}\n\n" +
+                        $"↩️ Щоб відповісти, натисніть Reply на це повідомлення";
 
                 if (photoFileId != null)
                     notificationText += "\n📸 Прикріплено фото";
@@ -1099,18 +1105,45 @@ public class BotService
 
         // Витягуємо ID звернення з тексту повідомлення, на яке відповіли
         var replyText = message.ReplyToMessage.Text;
-        var appealIdMatch = System.Text.RegularExpressions.Regex.Match(replyText, @"звернення #(\d+)");
         
-        if (!appealIdMatch.Success)
+        // Пробуємо кілька варіантів regex для знаходження номера звернення
+        var appealIdPatterns = new[]
         {
+            @"звернення #(\d+)",           // "звернення #123"
+            @"звернення\s*#(\d+)",         // "звернення #123" з можливими пробілами
+            @"Нове звернення\s*#(\d+)",    // "Нове звернення #123"
+            @"повідомлення до звернення\s*#(\d+)", // "повідомлення до звернення #123"
+            @"#(\d+)",                     // просто "#123"
+        };
+
+        int appealId = -1;
+        bool found = false;
+
+        foreach (var pattern in appealIdPatterns)
+        {
+            var match = System.Text.RegularExpressions.Regex.Match(replyText, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+            if (match.Success)
+            {
+                appealId = int.Parse(match.Groups[1].Value);
+                found = true;
+                Console.WriteLine($"[DEBUG] Знайдено appeal ID {appealId} за допомогою паттерну: {pattern}");
+                break;
+            }
+        }
+        
+        if (!found)
+        {
+            // Додаємо детальну інформацію для дебагу
+            Console.WriteLine($"[DEBUG] Не вдалося знайти номер звернення в тексті: {replyText}");
+            
             await _botClient.SendTextMessageAsync(
                 chatId: message.Chat.Id,
-                text: "⚠️ Не вдалося знайти номер звернення в повідомленні, на яке ви відповіли."
+                text: "⚠️ Не вдалося знайти номер звернення в повідомленні, на яке ви відповіли.\n\n" +
+                      "💡 Переконайтеся, що відповідаєте на повідомлення, яке містить номер звернення.\n" +
+                      "Формат: 'звернення #123' або 'Нове звернення #123'"
             );
             return;
         }
-
-        var appealId = int.Parse(appealIdMatch.Groups[1].Value);
         var appeal = _appealService.GetAppealById(appealId);
 
         if (appeal == null)
@@ -1345,9 +1378,7 @@ public class BotService
             historyText += $"{sender} ({timeStamp}):\n{msg.Text}\n\n";
         }
 
-        historyText += "━━━━━━━━━━━━━━━━━━━━\n\n" +
-                      "💡 Щоб відповісти, зробіть Reply на це повідомлення\n" +
-                      "або натисніть кнопку 'Написати повідомлення'";
+        historyText += "━━━━━━━━━━━━━━━━━━━━\n\n" ;
 
         // Відправляємо історію одним повідомленням з клавіатурою
         var keyboardWithAppeal = new ReplyKeyboardMarkup(new[]
@@ -2545,8 +2576,7 @@ public class BotService
             historyText += $"{sender} ({timeStamp}):\n{msg.Text}\n\n";
         }
 
-        historyText += "━━━━━━━━━━━━━━━━━━━━\n\n" +
-                      "💡 Щоб відповісти, зробіть Reply на це повідомлення\nабо натисніть кнопку 'Відповісти'";
+        historyText += "━━━━━━━━━━━━━━━━━━━━\n\n";
 
         // Перевіряємо довжину повідомлення (ліміт Telegram - 4096 символів)
         if (historyText.Length > 4096)
