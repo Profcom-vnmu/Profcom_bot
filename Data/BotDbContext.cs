@@ -42,6 +42,7 @@ public class BotDbContext : DbContext
         modelBuilder.Entity<Appeal>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
             entity.Property(e => e.StudentName).IsRequired();
             entity.Property(e => e.Message).IsRequired();
         });
@@ -49,6 +50,7 @@ public class BotDbContext : DbContext
         modelBuilder.Entity<News>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
             entity.Property(e => e.Title).IsRequired();
             entity.Property(e => e.Content).IsRequired();
         });
@@ -62,6 +64,7 @@ public class BotDbContext : DbContext
         modelBuilder.Entity<AppealMessage>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
             entity.Property(e => e.Text).IsRequired();
             entity.HasOne(e => e.Appeal)
                 .WithMany(a => a.Messages)
@@ -72,6 +75,7 @@ public class BotDbContext : DbContext
         modelBuilder.Entity<ContactInfo>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
             entity.Property(e => e.Title).IsRequired();
             entity.Property(e => e.Content).IsRequired();
         });
@@ -79,6 +83,7 @@ public class BotDbContext : DbContext
         modelBuilder.Entity<PartnersInfo>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
             entity.Property(e => e.Title).IsRequired();
             entity.Property(e => e.Content).IsRequired();
         });
@@ -86,6 +91,7 @@ public class BotDbContext : DbContext
         modelBuilder.Entity<EventsInfo>(entity =>
         {
             entity.HasKey(e => e.Id);
+            entity.Property(e => e.Id).ValueGeneratedOnAdd();
             entity.Property(e => e.Title).IsRequired();
             entity.Property(e => e.Content).IsRequired();
         });
